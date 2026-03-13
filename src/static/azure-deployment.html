@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deploy to Azure - Performance Problem Simulator</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .docs-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .docs-content h1 { margin-bottom: 1.5rem; }
+    .docs-content h2 { 
+      margin-top: 2.5rem; 
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .docs-content h3 { margin-top: 1.5rem; color: var(--primary-color); }
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding-left: 0;
+    }
+    .steps li {
+      counter-increment: step;
+      padding: 1rem 0 1rem 3.5rem;
+      position: relative;
+      border-left: 2px solid var(--border-color);
+      margin-left: 1rem;
+    }
+    .steps li:last-child { border-left: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: -1.125rem;
+      top: 1rem;
+      width: 2.25rem;
+      height: 2.25rem;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    pre {
+      background: var(--surface-color);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.875rem;
+    }
+    code {
+      background: var(--surface-color);
+      padding: 0.125rem 0.375rem;
+      border-radius: 4px;
+    }
+    .info-box {
+      background: rgba(33, 150, 243, 0.1);
+      border: 1px solid #2196f3;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .warning-box {
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid #ff9800;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .file-content {
+      background: var(--surface-color);
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .file-content .filename {
+      background: var(--bg-color);
+      padding: 0.5rem 1rem;
+      border-radius: 8px 8px 0 0;
+      font-weight: bold;
+      font-family: monospace;
+    }
+    .file-content pre {
+      margin: 0;
+      border-radius: 0 0 8px 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <a href="/" class="icon-btn" aria-label="Back to dashboard">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+      </a>
+      <h1 class="header-title">Deploy to Azure</h1>
+    </div>
+    <div class="header-center">
+      <span class="sku-badge">Python Edition</span>
+    </div>
+    <div class="header-right"></div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content" style="margin-left: 0;">
+    <div class="docs-content">
+      <h1>Deploying to Azure App Service</h1>
+      <p>
+        This guide covers deploying the Performance Problem Simulator to Azure App Service
+        using GitHub Actions with OIDC authentication (no secrets required).
+      </p>
+
+      <div class="warning-box">
+        ⚠️ <strong>Educational Use Only:</strong> This application intentionally creates performance 
+        problems. Deploy only to dedicated test/training environments, not production workloads.
+      </div>
+
+      <h2>Prerequisites</h2>
+      <ul>
+        <li>Azure subscription</li>
+        <li>GitHub repository with the simulator code</li>
+        <li>Azure CLI installed locally</li>
+      </ul>
+
+      <h2>Option 1: Automated Deployment with GitHub Actions</h2>
+
+      <h3>Step 1: Create Azure Resources</h3>
+      <ol class="steps">
+        <li>
+          <strong>Create Resource Group</strong>
+          <pre>az group create \
+  --name rg-perf-simulator \
+  --location eastus</pre>
+        </li>
+        <li>
+          <strong>Create App Service Plan</strong>
+          <pre>az appservice plan create \
+  --name plan-perf-simulator \
+  --resource-group rg-perf-simulator \
+  --is-linux \
+  --sku B1</pre>
+        </li>
+        <li>
+          <strong>Create Web App</strong>
+          <pre>az webapp create \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --plan plan-perf-simulator \
+  --runtime "PYTHON:3.14"</pre>
+        </li>
+      </ol>
+
+      <h3>Step 2: Configure OIDC Authentication</h3>
+      <div class="info-box">
+        ℹ️ OIDC (OpenID Connect) allows GitHub Actions to authenticate with Azure without 
+        storing secrets. This is more secure than using service principal credentials.
+      </div>
+
+      <ol class="steps">
+        <li>
+          <strong>Create Microsoft Entra ID App Registration</strong>
+          <pre>az ad app create --display-name "GitHub-PerfSimulator"</pre>
+        </li>
+        <li>
+          <strong>Create Federated Credential</strong>
+          <pre>az ad app federated-credential create \
+  --id &lt;app-id&gt; \
+  --parameters '{
+    "name": "github-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:&lt;org&gt;/&lt;repo&gt;:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'</pre>
+        </li>
+        <li>
+          <strong>Assign Contributor Role</strong>
+          <pre>az role assignment create \
+  --assignee &lt;app-id&gt; \
+  --role Contributor \
+  --scope /subscriptions/&lt;sub-id&gt;/resourceGroups/rg-perf-simulator</pre>
+        </li>
+      </ol>
+
+      <h3>Step 3: Configure GitHub Repository</h3>
+      <p>Add these variables to your repository (Settings → Secrets and Variables → Actions → Variables):</p>
+      <ul>
+        <li><code>AZURE_CLIENT_ID</code> - App registration client ID</li>
+        <li><code>AZURE_TENANT_ID</code> - Your Azure AD tenant ID</li>
+        <li><code>AZURE_SUBSCRIPTION_ID</code> - Your subscription ID</li>
+        <li><code>AZURE_WEBAPP_NAME</code> - Name of your web app</li>
+      </ul>
+
+      <h3>Step 4: The Workflow File</h3>
+      <p>The repository includes <code>.github/workflows/deploy.yml</code>:</p>
+      
+      <div class="file-content">
+        <div class="filename">.github/workflows/deploy.yml</div>
+        <pre>name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: .</pre>
+      </div>
+
+      <h2>Option 2: Manual Deployment</h2>
+
+      <h3>Using Azure CLI</h3>
+      <pre># Package the application
+zip -r app.zip . -x "*.git*" -x "*__pycache__*" -x "*.pytest*"
+
+# Deploy
+az webapp deployment source config-zip \
+  --resource-group rg-perf-simulator \
+  --name app-perf-simulator-py \
+  --src app.zip</pre>
+
+      <h3>Using Docker</h3>
+      <pre># Build the image
+docker build -t perfsim-py:latest .
+
+# Tag for ACR
+docker tag perfsim-py:latest myregistry.azurecr.io/perfsim-py:latest
+
+# Push to ACR
+az acr login --name myregistry
+docker push myregistry.azurecr.io/perfsim-py:latest
+
+# Update App Service
+az webapp config container set \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --docker-custom-image-name myregistry.azurecr.io/perfsim-py:latest</pre>
+
+      <h2>Post-Deployment Configuration</h2>
+
+      <h3>Configure Application Settings</h3>
+      <pre>az webapp config appsettings set \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --settings \
+    APP_ENV=production \
+    LOG_LEVEL=INFO</pre>
+
+      <h3>Enable Application Insights</h3>
+      <pre># Create Application Insights
+az monitor app-insights component create \
+  --app insights-perf-simulator \
+  --location eastus \
+  --resource-group rg-perf-simulator
+
+# Get connection string and add to app settings
+CONNECTION_STRING=$(az monitor app-insights component show \
+  --app insights-perf-simulator \
+  --resource-group rg-perf-simulator \
+  --query connectionString -o tsv)
+
+az webapp config appsettings set \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --settings APPLICATIONINSIGHTS_CONNECTION_STRING=$CONNECTION_STRING</pre>
+
+      <h3>Configure Startup Command</h3>
+      <pre>az webapp config set \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --startup-file "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.main:app"</pre>
+
+      <h2>Verifying the Deployment</h2>
+      <ol class="steps">
+        <li>
+          <strong>Check health endpoint</strong>
+          <pre>curl https://app-perf-simulator-py.azurewebsites.net/api/health</pre>
+        </li>
+        <li>
+          <strong>Open the dashboard</strong>
+          <p>Navigate to <code>https://app-perf-simulator-py.azurewebsites.net</code></p>
+        </li>
+        <li>
+          <strong>Test a simulation</strong>
+          <pre>curl -X POST https://app-perf-simulator-py.azurewebsites.net/api/cpu/start \
+  -H "Content-Type: application/json" \
+  -d '{"duration_seconds": 10, "workers": 1}'</pre>
+        </li>
+      </ol>
+
+      <h2>Troubleshooting</h2>
+      
+      <h3>Common Issues</h3>
+      <ul>
+        <li><strong>500 errors</strong> - Check Application Logs in Kudu</li>
+        <li><strong>Container won't start</strong> - Verify Python version matches</li>
+        <li><strong>Static files not served</strong> - Ensure <code>whitenoise</code> is configured</li>
+        <li><strong>WebSocket fails</strong> - App Service supports WebSockets, ensure it's enabled</li>
+      </ul>
+
+      <h3>View Logs</h3>
+      <pre># Stream logs
+az webapp log tail \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator
+
+# Download logs
+az webapp log download \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator</pre>
+
+    </div>
+  </main>
+</body>
+</html>

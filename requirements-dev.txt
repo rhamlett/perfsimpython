@@ -1,0 +1,16 @@
+# Development dependencies for Performance Problem Simulator
+# Install via: pip install -r requirements-dev.txt
+
+# Include production dependencies
+-r requirements.txt
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+httpx>=0.26.0
+
+# Code quality
+black>=24.1.0
+ruff>=0.2.0
+mypy>=1.8.0

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Problem Simulator - Python</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/styles.css">
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <!-- Hamburger menu button -->
+      <button class="icon-btn" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+      </button>
+      <h1 class="header-title">Performance Problem Simulator</h1>
+    </div>
+    
+    <div class="header-center">
+      <span class="sku-badge">Python Edition</span>
+    </div>
+    
+    <div class="header-right">
+      <!-- Connection status -->
+      <div class="connection-status">
+        <span class="status-dot disconnected" id="connection-status-dot"></span>
+        <span id="connection-status-text">Disconnected</span>
+      </div>
+      
+      <!-- Panel toggle button -->
+      <button class="icon-btn" id="panel-toggle" aria-label="Toggle controls">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Left Sidebar Drawer -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Application</div>
+      <a href="/" class="sidebar-link active">Dashboard</a>
+    </div>
+    
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Documentation</div>
+      <a href="/docs.html" class="sidebar-link">API Documentation</a>
+      <a href="/azure-diagnostics.html" class="sidebar-link">Azure Diagnostics</a>
+      <a href="/azure-deployment.html" class="sidebar-link">Deploy to Azure</a>
+    </div>
+    
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">External Links</div>
+      <a href="https://github.com/azure-support/perf-simulator-python" class="sidebar-link" target="_blank" rel="noopener">
+        GitHub Repository ↗
+      </a>
+      <a href="/api/docs" class="sidebar-link" target="_blank" rel="noopener">
+        OpenAPI Docs ↗
+      </a>
+    </div>
+  </nav>
+
+  <!-- Right Side Panel (Simulation Controls) -->
+  <aside class="side-panel" id="side-panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Simulation Controls</h2>
+    </div>
+    
+    <div class="panel-content">
+      <!-- CPU Stress -->
+      <div class="control-section">
+        <div class="control-section-title">🔥 CPU Stress</div>
+        <form id="cpu-form">
+          <div class="form-group">
+            <label class="form-label" for="cpu-duration">Duration (seconds)</label>
+            <input type="number" class="form-input" id="cpu-duration" name="duration" 
+                   placeholder="Leave empty for indefinite" min="1" max="3600">
+            <span class="form-hint">Empty = run until stopped</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cpu-intensity">Intensity (1-10)</label>
+            <input type="number" class="form-input" id="cpu-intensity" name="intensity" 
+                   value="5" min="1" max="10">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cpu-workers">Workers</label>
+            <input type="number" class="form-input" id="cpu-workers" name="workers" 
+                   value="1" min="1" max="16">
+          </div>
+          <div class="btn-group">
+            <button type="submit" class="btn btn-danger">Start CPU Stress</button>
+            <button type="button" class="btn btn-outline" id="cpu-stop-all">Stop All</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Memory Pressure -->
+      <div class="control-section">
+        <div class="control-section-title">💾 Memory Pressure</div>
+        <form id="memory-form">
+          <div class="form-group">
+            <label class="form-label" for="memory-size">Size (MB)</label>
+            <input type="number" class="form-input" id="memory-size" name="size" 
+                   value="100" min="1" max="2048">
+          </div>
+          <div class="btn-group">
+            <button type="submit" class="btn btn-warning">Allocate Memory</button>
+            <button type="button" class="btn btn-outline" id="memory-release-all">Release All</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Blocking -->
+      <div class="control-section">
+        <div class="control-section-title">⏳ Blocking Simulation</div>
+        <form id="blocking-form">
+          <div class="form-group">
+            <label class="form-label" for="blocking-type">Type</label>
+            <select class="form-input" id="blocking-type" name="type">
+              <option value="sync">Synchronous (Thread Pool)</option>
+              <option value="async">Asynchronous (Event Loop)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="blocking-duration">Duration (seconds)</label>
+            <input type="number" class="form-input" id="blocking-duration" name="duration" 
+                   value="5" min="1" max="300">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="blocking-count">Count</label>
+            <input type="number" class="form-input" id="blocking-count" name="count" 
+                   value="1" min="1" max="100">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Start Blocking</button>
+        </form>
+      </div>
+
+      <!-- Slow Requests -->
+      <div class="control-section">
+        <div class="control-section-title">🐢 Slow Requests</div>
+        <form id="slow-form">
+          <div class="form-group">
+            <label class="form-label" for="slow-delay">Delay (seconds)</label>
+            <input type="number" class="form-input" id="slow-delay" name="delay" 
+                   value="5" min="1" max="300">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="slow-interval">Interval (seconds)</label>
+            <input type="number" class="form-input" id="slow-interval" name="interval" 
+                   value="1" min="0.1" max="60" step="0.1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="slow-count">Max Requests</label>
+            <input type="number" class="form-input" id="slow-count" name="count" 
+                   value="10" min="1" max="1000">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Start Generator</button>
+        </form>
+      </div>
+
+      <!-- Failed Requests -->
+      <div class="control-section">
+        <div class="control-section-title">❌ Failed Requests</div>
+        <form id="failed-form">
+          <div class="form-group">
+            <label class="form-label" for="failed-count">Count</label>
+            <input type="number" class="form-input" id="failed-count" name="count" 
+                   value="10" min="1" max="1000">
+          </div>
+          <button type="submit" class="btn btn-danger btn-block">Generate 500 Errors</button>
+        </form>
+      </div>
+
+      <!-- Crash Simulation -->
+      <div class="control-section">
+        <div class="control-section-title">💥 Crash Simulation</div>
+        <form id="crash-form">
+          <div class="form-group">
+            <label class="form-label" for="crash-type">Crash Type</label>
+            <select class="form-input" id="crash-type" name="type">
+              <option value="exception">Unhandled Exception</option>
+              <option value="stackoverflow">Stack Overflow</option>
+              <option value="oom">Out of Memory</option>
+              <option value="sigabrt">SIGABRT Signal</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-danger btn-block">⚠️ Trigger Crash</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+    <!-- Warning Banner -->
+    <div class="warning-banner">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+      </svg>
+      <span>
+        <strong>Educational Use Only:</strong> 
+        This application intentionally creates performance problems. 
+        Do not deploy to production environments.
+      </span>
+    </div>
+
+    <!-- Metric Tiles -->
+    <div class="metric-tiles">
+      <div class="metric-tile" id="cpu-tile">
+        <div class="metric-tile-label">CPU Usage</div>
+        <div class="metric-tile-value">
+          <span id="cpu-value">0</span>
+          <span class="metric-tile-unit">%</span>
+        </div>
+      </div>
+      
+      <div class="metric-tile" id="memory-tile">
+        <div class="metric-tile-label">Memory Usage</div>
+        <div class="metric-tile-value">
+          <span id="memory-value">0</span>
+          <span class="metric-tile-unit">%</span>
+        </div>
+      </div>
+      
+      <div class="metric-tile">
+        <div class="metric-tile-label">Process Memory</div>
+        <div class="metric-tile-value">
+          <span id="process-memory-value">0</span>
+          <span class="metric-tile-unit">MB</span>
+        </div>
+      </div>
+      
+      <div class="metric-tile">
+        <div class="metric-tile-label">Active Simulations</div>
+        <div class="metric-tile-value">
+          <span id="active-sims-value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-section">
+      <div class="chart-container">
+        <div class="chart-title">CPU & Memory Trend</div>
+        <div class="chart-wrapper">
+          <canvas id="cpu-memory-chart"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">Response Latency</div>
+        <div class="chart-wrapper">
+          <canvas id="latency-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Simulations -->
+    <div class="active-simulations">
+      <div class="section-title">Active Simulations</div>
+      <div id="simulation-list">
+        <div class="no-simulations">No active simulations</div>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="event-log">
+      <div class="section-title">Event Log</div>
+      <div class="event-log-list" id="event-log-list">
+        <div class="event-item">
+          <span class="event-time">--:--:--</span>
+          <span class="event-type info">info</span>
+          <span class="event-message">Waiting for connection...</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Overlay for mobile -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Scripts -->
+  <script src="/js/websocket-client.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

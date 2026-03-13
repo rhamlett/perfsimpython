@@ -1,0 +1,71 @@
+# Docker ignore file for Performance Problem Simulator
+# Excludes unnecessary files from Docker build context
+
+# Git
+.git
+.gitignore
+
+# Python caches
+__pycache__
+*.py[cod]
+*$py.class
+.Python
+*.so
+
+# Virtual environments
+.venv
+venv
+ENV
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+coverage.xml
+*.cover
+tests/
+
+# Type checking
+.mypy_cache
+.dmypy.json
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment files (use container env vars instead)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Development files
+*.md
+!README.md
+requirements-dev.txt
+
+# Specs (not needed in container)
+specs/
+.specify/
+
+# GitHub files
+.github/
+
+# Docker files (prevent recursive copies)
+Dockerfile*
+docker-compose*
+.dockerignore

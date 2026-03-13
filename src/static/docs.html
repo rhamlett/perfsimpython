@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Documentation - Performance Problem Simulator</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .docs-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .docs-content h1 { margin-bottom: 1.5rem; }
+    .docs-content h2 { 
+      margin-top: 2rem; 
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .docs-content h3 { margin-top: 1.5rem; color: var(--primary-color); }
+    .endpoint { 
+      background: var(--surface-color); 
+      padding: 1rem; 
+      border-radius: 8px; 
+      margin: 1rem 0;
+      border-left: 4px solid var(--primary-color);
+    }
+    .endpoint code { 
+      background: var(--bg-color); 
+      padding: 0.25rem 0.5rem; 
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+    .method { 
+      display: inline-block; 
+      padding: 0.25rem 0.5rem; 
+      border-radius: 4px; 
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    .method.get { background: #61affe; color: white; }
+    .method.post { background: #49cc90; color: white; }
+    .method.delete { background: #f93e3e; color: white; }
+    .toc { 
+      position: fixed;
+      right: 2rem;
+      top: 80px;
+      width: 200px;
+      padding: 1rem;
+      background: var(--surface-color);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+    .toc a { 
+      display: block; 
+      padding: 0.25rem 0; 
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .toc a:hover { color: var(--primary-color); }
+    @media (max-width: 1200px) {
+      .toc { display: none; }
+    }
+    .warning-box {
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid #ff9800;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    pre {
+      background: var(--surface-color);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <a href="/" class="icon-btn" aria-label="Back to dashboard">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+      </a>
+      <h1 class="header-title">API Documentation</h1>
+    </div>
+    <div class="header-center">
+      <span class="sku-badge">Python Edition</span>
+    </div>
+    <div class="header-right"></div>
+  </header>
+
+  <!-- Table of Contents -->
+  <nav class="toc">
+    <strong>Contents</strong>
+    <a href="#health">Health & Metrics</a>
+    <a href="#cpu">CPU Stress</a>
+    <a href="#memory">Memory Pressure</a>
+    <a href="#blocking">Blocking</a>
+    <a href="#slow">Slow Requests</a>
+    <a href="#crash">Crash Simulation</a>
+    <a href="#admin">Admin</a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content" style="margin-left: 0;">
+    <div class="docs-content">
+      <h1>API Reference</h1>
+      <p>
+        Complete API documentation for the Performance Problem Simulator.
+        All endpoints are prefixed with <code>/api</code>.
+      </p>
+
+      <div class="warning-box">
+        ⚠️ <strong>Warning:</strong> Simulation endpoints intentionally create performance problems.
+        Only use in controlled educational environments.
+      </div>
+
+      <!-- Health & Metrics -->
+      <h2 id="health">Health & Metrics</h2>
+      
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/health</code>
+        <p>Check application health status.</p>
+        <p><strong>Response:</strong></p>
+        <pre>{ "status": "healthy", "timestamp": "2024-01-01T00:00:00Z" }</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/metrics</code>
+        <p>Get current system and process metrics.</p>
+        <p><strong>Response:</strong></p>
+        <pre>{
+  "system": {
+    "cpu_percent": 25.5,
+    "memory_percent": 60.2,
+    "memory_available_mb": 8192
+  },
+  "process": {
+    "cpu_percent": 5.2,
+    "memory_mb": 128.5,
+    "threads": 8
+  }
+}</pre>
+      </div>
+
+      <!-- CPU Stress -->
+      <h2 id="cpu">CPU Stress Simulation</h2>
+      <p>Create CPU load using multiprocessing workers performing floating-point calculations.</p>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/cpu/start</code>
+        <p>Start CPU stress simulation.</p>
+        <p><strong>Request Body:</strong></p>
+        <pre>{
+  "duration_seconds": 30,  // Optional, null for indefinite
+  "intensity": 5,          // 1-10, default 5
+  "workers": 2             // 1-16, default CPU count
+}</pre>
+        <p><strong>Response:</strong></p>
+        <pre>{
+  "simulation_id": "uuid",
+  "workers": 2,
+  "message": "CPU stress started"
+}</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/cpu/stop</code>
+        <p>Stop a specific CPU simulation by ID.</p>
+        <p><strong>Request Body:</strong></p>
+        <pre>{ "simulation_id": "uuid" }</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/cpu/stop-all</code>
+        <p>Stop all running CPU simulations.</p>
+      </div>
+
+      <!-- Memory Pressure -->
+      <h2 id="memory">Memory Pressure Simulation</h2>
+      <p>Allocate and release memory blocks to simulate memory pressure.</p>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/memory/allocate</code>
+        <p>Allocate a memory block.</p>
+        <p><strong>Request Body:</strong></p>
+        <pre>{ "size_mb": 100 }  // 1-2048 MB</pre>
+        <p><strong>Response:</strong></p>
+        <pre>{
+  "block_id": "uuid",
+  "size_mb": 100,
+  "message": "Memory allocated"
+}</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/memory/release</code>
+        <p>Release a specific memory block.</p>
+        <pre>{ "block_id": "uuid" }</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/memory/release-all</code>
+        <p>Release all allocated memory blocks.</p>
+      </div>
+
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/memory/status</code>
+        <p>Get current memory allocation status.</p>
+      </div>
+
+      <!-- Blocking -->
+      <h2 id="blocking">Blocking Simulation</h2>
+      <p>Simulate synchronous (thread pool) and asynchronous (event loop) blocking.</p>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/blocking/sync</code>
+        <p>Block thread pool workers with synchronous sleep.</p>
+        <pre>{
+  "duration_seconds": 5,  // 0-300
+  "count": 1              // 1-100
+}</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/blocking/async</code>
+        <p>Block event loop with synchronous sleep (anti-pattern demo).</p>
+        <pre>{
+  "duration_seconds": 5,
+  "chunk_ms": 100  // Optional: yield between chunks
+}</pre>
+      </div>
+
+      <!-- Slow Requests -->
+      <h2 id="slow">Slow Request Simulation</h2>
+      <p>Generate artificially delayed responses.</p>
+
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/slow?delay_seconds=5</code>
+        <p>Return response after specified delay (0-300 seconds).</p>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/slow/start</code>
+        <p>Start periodic slow request generator.</p>
+        <pre>{
+  "interval_seconds": 1,
+  "max_requests": 10,
+  "delay_seconds": 5
+}</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/slow/stop</code>
+        <p>Stop the slow request generator.</p>
+      </div>
+
+      <!-- Crash -->
+      <h2 id="crash">Crash Simulation</h2>
+      
+      <div class="warning-box">
+        ⚠️ <strong>Danger:</strong> These endpoints will terminate the application!
+      </div>
+
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/crash/types</code>
+        <p>List available crash types with diagnostic information.</p>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/crash</code>
+        <p>Trigger application crash (requires confirmation).</p>
+        <pre>{
+  "crash_type": "exception",  // exception, stackoverflow, oom, sigabrt
+  "confirmed": true           // Must be true
+}</pre>
+      </div>
+
+      <!-- Admin -->
+      <h2 id="admin">Administration</h2>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/failed-requests</code>
+        <p>Generate HTTP 500 error log entries.</p>
+        <pre>{ "count": 10 }  // 1-1000</pre>
+      </div>
+
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <code>/api/admin/reset</code>
+        <p>Stop all simulations and release all resources.</p>
+      </div>
+
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <code>/api/admin/stats</code>
+        <p>Get detailed application statistics.</p>
+      </div>
+
+      <h2>WebSocket</h2>
+      <div class="endpoint">
+        <strong>WS</strong>
+        <code>/ws/metrics</code>
+        <p>Real-time metrics stream. Receives JSON messages every 500ms with system/process metrics.</p>
+      </div>
+
+    </div>
+  </main>
+</body>
+</html>

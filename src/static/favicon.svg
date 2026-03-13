@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Python-inspired performance simulator icon -->
+  <!-- Blue/Yellow snake pattern with CPU/performance theme -->
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#306998" stroke="#FFD43B" stroke-width="3"/>
+  
+  <!-- Python snake body - top coil -->
+  <path d="M35 30 Q50 20 65 30 Q75 40 65 50 Q55 55 45 50 Q35 45 35 35" 
+        fill="#FFD43B" stroke="#FFD43B" stroke-width="2"/>
+  
+  <!-- Python snake body - bottom coil -->
+  <path d="M65 70 Q50 80 35 70 Q25 60 35 50 Q45 45 55 50 Q65 55 65 65" 
+        fill="#306998" stroke="#FFD43B" stroke-width="2"/>
+  
+  <!-- Snake eyes -->
+  <circle cx="58" cy="32" r="3" fill="#306998"/>
+  <circle cx="42" cy="68" r="3" fill="#FFD43B"/>
+  
+  <!-- CPU/Performance indicator lines -->
+  <line x1="25" y1="50" x2="15" y2="50" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="75" y1="50" x2="85" y2="50" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="50" y1="25" x2="50" y2="15" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="50" y1="75" x2="50" y2="85" stroke="#FFD43B" stroke-width="2"/>
+  
+  <!-- Corner indicators (like CPU pins) -->
+  <line x1="28" y1="28" x2="20" y2="20" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="72" y1="28" x2="80" y2="20" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="28" y1="72" x2="20" y2="80" stroke="#FFD43B" stroke-width="2"/>
+  <line x1="72" y1="72" x2="80" y2="80" stroke="#FFD43B" stroke-width="2"/>
+</svg>

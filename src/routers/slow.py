@@ -1,0 +1,201 @@
+"""Slow request simulation API endpoints.
+
+Provides endpoints for simulating slow responses and generating
+periodic slow requests for latency diagnostics.
+"""
+
+import logging
+
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from src.services.event_log_service import event_log_service
+from src.services.slow_request_service import slow_request_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/slow")
+
+
+class SlowGeneratorStartRequest(BaseModel):
+    """Request to start slow request generator."""
+
+    interval_seconds: float = Field(
+        default=1.0,
+        gt=0,
+        le=60,
+        description="Interval between requests in seconds",
+    )
+    max_requests: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        description="Maximum number of requests to generate",
+    )
+    delay_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        le=300,
+        description="Delay for each slow request in seconds",
+    )
+
+
+class SlowResponse(BaseModel):
+    """Response for slow request."""
+
+    message: str
+    delay_seconds: float
+    actual_delay: float
+
+
+class SlowGeneratorStartResponse(BaseModel):
+    """Response for starting slow generator."""
+
+    started: bool
+    message: str
+    config: dict
+
+
+class SlowGeneratorStopResponse(BaseModel):
+    """Response for stopping slow generator."""
+
+    stopped: bool
+    message: str
+    generated_count: int
+
+
+class SlowGeneratorStatusResponse(BaseModel):
+    """Response for generator status."""
+
+    is_running: bool
+    generated_count: int
+    max_requests: int
+    interval_seconds: float
+    delay_seconds: float
+
+
+@router.get(
+    "",
+    response_model=SlowResponse,
+    summary="Slow response",
+    description="Returns a response after an artificial delay",
+)
+async def slow_request(
+    delay_seconds: float = Query(
+        default=5.0,
+        gt=0,
+        le=300,
+        description="Delay in seconds (max 300)",
+    ),
+) -> SlowResponse:
+    """Return a slow response after specified delay.
+
+    This endpoint adds artificial latency to demonstrate
+    slow response diagnostics.
+
+    Args:
+        delay_seconds: How long to delay the response.
+
+    Returns:
+        Response with delay information.
+    """
+    actual = await slow_request_service.slow_response(delay_seconds)
+
+    event_log_service.log_event(
+        event_type="slow_request",
+        message=f"Slow request completed with {delay_seconds}s delay",
+        metadata={"delay_seconds": delay_seconds, "actual_delay": actual},
+    )
+
+    return SlowResponse(
+        message=f"Response delayed by {delay_seconds} seconds",
+        delay_seconds=delay_seconds,
+        actual_delay=actual,
+    )
+
+
+@router.post(
+    "/start",
+    response_model=SlowGeneratorStartResponse,
+    summary="Start slow request generator",
+    description="Start generating periodic slow requests",
+)
+async def start_slow_generator(
+    request: SlowGeneratorStartRequest,
+) -> SlowGeneratorStartResponse:
+    """Start the slow request generator.
+
+    Creates a background task that generates slow requests
+    at the specified interval.
+
+    Args:
+        request: Generator configuration.
+
+    Returns:
+        Response indicating generator was started.
+
+    Raises:
+        HTTPException: If generator already running.
+    """
+    try:
+        await slow_request_service.start_slow_generator(
+            interval_seconds=request.interval_seconds,
+            max_requests=request.max_requests,
+            delay_seconds=request.delay_seconds,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return SlowGeneratorStartResponse(
+        started=True,
+        message="Slow request generator started",
+        config={
+            "interval_seconds": request.interval_seconds,
+            "max_requests": request.max_requests,
+            "delay_seconds": request.delay_seconds,
+        },
+    )
+
+
+@router.post(
+    "/stop",
+    response_model=SlowGeneratorStopResponse,
+    summary="Stop slow request generator",
+    description="Stop the slow request generator if running",
+)
+async def stop_slow_generator() -> SlowGeneratorStopResponse:
+    """Stop the slow request generator.
+
+    Returns:
+        Response with final generated count.
+    """
+    stopped = slow_request_service.stop_slow_generator()
+
+    return SlowGeneratorStopResponse(
+        stopped=stopped,
+        message="Slow request generator stopped" if stopped else "Generator was not running",
+        generated_count=slow_request_service.generated_count,
+    )
+
+
+@router.get(
+    "/status",
+    response_model=SlowGeneratorStatusResponse,
+    summary="Get generator status",
+    description="Get the status of the slow request generator",
+)
+async def get_generator_status() -> SlowGeneratorStatusResponse:
+    """Get slow request generator status.
+
+    Returns:
+        Current generator status and statistics.
+    """
+    stats = slow_request_service.get_stats()
+
+    return SlowGeneratorStatusResponse(
+        is_running=stats["is_running"],
+        generated_count=stats["generated_count"],
+        max_requests=stats["max_requests"],
+        interval_seconds=stats["interval_seconds"],
+        delay_seconds=stats["delay_seconds"],
+    )
