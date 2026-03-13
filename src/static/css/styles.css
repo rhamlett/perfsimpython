@@ -278,6 +278,10 @@ html, body {
   margin-left: var(--sidebar-width);
 }
 
+.main-content.no-sidebar {
+  margin-left: 0;
+}
+
 .main-content.panel-open {
   margin-right: var(--panel-width);
 }
