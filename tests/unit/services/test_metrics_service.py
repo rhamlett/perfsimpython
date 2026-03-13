@@ -1,6 +1,5 @@
 """Unit tests for MetricsService."""
 
-
 from src.services.metrics_service import MetricsService, metrics_service
 
 
