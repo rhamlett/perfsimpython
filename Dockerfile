@@ -1,8 +1,9 @@
 # Performance Problem Simulator - Python Edition
 # Multi-stage build for optimal image size
+# Using Microsoft Container Registry (MCR) blessed image
 
 # Stage 1: Build dependencies
-FROM python:3.14-slim as builder
+FROM mcr.microsoft.com/oryx/python:3.12 as builder
 
 WORKDIR /app
 
@@ -16,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
-FROM python:3.14-slim
+FROM mcr.microsoft.com/oryx/python:3.12
 
 # Add labels for container identification
 LABEL org.opencontainers.image.title="Performance Problem Simulator"
