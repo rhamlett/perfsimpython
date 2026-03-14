@@ -16,11 +16,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AZURE_WEBAPP_NAME: perfsimpython
   AZURE_RESOURCE_GROUP: perf-simulator-rg
-  ACR_NAME: perfsimpythonacr
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy Container
+  deploy:
+    name: Deploy Code
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     environment:
@@ -29,6 +28,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create deployment package
+        run: |
+          zip -r deploy.zip src/ docs/ requirements.txt
+
       - name: Azure Login via OIDC
         uses: azure/login@v2
         with:
@@ -36,27 +44,12 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.ACR_NAME }}
-
-      - name: Build and push Docker image
-        run: |
-          IMAGE_TAG=${{ env.ACR_NAME }}.azurecr.io/perf-simulator-python:${{ github.sha }}
-          IMAGE_LATEST=${{ env.ACR_NAME }}.azurecr.io/perf-simulator-python:latest
-          docker build -t $IMAGE_TAG -t $IMAGE_LATEST .
-          docker push $IMAGE_TAG
-          docker push $IMAGE_LATEST
-
       - name: Deploy to Azure Web App
-        run: |
-          az webapp config container set \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --container-image-name ${{ env.ACR_NAME }}.azurecr.io/perf-simulator-python:${{ github.sha }} \
-            --container-registry-url https://${{ env.ACR_NAME }}.azurecr.io
-
-      - name: Restart Web App
-        run: az webapp restart --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_WEBAPP_NAME }}
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: deploy.zip
+          startup-command: 'python -m uvicorn src.app:app --host 0.0.0.0 --port 8000'
 
       - name: Verify deployment
         run: |
