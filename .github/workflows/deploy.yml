@@ -45,13 +45,14 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: deploy.zip
-          startup-command: 'python -m uvicorn src.app:app --host 0.0.0.0 --port 8000'
+        run: |
+          az webapp deploy --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --src-path deploy.zip \
+            --type zip
 
       - name: Verify deployment
         run: |
-          sleep 30
+          echo "Waiting for Oryx build and app startup..."
+          sleep 90
           curl -f https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health || echo "Health check pending..."
