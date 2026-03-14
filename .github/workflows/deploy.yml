@@ -15,7 +15,7 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AZURE_WEBAPP_NAME: perfsimpython
-  AZURE_RESOURCE_GROUP: perf-simulator-rg
+  AZURE_RESOURCE_GROUP: rhamlettRG
 
 jobs:
   deploy:
