@@ -4,7 +4,7 @@ Provides consistent JSON error responses for all unhandled exceptions.
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from fastapi import FastAPI, Request
@@ -23,7 +23,9 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
     logging the full exception details for debugging.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Process the request and handle any exceptions.
 
         Args:
