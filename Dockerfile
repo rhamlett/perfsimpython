@@ -1,7 +1,7 @@
 # Performance Problem Simulator - Python Edition
-# Using Microsoft Container Registry (MCR) CBL-Mariner image
+# Using Microsoft Container Registry (MCR) Oryx image
 
-FROM mcr.microsoft.com/cbl-mariner/base/python:3.12
+FROM mcr.microsoft.com/oryx/python:3.12
 
 # Add labels for container identification
 LABEL org.opencontainers.image.title="Performance Problem Simulator"
@@ -24,6 +24,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV APP_ENV=production
 ENV PORT=8000
 
+# Configure Oryx to run our app directly (bypasses nginx)
+ENV DISABLE_ORYX_BUILD=true
+ENV STARTUP_COMMAND="python -m uvicorn src.app:app --host 0.0.0.0 --port 8000"
+
 # Expose the application port
 EXPOSE 8000
 
@@ -31,5 +35,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
 
-# Run the application
+# Override the oryx entrypoint and run the application directly
+ENTRYPOINT []
 CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
