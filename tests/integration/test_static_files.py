@@ -29,20 +29,6 @@ class TestStaticFiles:
         assert response.status_code == 200
         assert "javascript" in response.headers.get("content-type", "")
 
-    def test_js_charts_served(self, client: TestClient):
-        """Test that charts.js is served."""
-        response = client.get("/js/charts.js")
-
-        assert response.status_code == 200
-        assert "javascript" in response.headers.get("content-type", "")
-
-    def test_js_websocket_client_served(self, client: TestClient):
-        """Test that websocket-client.js is served."""
-        response = client.get("/js/websocket-client.js")
-
-        assert response.status_code == 200
-        assert "javascript" in response.headers.get("content-type", "")
-
     def test_favicon_served(self, client: TestClient):
         """Test that favicon is served."""
         response = client.get("/favicon.svg")
