@@ -1,554 +1,951 @@
 /**
- * Dashboard logic for Performance Problem Simulator
- * Handles UI interactions, form submissions, and real-time updates
+ * Performance Problem Simulator - Dashboard JavaScript (Python Edition)
+ * Matching .NET Core version functionality
  */
 
-// WebSocket client instance
-let wsClient = null;
+// ==========================================================================
+// Configuration & State
+// ==========================================================================
 
-// DOM element references
-const elements = {};
+const CONFIG = {
+    maxDataPoints: 240,  // 1 minute of data at 250ms intervals
+    maxLatencyDataPoints: 600, // 60 seconds of probe data
+    latencyProbeIntervalMs: 100,
+    latencyTimeoutMs: 30000,
+    reconnectDelayMs: 2000,
+    apiBaseUrl: '/api'
+};
 
-/**
- * Initialize the dashboard on page load
- */
-document.addEventListener('DOMContentLoaded', function() {
-  // Cache DOM elements
-  cacheElements();
-  
-  // Set up event listeners
-  setupEventListeners();
-  
-  // Initialize charts
-  if (typeof initializeCharts === 'function') {
-    initializeCharts();
-  }
-  
-  // Connect to WebSocket
-  connectWebSocket();
-});
+// Probe visualization history (24-dot indicator)
+const probeHistory = [];
+const MAX_PROBE_DOTS = 24;
 
-/**
- * Cache frequently accessed DOM elements
- */
-function cacheElements() {
-  // Header controls
-  elements.sidebarToggle = document.getElementById('sidebar-toggle');
-  elements.panelToggle = document.getElementById('panel-toggle');
-  
-  // Containers
-  elements.sidebar = document.getElementById('sidebar');
-  elements.sidePanel = document.getElementById('side-panel');
-  elements.mainContent = document.getElementById('main-content');
-  elements.overlay = document.getElementById('overlay');
-  
-  // Metric tiles
-  elements.cpuValue = document.getElementById('cpu-value');
-  elements.memoryValue = document.getElementById('memory-value');
-  elements.processMemoryValue = document.getElementById('process-memory-value');
-  elements.activeSimsValue = document.getElementById('active-sims-value');
-  
-  // Simulation list
-  elements.simulationList = document.getElementById('simulation-list');
-  
-  // Event log
-  elements.eventLog = document.getElementById('event-log-list');
+const state = {
+    wsConnection: null,
+    charts: {},
+    metricsHistory: {
+        timestamps: [],
+        cpu: [],
+        memory: [],
+        threads: [],
+        simulations: []
+    },
+    latencyHistory: {
+        timestamps: [],
+        values: [],
+        isTimeout: [],
+        isError: []
+    },
+    latencyStats: {
+        timeoutCount: 0
+    },
+    activeSimulations: new Map(),
+    lastProcessId: null
+};
+
+// ==========================================================================
+// UTC Time Formatting
+// ==========================================================================
+
+function formatUtcTime(date) {
+    if (!date || !(date instanceof Date)) return '';
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
 }
 
-/**
- * Set up event listeners for UI interactions
- */
-function setupEventListeners() {
-  // Sidebar toggle
-  if (elements.sidebarToggle) {
-    elements.sidebarToggle.addEventListener('click', toggleSidebar);
-  }
-  
-  // Panel toggle
-  if (elements.panelToggle) {
-    elements.panelToggle.addEventListener('click', togglePanel);
-  }
-  
-  // Overlay click closes sidebar/panel
-  if (elements.overlay) {
-    elements.overlay.addEventListener('click', closeAllDrawers);
-  }
-  
-  // CPU stress form
-  const cpuForm = document.getElementById('cpu-form');
-  if (cpuForm) {
-    cpuForm.addEventListener('submit', handleCpuFormSubmit);
-  }
-  
-  // CPU stop all button
-  const cpuStopAllBtn = document.getElementById('cpu-stop-all');
-  if (cpuStopAllBtn) {
-    cpuStopAllBtn.addEventListener('click', handleCpuStopAll);
-  }
-  
-  // Memory allocate form
-  const memoryForm = document.getElementById('memory-form');
-  if (memoryForm) {
-    memoryForm.addEventListener('submit', handleMemoryFormSubmit);
-  }
-  
-  // Memory release all button
-  const memoryReleaseAllBtn = document.getElementById('memory-release-all');
-  if (memoryReleaseAllBtn) {
-    memoryReleaseAllBtn.addEventListener('click', handleMemoryReleaseAll);
-  }
-  
-  // Blocking form
-  const blockingForm = document.getElementById('blocking-form');
-  if (blockingForm) {
-    blockingForm.addEventListener('submit', handleBlockingFormSubmit);
-  }
-  
-  // Slow request form
-  const slowForm = document.getElementById('slow-form');
-  if (slowForm) {
-    slowForm.addEventListener('submit', handleSlowFormSubmit);
-  }
-  
-  // Failed requests form
-  const failedForm = document.getElementById('failed-form');
-  if (failedForm) {
-    failedForm.addEventListener('submit', handleFailedFormSubmit);
-  }
-  
-  // Crash form
-  const crashForm = document.getElementById('crash-form');
-  if (crashForm) {
-    crashForm.addEventListener('submit', handleCrashFormSubmit);
-  }
+function getCurrentUtcTime() {
+    return formatUtcTime(new Date());
 }
 
-/**
- * Connect to WebSocket for real-time updates
- */
-function connectWebSocket() {
-  wsClient = new WebSocketClient({
-    onMessage: handleWebSocketMessage,
-    onStatusChange: handleConnectionStatusChange
-  });
-  
-  wsClient.connect();
-}
+// ==========================================================================
+// WebSocket Connection
+// ==========================================================================
 
-/**
- * Handle incoming WebSocket messages
- */
-function handleWebSocketMessage(data) {
-  // Update metric tiles
-  updateMetricTiles(data);
-  
-  // Update charts
-  if (typeof updateCharts === 'function') {
-    updateCharts(data);
-  }
-  
-  // Update active simulations list
-  updateSimulationList(data.active_simulations || []);
-  
-  // Update event log if new events
-  if (data.events) {
-    updateEventLog(data.events);
-  }
-}
-
-/**
- * Handle WebSocket connection status changes
- */
-function handleConnectionStatusChange(status) {
-  console.log('Connection status:', status);
-}
-
-/**
- * Update metric tile values
- */
-function updateMetricTiles(data) {
-  if (elements.cpuValue && data.cpu_percent !== undefined) {
-    elements.cpuValue.textContent = data.cpu_percent.toFixed(1);
+function initializeWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/metrics`;
     
-    // Update tile class based on value
-    const tile = elements.cpuValue.closest('.metric-tile');
-    if (tile) {
-      tile.classList.remove('success', 'warning', 'danger');
-      if (data.cpu_percent > 80) {
-        tile.classList.add('danger');
-      } else if (data.cpu_percent > 50) {
-        tile.classList.add('warning');
-      }
-    }
-  }
-  
-  if (elements.memoryValue && data.memory) {
-    elements.memoryValue.textContent = data.memory.percent.toFixed(1);
+    updateConnectionStatus('connecting', 'Connecting...');
     
-    const tile = elements.memoryValue.closest('.metric-tile');
-    if (tile) {
-      tile.classList.remove('success', 'warning', 'danger');
-      if (data.memory.percent > 80) {
-        tile.classList.add('danger');
-      } else if (data.memory.percent > 60) {
-        tile.classList.add('warning');
-      }
+    try {
+        state.wsConnection = new WebSocket(wsUrl);
+        
+        state.wsConnection.onopen = () => {
+            updateConnectionStatus('connected', 'Connected');
+            logEvent('system', 'Connected to metrics hub');
+        };
+        
+        state.wsConnection.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleMetricsUpdate(data);
+            } catch (e) {
+                console.error('Failed to parse WebSocket message:', e);
+            }
+        };
+        
+        state.wsConnection.onclose = (event) => {
+            updateConnectionStatus('disconnected', 'Disconnected');
+            logEvent('system', 'Connection closed. Attempting to reconnect...');
+            setTimeout(initializeWebSocket, CONFIG.reconnectDelayMs);
+        };
+        
+        state.wsConnection.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            updateConnectionStatus('disconnected', 'Connection error');
+        };
+    } catch (e) {
+        console.error('Failed to create WebSocket:', e);
+        updateConnectionStatus('disconnected', 'Failed to connect');
+        setTimeout(initializeWebSocket, CONFIG.reconnectDelayMs);
     }
-  }
-  
-  if (elements.processMemoryValue && data.process) {
-    elements.processMemoryValue.textContent = data.process.memory_mb.toFixed(0);
-  }
-  
-  if (elements.activeSimsValue && data.active_simulations) {
-    elements.activeSimsValue.textContent = data.active_simulations.length;
-  }
 }
 
-/**
- * Update the list of active simulations
- */
-function updateSimulationList(simulations) {
-  if (!elements.simulationList) return;
-  
-  if (simulations.length === 0) {
-    elements.simulationList.innerHTML = '<div class="no-simulations">No active simulations</div>';
-    return;
-  }
-  
-  const html = simulations.map(sim => `
-    <div class="simulation-item">
-      <div class="simulation-info">
-        <span class="simulation-type">${formatSimulationType(sim.type)}</span>
-        <span class="simulation-details">
-          Running for ${formatDuration(sim.elapsed_seconds)}
-          ${sim.duration_seconds ? ` / ${sim.duration_seconds}s` : ''}
-        </span>
-      </div>
-      <button class="btn btn-sm btn-danger" onclick="stopSimulation('${sim.type}', '${sim.id}')">
-        Stop
-      </button>
-    </div>
-  `).join('');
-  
-  elements.simulationList.innerHTML = html;
+function updateConnectionStatus(status, text) {
+    const indicator = document.getElementById('connectionIndicator');
+    const textEl = document.getElementById('connectionText');
+    
+    if (indicator) {
+        indicator.className = `indicator ${status}`;
+    }
+    if (textEl) {
+        textEl.textContent = text;
+    }
 }
 
-/**
- * Update the event log
- */
-function updateEventLog(events) {
-  if (!elements.eventLog) return;
-  
-  const html = events.map(event => `
-    <div class="event-item">
-      <span class="event-time">${formatEventTime(event.timestamp)}</span>
-      <span class="event-type ${event.event_type}">${event.event_type}</span>
-      <span class="event-message">${event.message}</span>
-    </div>
-  `).join('');
-  
-  elements.eventLog.innerHTML = html;
+// ==========================================================================
+// Metrics Handling
+// ==========================================================================
+
+function handleMetricsUpdate(data) {
+    // Update metric cards
+    const cpuPercent = data.cpu_percent || 0;
+    const memoryMb = data.process?.memory_mb || data.memory?.used_mb || 0;
+    const totalMemoryMb = data.memory?.total_mb || 1000;
+    const threadCount = data.process?.threads || 1;
+    const activeSimCount = data.active_simulations?.length || 0;
+
+    updateMetricCard('cpu', cpuPercent, '%', 100);
+    updateMetricCard('memory', memoryMb, 'MB', totalMemoryMb);
+    updateMetricCard('threads', threadCount, 'threads', 100);
+    updateMetricCard('queue', activeSimCount, 'active', 10);
+
+    // Update total memory display
+    const totalMemoryEl = document.getElementById('memoryTotal');
+    if (totalMemoryEl && totalMemoryMb) {
+        const totalFormatted = totalMemoryMb >= 1024 
+            ? (totalMemoryMb / 1024).toFixed(1) + ' GB'
+            : Math.round(totalMemoryMb) + ' MB';
+        totalMemoryEl.textContent = `of ${totalFormatted}`;
+    }
+
+    // Update history for charts
+    const timestamp = new Date();
+    addToHistory(timestamp, cpuPercent, memoryMb, threadCount, activeSimCount);
+    
+    // Update charts
+    updateCharts();
+    
+    // Handle latency if present
+    if (data.latency_ms !== undefined) {
+        handleLatencyUpdate({
+            timestamp: timestamp,
+            latencyMs: data.latency_ms,
+            isTimeout: data.latency_ms >= CONFIG.latencyTimeoutMs,
+            isError: false
+        });
+    }
+    
+    // Update active simulations
+    if (data.active_simulations) {
+        updateSimulationsList(data.active_simulations);
+    }
+    
+    // Update last update time
+    const lastUpdateEl = document.getElementById('lastUpdate');
+    if (lastUpdateEl) {
+        lastUpdateEl.textContent = formatUtcTime(timestamp) + ' UTC';
+    }
 }
 
-/**
- * Add a new event to the log
- */
-function addEventToLog(type, message) {
-  if (!elements.eventLog) return;
-  
-  const now = new Date();
-  const html = `
-    <div class="event-item">
-      <span class="event-time">${formatEventTime(now.toISOString())}</span>
-      <span class="event-type ${type}">${type}</span>
-      <span class="event-message">${message}</span>
-    </div>
-  `;
-  
-  elements.eventLog.insertAdjacentHTML('afterbegin', html);
-  
-  // Limit to 100 events
-  while (elements.eventLog.children.length > 100) {
-    elements.eventLog.lastChild.remove();
-  }
+function updateMetricCard(type, value, unit, maxForBar) {
+    const valueEl = document.getElementById(`${type}Value`);
+    const barEl = document.getElementById(`${type}Bar`);
+    
+    if (!valueEl) return;
+    
+    const card = valueEl.closest('.metric-card');
+    
+    // Format value
+    const displayValue = typeof value === 'number' ? 
+        (value < 10 ? value.toFixed(1) : Math.round(value)) : '--';
+    valueEl.textContent = displayValue;
+    
+    // Update bar
+    if (barEl) {
+        const barPercent = Math.min(100, (value / maxForBar) * 100);
+        barEl.style.width = `${barPercent}%`;
+    }
+    
+    // Warning states based on percentage of max
+    if (card) {
+        card.classList.remove('warning', 'danger');
+        const barPercent = (value / maxForBar) * 100;
+        if (type === 'cpu' || type === 'memory') {
+            if (barPercent > 80) card.classList.add('danger');
+            else if (barPercent > 60) card.classList.add('warning');
+        }
+    }
 }
 
-/**
- * Toggle sidebar visibility
- */
-function toggleSidebar() {
-  elements.sidebar?.classList.toggle('open');
-  elements.mainContent?.classList.toggle('sidebar-open');
-  elements.overlay?.classList.toggle('active', elements.sidebar?.classList.contains('open'));
+function addToHistory(timestamp, cpu, memory, threads, simulations) {
+    const history = state.metricsHistory;
+    
+    history.timestamps.push(timestamp);
+    history.cpu.push(cpu);
+    history.memory.push(memory);
+    history.threads.push(threads);
+    history.simulations.push(simulations);
+    
+    // Trim to max data points
+    while (history.timestamps.length > CONFIG.maxDataPoints) {
+        history.timestamps.shift();
+        history.cpu.shift();
+        history.memory.shift();
+        history.threads.shift();
+        history.simulations.shift();
+    }
 }
 
-/**
- * Toggle side panel visibility
- */
-function togglePanel() {
-  elements.sidePanel?.classList.toggle('open');
-  elements.mainContent?.classList.toggle('panel-open');
+// ==========================================================================
+// Charts
+// ==========================================================================
+
+function initializeCharts() {
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
+    }
+
+    // Resource chart (CPU + Memory)
+    const resourceCtx = document.getElementById('resourceChart');
+    if (resourceCtx) {
+        state.charts.resource = new Chart(resourceCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'CPU %',
+                        data: [],
+                        borderColor: '#0078d4',
+                        backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                        tension: 0.3,
+                        fill: 'origin',
+                        yAxisID: 'y',
+                        pointRadius: 0,
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Memory MB',
+                        data: [],
+                        borderColor: '#107c10',
+                        backgroundColor: 'rgba(16, 124, 16, 0.1)',
+                        tension: 0.3,
+                        fill: 'origin',
+                        yAxisID: 'y1',
+                        pointRadius: 0,
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 10,
+                            callback: (value, index) => {
+                                const date = state.metricsHistory.timestamps[index];
+                                return date ? formatUtcTime(date) : '';
+                            }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: 'CPU %' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: 0,
+                        title: { display: true, text: 'Memory MB' },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    }
+
+    // Thread chart
+    const threadCtx = document.getElementById('threadChart');
+    if (threadCtx) {
+        state.charts.threads = new Chart(threadCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Active Threads',
+                        data: [],
+                        borderColor: '#8764b8',
+                        backgroundColor: 'rgba(135, 100, 184, 0.3)',
+                        tension: 0.3,
+                        fill: 'origin',
+                        yAxisID: 'y',
+                        pointRadius: 0,
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Active Simulations',
+                        data: [],
+                        borderColor: '#ffb900',
+                        backgroundColor: 'rgba(255, 185, 0, 0.3)',
+                        tension: 0.3,
+                        fill: 'origin',
+                        yAxisID: 'y1',
+                        pointRadius: 0,
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 10,
+                            callback: (value, index) => {
+                                const date = state.metricsHistory.timestamps[index];
+                                return date ? formatUtcTime(date) : '';
+                            }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        title: { display: true, text: 'Threads' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: 0,
+                        title: { display: true, text: 'Simulations' },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    }
+
+    // Latency chart
+    const latencyCtx = document.getElementById('latencyChart');
+    if (latencyCtx) {
+        state.charts.latency = new Chart(latencyCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Latency (ms)',
+                        data: [],
+                        borderColor: '#0078d4',
+                        backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                        tension: 0.2,
+                        fill: 'origin',
+                        pointRadius: 0,
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 6,
+                            maxRotation: 0,
+                            font: { size: 10 },
+                            callback: (value, index) => {
+                                const date = state.latencyHistory.timestamps[index];
+                                return date ? formatUtcTime(date) : '';
+                            }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        grace: '5%',
+                        title: { display: true, text: 'Latency (ms)', font: { size: 10 } },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: (value) => {
+                                if (value >= 1000) {
+                                    return (value / 1000).toFixed(1) + 's';
+                                }
+                                return value + 'ms';
+                            }
+                        }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
 }
 
-/**
- * Close all drawers
- */
-function closeAllDrawers() {
-  elements.sidebar?.classList.remove('open');
-  elements.mainContent?.classList.remove('sidebar-open');
-  elements.overlay?.classList.remove('active');
+function updateCharts() {
+    const history = state.metricsHistory;
+    const labels = history.timestamps.map(t => formatUtcTime(t));
+    
+    // Update resource chart
+    if (state.charts.resource) {
+        state.charts.resource.data.labels = labels;
+        state.charts.resource.data.datasets[0].data = history.cpu;
+        state.charts.resource.data.datasets[1].data = history.memory;
+        state.charts.resource.update('none');
+    }
+    
+    // Update thread chart
+    if (state.charts.threads) {
+        state.charts.threads.data.labels = labels;
+        state.charts.threads.data.datasets[0].data = history.threads;
+        state.charts.threads.data.datasets[1].data = history.simulations;
+        state.charts.threads.update('none');
+    }
 }
 
-/**
- * Format simulation type for display
- */
+// ==========================================================================
+// Latency Monitoring
+// ==========================================================================
+
+function handleLatencyUpdate(measurement) {
+    const timestamp = measurement.timestamp instanceof Date ? measurement.timestamp : new Date(measurement.timestamp);
+    const latencyMs = measurement.latencyMs;
+    const isTimeout = measurement.isTimeout;
+    const isError = measurement.isError;
+
+    addLatencyToHistory(timestamp, latencyMs, isTimeout, isError);
+    updateLatencyDisplay(latencyMs, isTimeout, isError);
+    updateLatencyChart();
+    updateProbeVisualization(latencyMs);
+}
+
+function addLatencyToHistory(timestamp, latencyMs, isTimeout, isError) {
+    const history = state.latencyHistory;
+    
+    history.timestamps.push(timestamp);
+    history.values.push(latencyMs);
+    history.isTimeout.push(isTimeout);
+    history.isError.push(isError);
+    
+    if (isTimeout) {
+        state.latencyStats.timeoutCount++;
+    }
+    
+    while (history.timestamps.length > CONFIG.maxLatencyDataPoints) {
+        history.timestamps.shift();
+        const wasTimeout = history.isTimeout.shift();
+        history.values.shift();
+        history.isError.shift();
+        
+        if (wasTimeout) {
+            state.latencyStats.timeoutCount = Math.max(0, state.latencyStats.timeoutCount - 1);
+        }
+    }
+}
+
+function updateLatencyDisplay(currentLatency, isTimeout, isError) {
+    const history = state.latencyHistory;
+    
+    const currentEl = document.getElementById('latencyCurrent');
+    if (currentEl) {
+        currentEl.textContent = formatLatency(currentLatency);
+        currentEl.className = `latency-value ${getLatencyClass(currentLatency, isTimeout)}`;
+    }
+    
+    const avgEl = document.getElementById('latencyAverage');
+    if (avgEl && history.values.length > 0) {
+        const avg = history.values.reduce((a, b) => a + b, 0) / history.values.length;
+        avgEl.textContent = formatLatency(avg);
+        avgEl.className = `latency-value ${getLatencyClass(avg, false)}`;
+    }
+    
+    const maxEl = document.getElementById('latencyMax');
+    if (maxEl && history.values.length > 0) {
+        const max = Math.max(...history.values);
+        maxEl.textContent = formatLatency(max);
+        maxEl.className = `latency-value ${getLatencyClass(max, false)}`;
+    }
+    
+    const timeoutsEl = document.getElementById('latencyTimeouts');
+    if (timeoutsEl) {
+        timeoutsEl.textContent = state.latencyStats.timeoutCount;
+        timeoutsEl.className = state.latencyStats.timeoutCount > 0 ? 'latency-value timeout' : 'latency-value';
+    }
+}
+
+function formatLatency(ms) {
+    if (ms >= 10000) {
+        return (ms / 1000).toFixed(1) + 's';
+    } else if (ms >= 1000) {
+        return (ms / 1000).toFixed(2) + 's';
+    } else {
+        return ms.toFixed(1) + 'ms';
+    }
+}
+
+function getLatencyClass(ms, isTimeout) {
+    if (isTimeout) return 'timeout';
+    if (ms > 1000) return 'danger';
+    if (ms > 150) return 'warning';
+    return 'good';
+}
+
+function updateProbeVisualization(latency) {
+    let status = 'good';
+    if (latency >= 30000) status = 'failed';
+    else if (latency >= 1000) status = 'slow';
+    else if (latency >= 150) status = 'degraded';
+
+    probeHistory.push(status);
+    if (probeHistory.length > MAX_PROBE_DOTS) {
+        probeHistory.shift();
+    }
+
+    const vizEl = document.getElementById('probe-visualization');
+    if (vizEl) {
+        vizEl.innerHTML = probeHistory.map(s =>
+            `<span class="probe-dot-inline ${s === 'good' ? '' : s}"></span>`
+        ).join('');
+    }
+}
+
+function updateLatencyChart() {
+    if (!state.charts.latency) return;
+    
+    const history = state.latencyHistory;
+    
+    state.charts.latency.data.labels = history.timestamps.map(t => formatUtcTime(t));
+    state.charts.latency.data.datasets[0].data = history.values;
+    state.charts.latency.update('none');
+}
+
+// ==========================================================================
+// Simulations List
+// ==========================================================================
+
+function updateSimulationsList(simulations) {
+    const container = document.getElementById('simulationsList');
+    if (!container) return;
+    
+    if (!simulations || simulations.length === 0) {
+        container.innerHTML = '<p class="no-simulations">No active simulations</p>';
+        return;
+    }
+    
+    const html = simulations.map(sim => {
+        const typeClass = sim.type?.toLowerCase().replace('_', '') || 'cpu';
+        return `
+            <div class="simulation-badge ${typeClass}">
+                <span class="spinner"></span>
+                <span>${formatSimulationType(sim.type)}</span>
+                <span>${formatDuration(sim.elapsed_seconds || 0)}</span>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
 function formatSimulationType(type) {
-  const types = {
-    'cpu_stress': 'CPU Stress',
-    'memory_pressure': 'Memory Pressure',
-    'sync_blocking': 'Sync Blocking',
-    'async_blocking': 'Async Blocking',
-    'slow_request': 'Slow Request',
-    'failed_request': 'Failed Request'
-  };
-  return types[type] || type;
+    const types = {
+        'cpu_stress': '🔥 CPU Stress',
+        'memory_pressure': '📊 Memory',
+        'sync_blocking': '🧵 Sync Block',
+        'async_blocking': '🧵 Async Block',
+        'slow_request': '🐌 Slow Request',
+        'failed_request': '❌ Failed Request'
+    };
+    return types[type] || type;
 }
 
-/**
- * Format duration in seconds to human-readable string
- */
 function formatDuration(seconds) {
-  if (seconds < 60) {
-    return `${Math.floor(seconds)}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${minutes}m ${secs}s`;
-}
-
-/**
- * Format event timestamp
- */
-function formatEventTime(isoString) {
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  } catch (e) {
-    return isoString;
-  }
-}
-
-/**
- * Stop a specific simulation
- */
-async function stopSimulation(type, id) {
-  const endpoints = {
-    'cpu_stress': '/api/cpu/stop',
-    'memory_pressure': '/api/memory/release',
-    'sync_blocking': '/api/blocking/stop',
-    'async_blocking': '/api/blocking/stop',
-    'slow_request': '/api/slow/stop'
-  };
-  
-  const endpoint = endpoints[type];
-  if (!endpoint) {
-    console.error('Unknown simulation type:', type);
-    return;
-  }
-  
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ simulation_id: id })
-    });
-    
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('info', `Stopped ${formatSimulationType(type)} simulation`);
+    if (seconds < 60) {
+        return `${Math.floor(seconds)}s`;
     }
-  } catch (error) {
-    console.error('Failed to stop simulation:', error);
-    addEventToLog('error', `Failed to stop simulation: ${error.message}`);
-  }
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}m ${secs}s`;
 }
 
-// Form submission handlers
-async function handleCpuFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  
-  try {
-    const response = await fetch('/api/cpu/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        duration_seconds: formData.get('duration') ? parseFloat(formData.get('duration')) : null,
-        intensity: parseInt(formData.get('intensity')) || 5,
-        workers: parseInt(formData.get('workers')) || 1
-      })
-    });
+// ==========================================================================
+// Event Logging
+// ==========================================================================
+
+function logEvent(type, message, options = {}) {
+    const container = document.getElementById('eventLog');
+    if (!container) return;
     
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('start', 'CPU stress started');
-    } else {
-      addEventToLog('error', result.message || 'Failed to start CPU stress');
+    const timestamp = getCurrentUtcTime();
+    const icon = options.icon || getEventIcon(type);
+    
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-time">${timestamp}</span> <span class="log-icon">${icon}</span> ${message}`;
+    
+    container.insertBefore(entry, container.firstChild);
+    
+    // Limit to 100 entries
+    while (container.children.length > 100) {
+        container.lastChild.remove();
     }
-  } catch (error) {
-    addEventToLog('error', `Failed to start CPU stress: ${error.message}`);
-  }
 }
 
-async function handleCpuStopAll() {
-  try {
-    const response = await fetch('/api/cpu/stop-all', { method: 'POST' });
-    const result = await response.json();
-    addEventToLog('stop', `Stopped ${result.data?.stopped_count || 0} CPU simulation(s)`);
-  } catch (error) {
-    addEventToLog('error', `Failed to stop CPU stress: ${error.message}`);
-  }
+function getEventIcon(type) {
+    const icons = {
+        'system': '💻',
+        'cpu': '🔥',
+        'memory': '📊',
+        'threads': '🧵',
+        'slowrequest': '🐌',
+        'failedrequests': '❌',
+        'crash': '💥',
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '🚨'
+    };
+    return icons[type] || '📝';
 }
 
-async function handleMemoryFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  
-  try {
-    const response = await fetch('/api/memory/allocate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        size_mb: parseInt(formData.get('size')) || 100
-      })
-    });
+// ==========================================================================
+// Simulation Controls
+// ==========================================================================
+
+async function triggerCpuStress() {
+    const duration = parseInt(document.getElementById('cpuDuration').value) || 30;
+    const level = document.getElementById('cpuLevel').value || 'high';
     
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('start', `Allocated ${formData.get('size') || 100} MB memory`);
-    } else {
-      addEventToLog('error', result.message || 'Failed to allocate memory');
+    try {
+        logEvent('cpu', `Triggering CPU stress for ${duration} seconds (${level})...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/cpu/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                duration_seconds: duration,
+                intensity: level === 'high' ? 8 : 5,
+                workers: level === 'high' ? 4 : 2
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            logEvent('cpu', 'CPU stress started');
+        } else {
+            const error = await response.json();
+            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        logEvent('error', `Request failed: ${err.message}`);
     }
-  } catch (error) {
-    addEventToLog('error', `Failed to allocate memory: ${error.message}`);
-  }
 }
 
-async function handleMemoryReleaseAll() {
-  try {
-    const response = await fetch('/api/memory/release-all', { method: 'POST' });
-    const result = await response.json();
-    addEventToLog('stop', 'Released all memory blocks');
-  } catch (error) {
-    addEventToLog('error', `Failed to release memory: ${error.message}`);
-  }
-}
-
-async function handleBlockingFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  const blockType = formData.get('type') || 'sync';
-  
-  try {
-    const response = await fetch(`/api/blocking/${blockType}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        duration_seconds: parseFloat(formData.get('duration')) || 5,
-        count: parseInt(formData.get('count')) || 1
-      })
-    });
-    
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('start', `Started ${blockType} blocking`);
-    } else {
-      addEventToLog('error', result.message || 'Failed to start blocking');
+async function stopCpuStress() {
+    try {
+        logEvent('cpu', 'Stopping CPU stress simulations...');
+        const response = await fetch(`${CONFIG.apiBaseUrl}/cpu/stop`, { method: 'POST' });
+        
+        if (response.ok) {
+            logEvent('cpu', 'CPU stress stopped');
+        }
+    } catch (err) {
+        logEvent('error', `Stop request failed: ${err.message}`);
     }
-  } catch (error) {
-    addEventToLog('error', `Failed to start blocking: ${error.message}`);
-  }
 }
 
-async function handleSlowFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  
-  try {
-    const response = await fetch('/api/slow/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        delay_seconds: parseFloat(formData.get('delay')) || 5,
-        interval_seconds: parseFloat(formData.get('interval')) || 1,
-        max_requests: parseInt(formData.get('count')) || 10
-      })
-    });
+async function allocateMemory() {
+    const sizeMb = parseInt(document.getElementById('memorySize').value) || 100;
     
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('start', 'Started slow request generator');
-    } else {
-      addEventToLog('error', result.message || 'Failed to start slow requests');
+    try {
+        logEvent('memory', `Allocating ${sizeMb} MB of memory...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/memory/allocate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ size_mb: sizeMb })
+        });
+        
+        if (response.ok) {
+            logEvent('memory', `Allocated ${sizeMb} MB`);
+        } else {
+            const error = await response.json();
+            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        logEvent('error', `Request failed: ${err.message}`);
     }
-  } catch (error) {
-    addEventToLog('error', `Failed to start slow requests: ${error.message}`);
-  }
 }
 
-async function handleFailedFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  
-  try {
-    const response = await fetch('/api/failed-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        count: parseInt(formData.get('count')) || 10
-      })
-    });
-    
-    const result = await response.json();
-    if (result.success) {
-      addEventToLog('info', `Generated ${formData.get('count') || 10} failed requests`);
-    } else {
-      addEventToLog('error', result.message || 'Failed to generate errors');
+async function releaseMemory() {
+    try {
+        logEvent('memory', 'Releasing all memory allocations...');
+        const response = await fetch(`${CONFIG.apiBaseUrl}/memory/release`, { method: 'POST' });
+        
+        if (response.ok) {
+            logEvent('memory', 'Memory released');
+        }
+    } catch (err) {
+        logEvent('error', `Release request failed: ${err.message}`);
     }
-  } catch (error) {
-    addEventToLog('error', `Failed to generate errors: ${error.message}`);
-  }
 }
 
-async function handleCrashFormSubmit(event) {
-  event.preventDefault();
-  const formData = new FormData(event.target);
-  const crashType = formData.get('type') || 'exception';
-  
-  // Confirm dangerous action
-  if (!confirm(`WARNING: This will crash the application with a "${crashType}" crash. Continue?`)) {
-    return;
-  }
-  
-  try {
-    addEventToLog('warning', `Triggering ${crashType} crash...`);
+async function triggerThreadBlock() {
+    const delay = parseFloat(document.getElementById('threadDelay').value) || 10;
+    const count = parseInt(document.getElementById('threadConcurrent').value) || 10;
     
-    const response = await fetch('/api/crash', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ crash_type: crashType })
-    });
-    
-    // If we get here, the crash didn't happen as expected
-    const result = await response.json();
-    addEventToLog('error', result.message || 'Crash did not occur');
-  } catch (error) {
-    addEventToLog('error', `Crash triggered: connection lost`);
-  }
+    try {
+        logEvent('threads', `Starting ${count} blocking operations (${delay}s each)...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                type: 'sync',
+                duration_seconds: delay,
+                count: count
+            })
+        });
+        
+        if (response.ok) {
+            logEvent('threads', 'Blocking operations started');
+        } else {
+            const error = await response.json();
+            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        logEvent('error', `Request failed: ${err.message}`);
+    }
 }
+
+async function stopThreadBlock() {
+    try {
+        logEvent('threads', 'Stopping blocking operations...');
+        const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/stop`, { method: 'POST' });
+        
+        if (response.ok) {
+            logEvent('threads', 'Blocking operations stopped');
+        }
+    } catch (err) {
+        logEvent('error', `Stop request failed: ${err.message}`);
+    }
+}
+
+async function startSlowRequests() {
+    const duration = parseInt(document.getElementById('slowRequestDuration').value) || 25;
+    const interval = parseFloat(document.getElementById('slowRequestInterval').value) || 2;
+    const maxRequests = parseInt(document.getElementById('slowRequestMax').value) || 10;
+    
+    try {
+        logEvent('slowrequest', `Starting slow request generator (${duration}s, interval ${interval}s, max ${maxRequests})...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/slow/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                delay_seconds: duration,
+                interval_seconds: interval,
+                max_requests: maxRequests
+            })
+        });
+        
+        if (response.ok) {
+            logEvent('slowrequest', 'Slow request generator started');
+        } else {
+            const error = await response.json();
+            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        logEvent('error', `Request failed: ${err.message}`);
+    }
+}
+
+async function stopSlowRequests() {
+    try {
+        logEvent('slowrequest', 'Stopping slow requests...');
+        const response = await fetch(`${CONFIG.apiBaseUrl}/slow/stop`, { method: 'POST' });
+        
+        if (response.ok) {
+            logEvent('slowrequest', 'Slow requests stopped');
+        }
+    } catch (err) {
+        logEvent('error', `Stop request failed: ${err.message}`);
+    }
+}
+
+async function generateFailedRequests() {
+    const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
+    
+    try {
+        logEvent('failedrequests', `Generating ${count} HTTP 500 errors...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/crash/failed-requests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count: count })
+        });
+        
+        if (response.ok) {
+            logEvent('failedrequests', `Generated ${count} failed requests`);
+        } else {
+            const error = await response.json();
+            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        logEvent('error', `Request failed: ${err.message}`);
+    }
+}
+
+async function triggerCrash() {
+    const crashType = document.getElementById('crashType').value;
+    
+    if (!confirm(`This will CRASH the application using ${crashType}. Are you sure?`)) {
+        return;
+    }
+    
+    try {
+        logEvent('crash', `Triggering ${crashType} crash...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/crash/trigger`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: crashType })
+        });
+        
+        // If we get here, the crash didn't happen
+        const result = await response.json();
+        logEvent('crash', result.message || 'Crash triggered');
+    } catch (err) {
+        logEvent('crash', 'Application crashed (connection lost)');
+    }
+}
+
+// ==========================================================================
+// Event Handlers Setup
+// ==========================================================================
+
+function setupEventHandlers() {
+    // CPU controls
+    document.getElementById('btnTriggerCpu')?.addEventListener('click', triggerCpuStress);
+    document.getElementById('btnStopCpu')?.addEventListener('click', stopCpuStress);
+    
+    // Memory controls
+    document.getElementById('btnAllocateMemory')?.addEventListener('click', allocateMemory);
+    document.getElementById('btnReleaseMemory')?.addEventListener('click', releaseMemory);
+    
+    // Thread blocking controls
+    document.getElementById('btnTriggerThreadBlock')?.addEventListener('click', triggerThreadBlock);
+    document.getElementById('btnStopThreadBlock')?.addEventListener('click', stopThreadBlock);
+    
+    // Slow request controls
+    document.getElementById('btnStartSlowRequests')?.addEventListener('click', startSlowRequests);
+    document.getElementById('btnStopSlowRequests')?.addEventListener('click', stopSlowRequests);
+    
+    // Failed request controls
+    document.getElementById('btnStartFailedRequests')?.addEventListener('click', generateFailedRequests);
+    
+    // Crash controls
+    document.getElementById('btnTriggerCrash')?.addEventListener('click', triggerCrash);
+}
+
+// ==========================================================================
+// Latency Probe (Client-side)
+// ==========================================================================
+
+let latencyProbeInterval = null;
+
+async function startLatencyProbe() {
+    if (latencyProbeInterval) return;
+    
+    latencyProbeInterval = setInterval(async () => {
+        const startTime = performance.now();
+        try {
+            const response = await fetch('/api/health', { 
+                method: 'GET',
+                cache: 'no-store'
+            });
+            const endTime = performance.now();
+            const latencyMs = endTime - startTime;
+            
+            handleLatencyUpdate({
+                timestamp: new Date(),
+                latencyMs: latencyMs,
+                isTimeout: latencyMs >= CONFIG.latencyTimeoutMs,
+                isError: !response.ok
+            });
+        } catch (err) {
+            const endTime = performance.now();
+            handleLatencyUpdate({
+                timestamp: new Date(),
+                latencyMs: endTime - startTime,
+                isTimeout: false,
+                isError: true
+            });
+        }
+    }, CONFIG.latencyProbeIntervalMs);
+}
+
+function stopLatencyProbe() {
+    if (latencyProbeInterval) {
+        clearInterval(latencyProbeInterval);
+        latencyProbeInterval = null;
+    }
+}
+
+// ==========================================================================
+// Initialization
+// ==========================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts
+    initializeCharts();
+    
+    // Set up event handlers
+    setupEventHandlers();
+    
+    // Connect to WebSocket
+    initializeWebSocket();
+    
+    // Start latency probe
+    startLatencyProbe();
+    
+    // Log startup
+    logEvent('system', 'Dashboard initialized');
+});

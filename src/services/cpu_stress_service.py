@@ -68,7 +68,7 @@ class CpuStressService:
 
     def __init__(self) -> None:
         """Initialize the CPU stress service."""
-        self._processes: dict[UUID, multiprocessing.Process] = {}
+        self._processes: dict[UUID, list[multiprocessing.Process]] = {}
 
     def start_stress(
         self,

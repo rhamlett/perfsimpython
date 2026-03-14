@@ -10,6 +10,7 @@ from collections.abc import Callable
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class RequestLoggerMiddleware(BaseHTTPMiddleware):
         "/ws/metrics",
     }
 
-    async def dispatch(self, request: Request, call_next: Callable):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process the request and log details.
 
         Args:

@@ -152,7 +152,7 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
         },
     )
 
-    if chunked:
+    if chunked and request.chunk_ms is not None:
         # Chunked blocking with yields
         blocked = await blocking_service.chunked_block(
             request.duration_seconds,

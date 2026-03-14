@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
     logging the full exception details for debugging.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process the request and handle any exceptions.
 
         Args:
@@ -72,7 +73,7 @@ def error_handler_middleware(app: FastAPI) -> None:
 
     # Register specific exception handlers
     @app.exception_handler(ValueError)
-    async def value_error_handler(request: Request, exc: ValueError):
+    async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
         """Handle ValueError exceptions."""
         logger.warning("ValueError for %s: %s", request.url.path, str(exc))
         return JSONResponse(
@@ -87,7 +88,7 @@ def error_handler_middleware(app: FastAPI) -> None:
         )
 
     @app.exception_handler(KeyError)
-    async def key_error_handler(request: Request, exc: KeyError):
+    async def key_error_handler(request: Request, exc: KeyError) -> JSONResponse:
         """Handle KeyError exceptions."""
         logger.warning("KeyError for %s: %s", request.url.path, str(exc))
         return JSONResponse(
