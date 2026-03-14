@@ -88,6 +88,9 @@ celerybeat.pid
 local_settings.py
 *.local
 
+# Deployment artifacts
+deploy.zip
+
 # Documentation builds
 docs/_build/
 

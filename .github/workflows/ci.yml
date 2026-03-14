@@ -103,23 +103,24 @@ jobs:
       - name: Deploy via Git Push to Kudu
         run: |
           # Get deployment credentials
-          USER=$(az webapp deployment list-publishing-credentials \
+          DEPLOY_USER=$(az webapp deployment list-publishing-credentials \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query publishingUserName -o tsv)
-          PASS=$(az webapp deployment list-publishing-credentials \
+          DEPLOY_PASS=$(az webapp deployment list-publishing-credentials \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query publishingPassword -o tsv)
           
-          # Configure git for deployment
+          # Configure git
           git config user.email "deploy@github.com"
           git config user.name "GitHub Actions"
           
-          # Use base64 auth header to avoid special character issues
-          AUTH=$(echo -n "${USER}:${PASS}" | base64)
-          git -c http.extraHeader="Authorization: Basic ${AUTH}" \
-            push "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/${{ env.AZURE_WEBAPP_NAME }}.git" HEAD:master --force
+          # URL-encode the password using Python (handles all special characters)
+          ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DEPLOY_PASS")
+          
+          # Push to Kudu Git endpoint
+          git push "https://${DEPLOY_USER}:${ENCODED_PASS}@${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/${{ env.AZURE_WEBAPP_NAME }}.git" HEAD:master --force
 
       - name: Verify deployment
         run: |
