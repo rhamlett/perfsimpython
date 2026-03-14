@@ -1,7 +1,7 @@
 # Performance Problem Simulator - Python Edition
-# Using Microsoft Container Registry (MCR) blessed image
+# Using Microsoft Container Registry (MCR) CBL-Mariner image
 
-FROM mcr.microsoft.com/oryx/python:3.12
+FROM mcr.microsoft.com/cbl-mariner/base/python:3.12
 
 # Add labels for container identification
 LABEL org.opencontainers.image.title="Performance Problem Simulator"
