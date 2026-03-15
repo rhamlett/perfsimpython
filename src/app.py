@@ -257,15 +257,19 @@ class PingBypassMiddleware:
     async def __call__(self, scope: dict, receive: callable, send: callable) -> None:
         if scope["type"] == "http" and scope["path"] == "/api/health/ping":
             # Return minimal JSON response directly, bypassing all middleware
-            await send({
-                "type": "http.response.start",
-                "status": 200,
-                "headers": _PING_RESPONSE_HEADERS,
-            })
-            await send({
-                "type": "http.response.body",
-                "body": _PING_RESPONSE_BODY,
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": _PING_RESPONSE_HEADERS,
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": _PING_RESPONSE_BODY,
+                }
+            )
             return
         # All other requests go through normal FastAPI processing
         await self.app(scope, receive, send)
