@@ -33,11 +33,12 @@ _metrics_broadcast_task: asyncio.Task | None = None
 
 async def _measure_event_loop_lag() -> float:
     """Measure event loop lag in milliseconds.
-    
+
     Records time before yielding to the event loop and after resuming.
     The difference indicates how backed up the event loop is.
     """
     import time
+
     start = time.perf_counter()
     await asyncio.sleep(0)
     return (time.perf_counter() - start) * 1000  # Convert to ms
@@ -56,11 +57,11 @@ async def _broadcast_metrics() -> None:
             if ws_manager.active_connections:
                 # Measure event loop lag
                 event_loop_lag_ms = await _measure_event_loop_lag()
-                
+
                 # Count pending asyncio tasks
                 all_tasks = asyncio.all_tasks()
                 pending_tasks = len([t for t in all_tasks if not t.done()])
-                
+
                 # Gather system metrics
                 system_metrics = metrics_service.get_system_metrics()
                 process_metrics = metrics_service.get_process_metrics()
