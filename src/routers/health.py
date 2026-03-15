@@ -44,8 +44,8 @@ async def get_config() -> ConfigResponse:
     Returns:
         ConfigResponse with frontend configuration values.
     """
-    from src.config.settings import get_settings
     from src import BUILD_TIME
+    from src.config.settings import get_settings
     from src.services.idle_service import idle_service
 
     settings = get_settings()

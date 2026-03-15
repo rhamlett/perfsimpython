@@ -14,10 +14,9 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from src.config.settings import get_settings
+from src.middleware.activity_tracker import ActivityTrackerMiddleware
 from src.middleware.error_handler import error_handler_middleware
 from src.middleware.request_logger import RequestLoggerMiddleware, configure_logging
-from src.middleware.activity_tracker import ActivityTrackerMiddleware
 from src.routers import admin, blocking, cpu, crash, health, memory, metrics, slow
 from src.services.event_log_service import event_log_service
 from src.services.metrics_service import MetricsService
@@ -180,8 +179,6 @@ def create_app() -> FastAPI:
     Returns:
         Configured FastAPI application instance.
     """
-    settings = get_settings()
-
     # Create the FastAPI app
     app = FastAPI(
         title="Performance Problem Simulator",
