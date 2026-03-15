@@ -17,9 +17,27 @@ env:
   AZURE_RESOURCE_GROUP: rhamlettRG
 
 jobs:
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install ruff
+        run: pip install ruff
+      
+      - name: Run ruff check
+        run: ruff check src/ tests/
+
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
+    needs: lint
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - uses: actions/checkout@v5
@@ -41,8 +59,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - name: Azure Login via OIDC
         uses: azure/login@v2
@@ -51,32 +67,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy via Git Push to Kudu
-        run: |
-          # Get deployment credentials
-          DEPLOY_USER=$(az webapp deployment list-publishing-credentials \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query publishingUserName -o tsv)
-          DEPLOY_PASS=$(az webapp deployment list-publishing-credentials \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query publishingPassword -o tsv)
-          
-          if [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_PASS" ]; then
-            echo "ERROR: Failed to fetch deployment credentials"
-            exit 1
-          fi
-          
-          # Configure git
-          git config user.email "deploy@github.com"
-          git config user.name "GitHub Actions"
-          
-          # URL-encode the password using Python (handles all special characters)
-          ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DEPLOY_PASS")
-          
-          # Push to Kudu Git endpoint
-          git push "https://${DEPLOY_USER}:${ENCODED_PASS}@${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/${{ env.AZURE_WEBAPP_NAME }}.git" HEAD:master --force
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
 
       - name: Verify deployment
         run: |
