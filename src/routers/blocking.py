@@ -304,7 +304,7 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
 
     event_log_service.log_event(
         event_type="blocking_completed",
-        message=f"Blocking operations completed",
+        message="Blocking operations completed",
         metadata={
             "type": request.type,
             "duration": request.duration_seconds,
