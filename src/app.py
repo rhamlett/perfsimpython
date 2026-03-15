@@ -7,9 +7,10 @@ all middleware, routers, and static file serving.
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -254,7 +255,7 @@ class PingBypassMiddleware:
     def __init__(self, app: FastAPI) -> None:
         self.app = app
 
-    async def __call__(self, scope: dict, receive: callable, send: callable) -> None:
+    async def __call__(self, scope: dict[str, Any], receive: Callable, send: Callable) -> None:
         if scope["type"] == "http" and scope["path"] == "/api/health/ping":
             # Return minimal JSON response directly, bypassing all middleware
             await send(
