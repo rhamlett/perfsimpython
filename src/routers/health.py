@@ -49,16 +49,16 @@ async def get_config() -> ConfigResponse:
     from src.services.idle_service import idle_service
 
     settings = get_settings()
-    
+
     # Check and update idle state
     is_idle = idle_service.check_idle_state()
-    
+
     return ConfigResponse(
         latencyProbeIntervalMs=settings.health_probe_rate_clamped,
         buildTime=BUILD_TIME,
         idleTimeoutMinutes=settings.idle_timeout_minutes,
         isIdle=is_idle,
-        secondsUntilIdle=idle_service.get_seconds_until_idle()
+        secondsUntilIdle=idle_service.get_seconds_until_idle(),
     )
 
 
@@ -94,17 +94,13 @@ async def record_activity(request: ActivityRequest) -> ActivityResponse:
 
     was_idle = idle_service.is_idle
     idle_service.record_activity(source=request.source)
-    
+
     if was_idle:
         message = "Application woken from idle state"
     else:
         message = "Activity recorded, idle timer reset"
-    
-    return ActivityResponse(
-        success=True,
-        wasIdle=was_idle,
-        message=message
-    )
+
+    return ActivityResponse(success=True, wasIdle=was_idle, message=message)
 
 
 class FooterResponse(BaseModel):
@@ -128,8 +124,7 @@ async def get_footer() -> FooterResponse:
 
     settings = get_settings()
     return FooterResponse(
-        footer=settings.page_footer,
-        has_custom_footer=settings.page_footer is not None
+        footer=settings.page_footer, has_custom_footer=settings.page_footer is not None
     )
 
 

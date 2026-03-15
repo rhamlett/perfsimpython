@@ -40,7 +40,7 @@ class IdleService:
             source: Description of activity source (e.g., "page_load", "api_call").
         """
         settings = get_settings()
-        
+
         # Skip if idle timeout is disabled
         if settings.idle_timeout_minutes <= 0:
             return
@@ -48,14 +48,14 @@ class IdleService:
         with self._lock:
             was_idle = self._is_idle
             self._last_activity = datetime.now(UTC)
-            
+
             if was_idle:
                 self._is_idle = False
                 event_log_service.log(
                     event_type="info",
                     simulation_type="system",
                     message="App waking up from idle state. There may be gaps in diagnostics and logs.",
-                    data={"source": source}
+                    data={"source": source},
                 )
 
     def check_idle_state(self) -> bool:
@@ -65,7 +65,7 @@ class IdleService:
             True if the application is currently idle, False otherwise.
         """
         settings = get_settings()
-        
+
         # If idle timeout is disabled, never go idle
         if settings.idle_timeout_minutes <= 0:
             return False
@@ -74,9 +74,9 @@ class IdleService:
             now = datetime.now(UTC)
             idle_threshold = settings.idle_timeout_seconds
             seconds_since_activity = (now - self._last_activity).total_seconds()
-            
+
             should_be_idle = seconds_since_activity >= idle_threshold
-            
+
             # Log transition to idle state
             if should_be_idle and not self._is_idle:
                 self._is_idle = True
@@ -84,9 +84,9 @@ class IdleService:
                     event_type="warning",
                     simulation_type="system",
                     message="Application going idle, no health probes being sent. There will be gaps in diagnostics and logs.",
-                    data={"idle_after_seconds": idle_threshold}
+                    data={"idle_after_seconds": idle_threshold},
                 )
-            
+
             return self._is_idle
 
     @property
@@ -108,7 +108,7 @@ class IdleService:
             Seconds until idle, or -1 if idle timeout is disabled.
         """
         settings = get_settings()
-        
+
         if settings.idle_timeout_minutes <= 0:
             return -1
 

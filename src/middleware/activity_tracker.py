@@ -57,12 +57,13 @@ class ActivityTrackerMiddleware(BaseHTTPMiddleware):
         should_record = (
             path not in self.EXCLUDED_PATHS
             and not path.startswith(self.EXCLUDED_PREFIXES)
-            and not path.endswith(('.html', '.css', '.js', '.svg', '.ico', '.png', '.jpg'))
+            and not path.endswith((".html", ".css", ".js", ".svg", ".ico", ".png", ".jpg"))
         )
 
         if should_record and path.startswith("/api/"):
             # Import here to avoid circular imports
             from src.services.idle_service import idle_service
+
             idle_service.record_activity(source=f"api:{path}")
 
         return await call_next(request)

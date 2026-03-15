@@ -138,6 +138,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Log startup event with hostname
     import os
+
     hostname = os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown"
     event_log_service.log(
         event_type="info",
