@@ -234,5 +234,43 @@ def create_app() -> FastAPI:
     return app
 
 
-# Create the application instance
-app = create_app()
+# Minimal JSON response for the ping endpoint (pre-encoded for performance)
+_PING_RESPONSE_BODY = b'{"status":"ok"}'
+_PING_RESPONSE_HEADERS = [
+    (b"content-type", b"application/json"),
+    (b"content-length", b"15"),
+    (b"cache-control", b"no-store"),
+]
+
+
+class PingBypassMiddleware:
+    """ASGI middleware that intercepts /api/health/ping before any other middleware.
+
+    This provides a minimal-latency health probe endpoint that bypasses
+    all FastAPI middleware (BaseHTTPMiddleware overhead, logging, etc.).
+    Used for accurate latency measurement in AppLens.
+    """
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: callable, send: callable) -> None:
+        if scope["type"] == "http" and scope["path"] == "/api/health/ping":
+            # Return minimal JSON response directly, bypassing all middleware
+            await send({
+                "type": "http.response.start",
+                "status": 200,
+                "headers": _PING_RESPONSE_HEADERS,
+            })
+            await send({
+                "type": "http.response.body",
+                "body": _PING_RESPONSE_BODY,
+            })
+            return
+        # All other requests go through normal FastAPI processing
+        await self.app(scope, receive, send)
+
+
+# Create the application instance and wrap with ping bypass
+_fastapi_app = create_app()
+app = PingBypassMiddleware(_fastapi_app)

@@ -1184,7 +1184,7 @@ async function startLatencyProbe() {
         
         const startTime = performance.now();
         try {
-            const response = await fetch('/api/health', { 
+            const response = await fetch('/api/health/ping', { 
                 method: 'GET',
                 cache: 'no-store'
             });
