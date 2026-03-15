@@ -237,12 +237,12 @@
 
             <div class="metric-card queue">
                 <div class="metric-header">
-                    <div class="metric-icon">📋</div>
-                    <div class="metric-label">Active Simulations <span class="metric-tooltip" data-tooltip="Number of active performance simulations">ⓘ</span></div>
+                    <div class="metric-icon">⚡</div>
+                    <div class="metric-label">Pending Tasks <span class="metric-tooltip" data-tooltip="Number of pending asyncio tasks in the event loop">ⓘ</span></div>
                 </div>
                 <div class="metric-info">
                     <div class="metric-value" id="queueValue">--</div>
-                    <div class="metric-unit">active</div>
+                    <div class="metric-unit">tasks</div>
                 </div>
                 <div class="metric-bar">
                     <div class="metric-bar-fill" id="queueBar"></div>
@@ -257,7 +257,7 @@
                 <canvas id="resourceChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>🧵 Thread Activity</h3>
+                <h3>⏱️ Event Loop Lag</h3>
                 <canvas id="threadChart"></canvas>
             </div>
         </section>

@@ -28,7 +28,7 @@ const state = {
         cpu: [],
         memory: [],
         threads: [],
-        simulations: []
+        eventLoopLag: []
     },
     latencyHistory: {
         timestamps: [],
@@ -119,18 +119,27 @@ function updateConnectionStatus(status, text) {
 // Metrics Handling
 // ==========================================================================
 
-function handleMetricsUpdate(data) {
+function handleMetricsUpdate(message) {
+    // Extract metrics from the WebSocket message structure
+    const data = message.data || message;
+    const systemData = data.system || {};
+    const processData = data.process || {};
+    const asyncioData = data.asyncio || {};
+    const simulationsData = data.simulations || {};
+    
     // Update metric cards
-    const cpuPercent = data.cpu_percent || 0;
-    const memoryMb = data.process?.memory_mb || data.memory?.used_mb || 0;
-    const totalMemoryMb = data.memory?.total_mb || 1000;
-    const threadCount = data.process?.threads || 1;
-    const activeSimCount = data.active_simulations?.length || 0;
+    const cpuPercent = processData.cpu_percent || systemData.cpu_percent || 0;
+    const memoryMb = processData.memory_mb || 0;
+    const totalMemoryMb = systemData.memory_total_mb || 1000;
+    const threadCount = processData.threads || 1;
+    const pendingTasks = asyncioData.pending_tasks || 0;
+    const eventLoopLagMs = asyncioData.event_loop_lag_ms || 0;
+    const activeSimulations = simulationsData.items || [];
 
     updateMetricCard('cpu', cpuPercent, '%', 100);
     updateMetricCard('memory', memoryMb, 'MB', totalMemoryMb);
     updateMetricCard('threads', threadCount, 'threads', 100);
-    updateMetricCard('queue', activeSimCount, 'active', 10);
+    updateMetricCard('queue', pendingTasks, 'tasks', 50);
 
     // Update total memory display
     const totalMemoryEl = document.getElementById('memoryTotal');
@@ -143,24 +152,24 @@ function handleMetricsUpdate(data) {
 
     // Update history for charts
     const timestamp = new Date();
-    addToHistory(timestamp, cpuPercent, memoryMb, threadCount, activeSimCount);
+    addToHistory(timestamp, cpuPercent, memoryMb, threadCount, eventLoopLagMs);
     
     // Update charts
     updateCharts();
     
     // Handle latency if present
-    if (data.latency_ms !== undefined) {
+    if (message.latency_ms !== undefined) {
         handleLatencyUpdate({
             timestamp: timestamp,
-            latencyMs: data.latency_ms,
-            isTimeout: data.latency_ms >= CONFIG.latencyTimeoutMs,
+            latencyMs: message.latency_ms,
+            isTimeout: message.latency_ms >= CONFIG.latencyTimeoutMs,
             isError: false
         });
     }
     
     // Update active simulations
-    if (data.active_simulations) {
-        updateSimulationsList(data.active_simulations);
+    if (activeSimulations.length > 0) {
+        updateSimulationsList(activeSimulations);
     }
     
     // Update last update time
@@ -200,14 +209,14 @@ function updateMetricCard(type, value, unit, maxForBar) {
     }
 }
 
-function addToHistory(timestamp, cpu, memory, threads, simulations) {
+function addToHistory(timestamp, cpu, memory, threads, eventLoopLag) {
     const history = state.metricsHistory;
     
     history.timestamps.push(timestamp);
     history.cpu.push(cpu);
     history.memory.push(memory);
     history.threads.push(threads);
-    history.simulations.push(simulations);
+    history.eventLoopLag.push(eventLoopLag);
     
     // Trim to max data points
     while (history.timestamps.length > CONFIG.maxDataPoints) {
@@ -215,7 +224,7 @@ function addToHistory(timestamp, cpu, memory, threads, simulations) {
         history.cpu.shift();
         history.memory.shift();
         history.threads.shift();
-        history.simulations.shift();
+        history.eventLoopLag.shift();
     }
 }
 
@@ -298,7 +307,7 @@ function initializeCharts() {
         });
     }
 
-    // Thread chart
+    // Event Loop Lag chart
     const threadCtx = document.getElementById('threadChart');
     if (threadCtx) {
         state.charts.threads = new Chart(threadCtx, {
@@ -307,23 +316,23 @@ function initializeCharts() {
                 labels: [],
                 datasets: [
                     {
-                        label: 'Active Threads',
+                        label: 'Event Loop Lag (ms)',
                         data: [],
-                        borderColor: '#8764b8',
-                        backgroundColor: 'rgba(135, 100, 184, 0.3)',
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.3)',
                         tension: 0.3,
                         fill: 'origin',
                         yAxisID: 'y',
                         pointRadius: 0,
-                        borderWidth: 1
+                        borderWidth: 2
                     },
                     {
-                        label: 'Active Simulations',
+                        label: 'Active Threads',
                         data: [],
-                        borderColor: '#ffb900',
-                        backgroundColor: 'rgba(255, 185, 0, 0.3)',
+                        borderColor: '#8764b8',
+                        backgroundColor: 'rgba(135, 100, 184, 0.2)',
                         tension: 0.3,
-                        fill: 'origin',
+                        fill: false,
                         yAxisID: 'y1',
                         pointRadius: 0,
                         borderWidth: 1
@@ -350,14 +359,14 @@ function initializeCharts() {
                         display: true,
                         position: 'left',
                         min: 0,
-                        title: { display: true, text: 'Threads' }
+                        title: { display: true, text: 'Lag (ms)' }
                     },
                     y1: {
                         type: 'linear',
                         display: true,
                         position: 'right',
                         min: 0,
-                        title: { display: true, text: 'Simulations' },
+                        title: { display: true, text: 'Threads' },
                         grid: { drawOnChartArea: false }
                     }
                 },
@@ -439,11 +448,11 @@ function updateCharts() {
         state.charts.resource.update('none');
     }
     
-    // Update thread chart
+    // Update event loop lag chart
     if (state.charts.threads) {
         state.charts.threads.data.labels = labels;
-        state.charts.threads.data.datasets[0].data = history.threads;
-        state.charts.threads.data.datasets[1].data = history.simulations;
+        state.charts.threads.data.datasets[0].data = history.eventLoopLag;
+        state.charts.threads.data.datasets[1].data = history.threads;
         state.charts.threads.update('none');
     }
 }

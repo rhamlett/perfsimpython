@@ -31,6 +31,18 @@ ws_manager = ConnectionManager()
 _metrics_broadcast_task: asyncio.Task | None = None
 
 
+async def _measure_event_loop_lag() -> float:
+    """Measure event loop lag in milliseconds.
+    
+    Records time before yielding to the event loop and after resuming.
+    The difference indicates how backed up the event loop is.
+    """
+    import time
+    start = time.perf_counter()
+    await asyncio.sleep(0)
+    return (time.perf_counter() - start) * 1000  # Convert to ms
+
+
 async def _broadcast_metrics() -> None:
     """Background task that broadcasts metrics to connected WebSocket clients.
 
@@ -42,6 +54,13 @@ async def _broadcast_metrics() -> None:
     while True:
         try:
             if ws_manager.active_connections:
+                # Measure event loop lag
+                event_loop_lag_ms = await _measure_event_loop_lag()
+                
+                # Count pending asyncio tasks
+                all_tasks = asyncio.all_tasks()
+                pending_tasks = len([t for t in all_tasks if not t.done()])
+                
                 # Gather system metrics
                 system_metrics = metrics_service.get_system_metrics()
                 process_metrics = metrics_service.get_process_metrics()
@@ -65,6 +84,10 @@ async def _broadcast_metrics() -> None:
                             "cpu_percent": process_metrics.cpu_percent,
                             "memory_mb": round(process_metrics.memory_rss_bytes / (1024 * 1024), 2),
                             "threads": process_metrics.threads,
+                        },
+                        "asyncio": {
+                            "pending_tasks": pending_tasks,
+                            "event_loop_lag_ms": round(event_loop_lag_ms, 2),
                         },
                         "simulations": {
                             "active_count": len(active_simulations),

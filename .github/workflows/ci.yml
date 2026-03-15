@@ -113,10 +113,6 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query publishingPassword -o tsv)
           
-          # Debug: verify credentials were fetched
-          echo "DEPLOY_USER: '${DEPLOY_USER}'"
-          echo "DEPLOY_USER length: ${#DEPLOY_USER}"
-          echo "DEPLOY_PASS length: ${#DEPLOY_PASS}"
           if [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_PASS" ]; then
             echo "ERROR: Failed to fetch deployment credentials"
             exit 1
@@ -128,10 +124,8 @@ jobs:
           
           # URL-encode the password using Python (handles all special characters)
           ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DEPLOY_PASS")
-          echo "ENCODED_PASS length: ${#ENCODED_PASS}"
           
           # Push to Kudu Git endpoint
-          echo "Pushing to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/${{ env.AZURE_WEBAPP_NAME }}.git"
           git push "https://${DEPLOY_USER}:${ENCODED_PASS}@${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/${{ env.AZURE_WEBAPP_NAME }}.git" HEAD:master --force
 
       - name: Verify deployment
