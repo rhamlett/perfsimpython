@@ -54,17 +54,6 @@ class TestMemoryAllocateAPI:
         # Cleanup
         await async_client.post("/api/memory/release-all")
 
-    async def test_allocate_exceeds_limit_returns_error(self, async_client: AsyncClient) -> None:
-        """Test that exceeding allocation limit returns error."""
-        # Try to allocate way too much (exceeds Pydantic validation max of 2048)
-        response = await async_client.post(
-            "/api/memory/allocate",
-            json={"size_mb": 10000},  # 10GB, exceeds Pydantic le=2048
-        )
-
-        # Pydantic validation returns 422 for values exceeding le constraint
-        assert response.status_code == 422
-
     async def test_allocate_negative_size_returns_error(self, async_client: AsyncClient) -> None:
         """Test that negative size returns validation error."""
         response = await async_client.post("/api/memory/allocate", json={"size_mb": -50})

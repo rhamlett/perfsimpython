@@ -20,19 +20,16 @@ class CpuStressRequest(BaseModel):
     duration_seconds: float | None = Field(
         default=None,
         ge=0,
-        le=3600,
-        description="Duration in seconds (None for indefinite, max 1 hour)",
+        description="Duration in seconds (None for indefinite)",
     )
     intensity: int = Field(
         default=5,
         ge=1,
-        le=10,
-        description="CPU stress intensity (1-10)",
+        description="CPU stress intensity (1+)",
     )
     workers: int = Field(
         default=1,
         ge=1,
-        le=16,
         description="Number of parallel CPU workers",
     )
 
@@ -47,8 +44,7 @@ class MemoryAllocateRequest(BaseModel):
     size_mb: int = Field(
         default=100,
         ge=1,
-        le=2048,
-        description="Memory to allocate in MB (max 2GB per allocation)",
+        description="Memory to allocate in MB",
     )
 
 
@@ -64,19 +60,16 @@ class BlockingRequest(BaseModel):
     duration_seconds: float = Field(
         default=5.0,
         ge=0.1,
-        le=300,
-        description="Duration to block in seconds (max 5 minutes)",
+        description="Duration to block in seconds",
     )
     count: int = Field(
         default=1,
         ge=1,
-        le=100,
         description="Number of concurrent blocking operations",
     )
     chunk_ms: int = Field(
         default=100,
         ge=10,
-        le=5000,
         description="Async blocking chunk duration in milliseconds",
     )
 
@@ -93,19 +86,16 @@ class SlowRequest(BaseModel):
     delay_seconds: float = Field(
         default=5.0,
         ge=0.1,
-        le=300,
-        description="Response delay in seconds (max 5 minutes)",
+        description="Response delay in seconds",
     )
     interval_seconds: float = Field(
         default=1.0,
         ge=0.1,
-        le=60,
         description="Interval between generated slow requests",
     )
     max_requests: int = Field(
         default=10,
         ge=1,
-        le=1000,
         description="Maximum number of requests to generate",
     )
 
@@ -133,7 +123,6 @@ class FailedRequestsRequest(BaseModel):
     count: int = Field(
         default=10,
         ge=1,
-        le=1000,
         description="Number of HTTP 500 errors to generate",
     )
 

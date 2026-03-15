@@ -23,19 +23,16 @@ class SlowGeneratorStartRequest(BaseModel):
     interval_seconds: float = Field(
         default=1.0,
         gt=0,
-        le=60,
         description="Interval between requests in seconds",
     )
     max_requests: int = Field(
         default=10,
         ge=1,
-        le=1000,
         description="Maximum number of requests to generate",
     )
     delay_seconds: float = Field(
         default=5.0,
         gt=0,
-        le=300,
         description="Delay for each slow request in seconds",
     )
 
@@ -84,8 +81,7 @@ async def slow_request(
     delay_seconds: float = Query(
         default=5.0,
         gt=0,
-        le=300,
-        description="Delay in seconds (max 300)",
+        description="Delay in seconds",
     ),
 ) -> SlowResponse:
     """Return a slow response after specified delay.

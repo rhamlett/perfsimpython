@@ -23,13 +23,11 @@ class SyncBlockRequest(BaseModel):
     duration_seconds: float = Field(
         ...,
         gt=0,
-        le=300,
-        description="Duration to block in seconds (max 300)",
+        description="Duration to block in seconds",
     )
     count: int = Field(
         default=1,
         ge=1,
-        le=100,
         description="Number of blocking operations to perform",
     )
 
@@ -40,15 +38,47 @@ class AsyncBlockRequest(BaseModel):
     duration_seconds: float = Field(
         ...,
         gt=0,
-        le=300,
-        description="Duration to block in seconds (max 300)",
+        description="Duration to block in seconds",
     )
     chunk_ms: int | None = Field(
         default=None,
         ge=1,
-        le=10000,
         description="If provided, block in chunks of this size (ms)",
     )
+
+
+class BlockingStartRequest(BaseModel):
+    """Request for starting blocking via unified /start endpoint."""
+
+    type: str = Field(
+        default="sync",
+        description="Type of blocking: 'sync' or 'async'",
+    )
+    duration_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="Duration to block in seconds",
+    )
+    count: int = Field(
+        default=1,
+        ge=1,
+        description="Number of blocking operations to perform",
+    )
+
+
+class BlockingStartResponse(BaseModel):
+    """Response for blocking start."""
+
+    started: bool
+    message: str
+    config: dict
+
+
+class BlockingStopResponse(BaseModel):
+    """Response for blocking stop."""
+
+    stopped: bool
+    message: str
 
 
 class BlockingResponse(BaseModel):
@@ -231,4 +261,90 @@ async def demo_proper_blocking(request: SyncBlockRequest) -> BlockingResponse:
         blocked_duration=total_blocked,
         count=request.count,
         chunked=False,
+    )
+
+
+@router.post(
+    "/start",
+    response_model=BlockingStartResponse,
+    summary="Start blocking operations",
+    description="Start blocking operations (unified endpoint for dashboard)",
+)
+async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse:
+    """Start blocking operations.
+
+    This endpoint provides a unified interface for starting blocking operations,
+    dispatching to either sync or async blocking based on the type parameter.
+
+    Args:
+        request: Request with type, duration, and count.
+
+    Returns:
+        Response indicating blocking was started.
+    """
+    event_log_service.log_event(
+        event_type="blocking_started",
+        message=f"Starting {request.count} blocking operations ({request.duration_seconds}s each)",
+        metadata={
+            "type": request.type,
+            "duration": request.duration_seconds,
+            "count": request.count,
+        },
+    )
+
+    # Fire off the blocking operations (they'll run in background for sync)
+    if request.type == "async":
+        # Run async blocking
+        for _ in range(request.count):
+            await blocking_service.async_block(request.duration_seconds)
+    else:
+        # Run sync blocking in thread pool (default)
+        for _ in range(request.count):
+            await blocking_service.run_sync_in_thread(request.duration_seconds)
+
+    event_log_service.log_event(
+        event_type="blocking_completed",
+        message=f"Blocking operations completed",
+        metadata={
+            "type": request.type,
+            "duration": request.duration_seconds,
+            "count": request.count,
+        },
+    )
+
+    return BlockingStartResponse(
+        started=True,
+        message=f"Started {request.count} {request.type} blocking operations",
+        config={
+            "type": request.type,
+            "duration_seconds": request.duration_seconds,
+            "count": request.count,
+        },
+    )
+
+
+@router.post(
+    "/stop",
+    response_model=BlockingStopResponse,
+    summary="Stop blocking operations",
+    description="Stop blocking operations (no-op since blocking completes on its own)",
+)
+async def stop_blocking() -> BlockingStopResponse:
+    """Stop blocking operations.
+
+    Note: Blocking operations complete on their own after their duration,
+    so this is effectively a no-op acknowledgment.
+
+    Returns:
+        Response acknowledging stop request.
+    """
+    event_log_service.log_event(
+        event_type="blocking_stopped",
+        message="Blocking stop requested (operations complete on their own)",
+        metadata={},
+    )
+
+    return BlockingStopResponse(
+        stopped=True,
+        message="Blocking operations will complete after their duration",
     )

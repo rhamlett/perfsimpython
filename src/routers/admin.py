@@ -25,8 +25,7 @@ class FailedRequestsRequest(BaseModel):
     count: int = Field(
         default=10,
         ge=1,
-        le=1000,
-        description="Number of 500 errors to generate (1-1000)",
+        description="Number of 500 errors to generate",
     )
 
 
@@ -69,7 +68,7 @@ failed_requests_router = APIRouter()
 )
 async def generate_failed_requests(
     request: FailedRequestsRequest | None = None,
-    count: int | None = Query(None, ge=1, le=1000),
+    count: int | None = Query(None, ge=1),
 ) -> FailedRequestsResponse:
     """Generate HTTP 500 error responses.
 

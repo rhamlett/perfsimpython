@@ -22,18 +22,18 @@ class MemoryPressureService:
     purposes to practice memory diagnostics.
 
     Attributes:
-        max_allocation_mb: Maximum total memory that can be allocated.
+        max_allocation_mb: Maximum total memory that can be allocated (very high by default).
         _blocks: Dictionary of allocated memory blocks.
         _data: Dictionary of actual byte arrays (kept separate for GC).
         _lock: Thread lock for concurrent access.
     """
 
-    def __init__(self, max_allocation_mb: int = 2048) -> None:
+    def __init__(self, max_allocation_mb: int = 1_000_000) -> None:
         """Initialize the memory pressure service.
 
         Args:
             max_allocation_mb: Maximum total allocation in megabytes.
-                              Defaults to 2048 MB (2 GB).
+                              Defaults to 1,000,000 MB (1 TB) - effectively unlimited.
         """
         self.max_allocation_mb = max_allocation_mb
         self._blocks: dict[UUID, AllocatedMemoryBlock] = {}

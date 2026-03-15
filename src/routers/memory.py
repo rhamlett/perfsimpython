@@ -24,8 +24,7 @@ class MemoryAllocateRequest(BaseModel):
     size_mb: int = Field(
         ...,
         gt=0,
-        le=2048,
-        description="Size in megabytes to allocate (1-2048)",
+        description="Size in megabytes to allocate",
     )
 
 
@@ -83,7 +82,7 @@ class MemoryStatusResponse(BaseModel):
 )
 async def allocate_memory(
     request: MemoryAllocateRequest | None = None,
-    size_mb: int | None = Query(None, gt=0, le=2048, description="Size in MB"),
+    size_mb: int | None = Query(None, gt=0, description="Size in MB"),
 ) -> MemoryAllocateResponse:
     """Allocate a memory block.
 

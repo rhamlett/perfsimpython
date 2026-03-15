@@ -79,14 +79,15 @@ class TestCpuApi:
         # Clean up
         client.post("/api/cpu/stop-all")
 
-    def test_start_cpu_stress_invalid_intensity(self, client: TestClient):
-        """Test that invalid intensity is rejected."""
+    def test_start_cpu_stress_high_intensity(self, client: TestClient):
+        """Test that high intensity values are accepted (no upper limit)."""
         response = client.post(
             "/api/cpu/start",
-            json={"intensity": 100},  # Max is 10
+            json={"intensity": 100, "duration_seconds": 0.1},
         )
 
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 200  # Should succeed
+        client.post("/api/cpu/stop-all")
 
     def test_start_cpu_stress_invalid_duration(self, client: TestClient):
         """Test that invalid duration is rejected."""
