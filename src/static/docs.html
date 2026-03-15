@@ -1,333 +1,1291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Documentation - Performance Problem Simulator</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/css/styles.css">
-  <style>
-    .docs-content {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-    .docs-content h1 { margin-bottom: 1.5rem; }
-    .docs-content h2 { 
-      margin-top: 2rem; 
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .docs-content h3 { margin-top: 1.5rem; color: var(--primary-color); }
-    .endpoint { 
-      background: var(--surface-color); 
-      padding: 1rem; 
-      border-radius: 8px; 
-      margin: 1rem 0;
-      border-left: 4px solid var(--primary-color);
-    }
-    .endpoint code { 
-      background: var(--bg-color); 
-      padding: 0.25rem 0.5rem; 
-      border-radius: 4px;
-      font-family: 'Consolas', 'Monaco', monospace;
-    }
-    .method { 
-      display: inline-block; 
-      padding: 0.25rem 0.5rem; 
-      border-radius: 4px; 
-      font-weight: bold;
-      margin-right: 0.5rem;
-    }
-    .method.get { background: #61affe; color: white; }
-    .method.post { background: #49cc90; color: white; }
-    .method.delete { background: #f93e3e; color: white; }
-    .toc { 
-      position: fixed;
-      right: 2rem;
-      top: 80px;
-      width: 200px;
-      padding: 1rem;
-      background: var(--surface-color);
-      border-radius: 8px;
-      font-size: 0.875rem;
-    }
-    .toc a { 
-      display: block; 
-      padding: 0.25rem 0; 
-      color: var(--text-secondary);
-      text-decoration: none;
-    }
-    .toc a:hover { color: var(--primary-color); }
-    @media (max-width: 1200px) {
-      .toc { display: none; }
-    }
-    .warning-box {
-      background: rgba(255, 152, 0, 0.1);
-      border: 1px solid #ff9800;
-      padding: 1rem;
-      border-radius: 8px;
-      margin: 1rem 0;
-    }
-    pre {
-      background: var(--surface-color);
-      padding: 1rem;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Problem Simulator - Python 3.12 - Documentation</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        /* Documentation-specific styles */
+        .doc-layout {
+            display: flex;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .doc-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .doc-container {
+            max-width: 900px;
+        }
+
+        .doc-toc {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-sticky {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        .doc-toc-card {
+            background: var(--surface-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.25rem;
+        }
+
+        .doc-toc-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .doc-toc ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .doc-toc-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .doc-toc-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .doc-toc-item a:hover {
+            background: rgba(56, 139, 253, 0.08);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .toc-icon {
+            font-size: 1rem;
+            width: 1.25rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-divider {
+            height: 1px;
+            background: var(--bg-color);
+            margin: 0.75rem 0;
+        }
+
+        .doc-toc-section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem 0.25rem;
+            opacity: 0.7;
+        }
+
+        .deploy-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .deploy-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        .deploy-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .doc-section {
+            background: var(--surface-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            scroll-margin-top: 80px;
+        }
+
+        .doc-section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--bg-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .doc-section h3 {
+            color: var(--text-primary);
+            margin: 1.5rem 0 1rem;
+        }
+
+        .doc-section p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .doc-section ul, .doc-section ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .doc-section li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .doc-section code {
+            background: var(--bg-color);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875em;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            white-space: pre;
+        }
+
+        .code-block .comment { color: #6a9955; }
+        .code-block .string { color: #ce9178; }
+        .code-block .keyword { color: #569cd6; }
+
+        .code-block.code-bad { border-left: 4px solid #f44336; }
+        .code-block.code-good { border-left: 4px solid #4caf50; }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(255, 185, 0, 0.15) 0%, rgba(209, 52, 56, 0.1) 100%);
+            border-left: 4px solid #ff9800;
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box h4 {
+            color: #d32f2f;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-box ul {
+            margin-left: 1.5rem;
+        }
+
+        .warning-box li {
+            color: var(--text-primary);
+        }
+
+        .danger-box {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid #f44336;
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .danger-box h4 {
+            color: #d32f2f;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box {
+            background: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid #2196f3;
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .api-table th, .api-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .api-table th {
+            background: var(--bg-color);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .api-table tr:hover td {
+            background: rgba(56, 139, 253, 0.05);
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .method-get {
+            background: rgba(16, 124, 16, 0.15);
+            color: #2e7d32;
+        }
+
+        .method-post {
+            background: rgba(0, 120, 212, 0.15);
+            color: var(--primary-color);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .feature-item {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+        }
+
+        .feature-text strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .feature-text span {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+    </style>
 </head>
-<body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <a href="/" class="icon-btn" aria-label="Back to dashboard">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
-      </a>
-      <h1 class="header-title">API Documentation</h1>
+<body class="page-doc">
+    <header class="header">
+        <div class="header-left">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <svg class="python-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="pythonBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#5A9FD4"/>
+                        <stop offset="100%" stop-color="#306998"/>
+                    </linearGradient>
+                    <linearGradient id="pythonYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD43B"/>
+                        <stop offset="100%" stop-color="#FFE873"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+            </svg>
+            <h1 class="header-title">Performance Problem Simulator - Python 3.12</h1>
+        </div>
+        <div id="skuDisplay" class="sku-display">SKU: Loading...</div>
+        <div class="header-right">
+            <a href="/" class="btn-panel-toggle">🏠 Dashboard</a>
+        </div>
+    </header>
+
+    <!-- Sidebar Drawer Navigation -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-header">
+            <h2>🐍 PerfSim Python</h2>
+            <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">&times;</button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">Application</div>
+            <a href="/" class="sidebar-nav-item">
+                <span class="nav-icon">🎮</span>
+                <span class="nav-label">Dashboard<span class="nav-desc">Live metrics & controls</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">Documentation</div>
+            <a href="/docs.html" class="sidebar-nav-item active">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">Documentation<span class="nav-desc">API reference & guides</span></span>
+            </a>
+            <a href="/azure-diagnostics.html" class="sidebar-nav-item">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
+            </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">External</div>
+            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+                <span class="nav-icon">🐙</span>
+                <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            Build: <span id="sidebarBuildTime">--</span>
+        </div>
+    </aside>
+
+    <div class="doc-layout">
+        <div class="doc-main">
+            <div class="doc-container">
+                <div class="deploy-header">
+                    <h1>📚 Documentation</h1>
+                    <p>API reference, guides, and usage examples for the Performance Problem Simulator</p>
+                </div>
+
+                <!-- Overview Section -->
+                <section id="overview" class="doc-section">
+                    <h2>🎯 Performance Problem Simulator</h2>
+                    <p>An educational Azure App Service application that <strong>intentionally creates performance problems</strong> for learning and demonstration purposes.</p>
+
+                    <h3>Purpose</h3>
+                    <p>This application is designed to help Azure App Service Support engineers and Technical Advisors:</p>
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <div class="feature-icon">📖</div>
+                            <div class="feature-text">
+                                <strong>Learn</strong>
+                                <span>How to diagnose common performance issues in Azure App Service</span>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔧</div>
+                            <div class="feature-text">
+                                <strong>Practice</strong>
+                                <span>Using Azure diagnostics and monitoring tools</span>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🎭</div>
+                            <div class="feature-text">
+                                <strong>Demonstrate</strong>
+                                <span>Performance anti-patterns in a controlled environment</span>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">👥</div>
+                            <div class="feature-text">
+                                <strong>Train</strong>
+                                <span>Support teams on identifying and resolving performance problems</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="warning-box">
+                        <h4>⚠️ Warning - This application intentionally creates performance problems!</h4>
+                        <ul>
+                            <li>🔥 <strong>CPU stress</strong> - Creates worker processes running intensive operations to consume CPU cores</li>
+                            <li>📊 <strong>Memory pressure</strong> - Allocates and holds memory blocks to increase working set</li>
+                            <li>🧵 <strong>Event loop blocking</strong> - Uses sync-over-async anti-patterns to block Python's asyncio event loop</li>
+                            <li>🐌 <strong>Slow requests</strong> - Generates long-running requests for profiler analysis</li>
+                            <li>💥 <strong>Application crashes</strong> - Triggers fatal crashes for testing Azure Crash Monitoring</li>
+                            <li>❌ <strong>Failed requests</strong> - Generates HTTP 5xx errors for testing AppLens and Application Insights</li>
+                        </ul>
+                        <p><strong>Only deploy this application in isolated, non-production environments.</strong></p>
+                    </div>
+                </section>
+
+                <!-- Quick Start Section -->
+                <section id="quick-start" class="doc-section">
+                    <h2>🚀 Quick Start</h2>
+
+                    <h3>Run Locally</h3>
+                    <div class="code-block"><span class="comment"># Clone the repository</span>
+git clone https://github.com/rhamlett/perfsimpython.git
+cd perfsimpython
+
+<span class="comment"># Create virtual environment and install dependencies</span>
+python -m venv venv
+source venv/bin/activate  <span class="comment"># On Windows: venv\Scripts\activate</span>
+pip install -r requirements.txt
+
+<span class="comment"># Run the application</span>
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+<span class="comment"># Open in browser</span>
+<span class="comment"># Dashboard: http://localhost:8000</span></div>
+
+                    <h3>Run Tests</h3>
+                    <div class="code-block"><span class="comment"># Run all tests</span>
+pytest
+
+<span class="comment"># Run with coverage</span>
+pytest --cov=src --cov-report=html</div>
+                </section>
+
+                <!-- Environment Variables Section -->
+                <section id="environment-variables" class="doc-section">
+                    <h2>⚙️ Environment Variables</h2>
+                    <p>The following environment variables can be configured to customize application behavior. These are optional and primarily useful when deploying to Azure App Service.</p>
+
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Description</th>
+                                <th>Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>HEALTH_PROBE_RATE</code></td>
+                                <td>Health probe interval in milliseconds (default: 200, minimum: 100). Lower values provide more granular latency data but increase overhead during profiling.</td>
+                                <td>200</td>
+                            </tr>
+                            <tr>
+                                <td><code>IDLE_TIMEOUT_MINUTES</code></td>
+                                <td>Minutes of inactivity before suspending health probes (default: 20). Reduces network traffic and Application Insights telemetry when idle.</td>
+                                <td>20</td>
+                            </tr>
+                            <tr>
+                                <td><code>PAGE_FOOTER</code></td>
+                                <td>Custom HTML footer text displayed at the bottom of the dashboard. Supports HTML links for attribution.</td>
+                                <td><em>None</em></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>HEALTH_PROBE_RATE</h3>
+                    <p>Controls how frequently the dashboard probes the application for latency measurement. Lower values provide more granular data but can cause probe overlaps during profiling.</p>
+                    <ul>
+                        <li><strong>Default:</strong> 200ms (5 probes/second)</li>
+                        <li><strong>Minimum:</strong> 100ms (values below this are clamped)</li>
+                        <li><strong>Chart updates:</strong> The latency chart always updates at 100ms using interpolation</li>
+                    </ul>
+                    <h4>Setting via Azure CLI:</h4>
+                    <div class="code-block">az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings HEALTH_PROBE_RATE=400</div>
+
+                    <h3>IDLE_TIMEOUT_MINUTES</h3>
+                    <p>When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend, AppLens, and Application Insights.</p>
+                    <ul>
+                        <li><strong>Default:</strong> 20 minutes</li>
+                        <li><strong>Wake-up:</strong> Simply reload the dashboard or send any API request</li>
+                        <li><strong>Activity sources:</strong> Dashboard page loads, API calls (load test traffic counts as activity)</li>
+                        <li><strong>Disable:</strong> Set to 0 to disable idle mode completely</li>
+                    </ul>
+                    <h4>Setting via Azure CLI:</h4>
+                    <div class="code-block">az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings IDLE_TIMEOUT_MINUTES=30</div>
+
+                    <h3>PAGE_FOOTER</h3>
+                    <p>The <code>PAGE_FOOTER</code> environment variable allows you to customize the footer credits displayed on the dashboard. This is useful for attributing tools, teams, or linking to relevant resources.</p>
+                    <h4>Example Value:</h4>
+                    <div class="code-block">Created by &lt;a href="https://speckit.org/" target="_blank"&gt;SpecKit&lt;/a&gt; and &lt;a href="https://github.com/copilot" target="_blank"&gt;Github Copilot&lt;/a&gt;</div>
+                    <h4>Setting via Azure CLI:</h4>
+                    <div class="code-block">az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings PAGE_FOOTER='Created by &lt;a href="https://speckit.org/" target="_blank"&gt;SpecKit&lt;/a&gt;'</div>
+                    <h4>Setting Locally:</h4>
+                    <div class="code-block">export PAGE_FOOTER='Created by &lt;a href="https://speckit.org/"&gt;SpecKit&lt;/a&gt;'</div>
+                    <p>The footer is retrieved via the <code>/api/footer</code> endpoint and rendered in the dashboard's footer section. If <code>PAGE_FOOTER</code> is not set, the default credits are shown.</p>
+                </section>
+
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="doc-section">
+                    <h2>📊 Dashboard</h2>
+                    <p>The application includes a real-time dashboard at the root URL that shows:</p>
+                    <ul>
+                        <li><strong>CPU usage</strong> - Current processor utilization</li>
+                        <li><strong>Memory</strong> - Working set (physical memory used by the process)</li>
+                        <li><strong>Active threads</strong> - Thread count in the process</li>
+                        <li><strong>Pending tasks</strong> - Asyncio tasks queued in the event loop</li>
+                        <li><strong>Request latency</strong> - Real-time probe response time (shows impact of event loop blocking)</li>
+                        <li><strong>Active simulations</strong> - Currently running problem simulations</li>
+                    </ul>
+                    <p>The dashboard uses WebSockets for real-time updates and includes a side panel with controls to trigger each type of simulation.</p>
+
+                    <h3>Metric Color Indicators</h3>
+                    <p>The CPU and Memory metric tiles use dynamic color coding to indicate resource utilization levels:</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Color</th>
+                                <th>Utilization</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Black (default)</td>
+                                <td>0-60%</td>
+                                <td>Normal - resources are within acceptable range</td>
+                            </tr>
+                            <tr>
+                                <td>Yellow</td>
+                                <td>60-80%</td>
+                                <td>Warning - elevated usage, approaching concerning levels</td>
+                            </tr>
+                            <tr>
+                                <td>Red</td>
+                                <td>&gt;80%</td>
+                                <td>Danger - high usage, potential resource exhaustion</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Event Log & Simulation IDs</h3>
+                    <p>The Event Log at the bottom of the dashboard records all simulation activity with color-coded entries matching each simulation type. Messages related to a specific simulation instance are marked with a dotted underline.</p>
+                    <p><strong>Viewing Simulation IDs:</strong> Hover over any underlined message to reveal the full Simulation ID (GUID) in a tooltip. This ID uniquely identifies each simulation instance.</p>
+                    <p><strong>Using Simulation IDs for Troubleshooting:</strong></p>
+                    <ul>
+                        <li>The same Simulation ID is logged server-side and appears in Azure Application Insights and Log Analytics</li>
+                        <li>Use this ID to correlate dashboard events with server logs when analyzing performance issues</li>
+                        <li>Filter Azure logs by Simulation ID to isolate telemetry from a specific simulation run</li>
+                        <li>See the <a href="/azure-diagnostics.html">Azure Diagnostics Guide</a> for detailed correlation techniques</li>
+                    </ul>
+                </section>
+
+                <!-- Request Latency Monitor Section -->
+                <section id="latency" class="doc-section">
+                    <h2>⏱️ Request Latency Monitor</h2>
+                    <p>The dashboard includes a Request Latency Monitor that demonstrates how event loop blocking affects real-world request processing. The latency values shown include both queue time and processing time.</p>
+
+                    <h3>How It Works</h3>
+                    <ul>
+                        <li>A background task continuously probes the <code>/api/health/probe</code> endpoint</li>
+                        <li>Latency is measured end-to-end: request sent → response received</li>
+                        <li>Results are broadcast via WebSocket to the dashboard in real-time</li>
+                    </ul>
+
+                    <h3>What You'll Observe</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Condition</th>
+                                <th>Latency</th>
+                                <th>Status</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Normal operation</td>
+                                <td>&lt; 150ms</td>
+                                <td>🟢 Good</td>
+                                <td>Event loop threads available</td>
+                            </tr>
+                            <tr>
+                                <td>Mild blocking</td>
+                                <td>150ms - 1s</td>
+                                <td>🟡 Degraded</td>
+                                <td>Requests queued waiting for event loop</td>
+                            </tr>
+                            <tr>
+                                <td>Severe blocking</td>
+                                <td>&gt; 1s</td>
+                                <td>🔴 Severe</td>
+                                <td>Significant queuing delay</td>
+                            </tr>
+                            <tr>
+                                <td>Timeout</td>
+                                <td>30s</td>
+                                <td>🔴 Critical</td>
+                                <td>Event loop completely blocked</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Why This Matters</h3>
+                    <p>During event loop blocking, CPU and memory metrics often look normal, but users experience severe latency. The latency monitor makes this invisible problem visible — you can watch response times spike from milliseconds to seconds when triggering the async blocking simulation.</p>
+                </section>
+
+                <!-- CPU Stress Section -->
+                <section id="cpu" class="doc-section">
+                    <h2>🔥 CPU Stress Simulation</h2>
+                    <p>The CPU Stress simulation creates high CPU usage through parallel worker processes running intensive cryptographic operations, saturating available CPU cores for a specified duration.</p>
+
+                    <h3>How It Works</h3>
+                    <p>The simulation spawns worker processes (using Python's <code>multiprocessing</code>) that execute intensive SHA-256 hash calculations in tight loops. Unlike the main asyncio event loop, these worker processes can fully utilize multiple CPU cores without blocking the application's request handling.</p>
+
+                    <h3>Dashboard Controls</h3>
+                    <ul>
+                        <li><strong>Duration:</strong> How long to run the stress test (minimum 1 second)</li>
+                        <li><strong>Intensity:</strong> Moderate or High - controls number of parallel workers</li>
+                        <li><strong>Start/Stop:</strong> Begin or cancel the simulation</li>
+                    </ul>
+
+                    <h3>What You'll Observe</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Expected</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>CPU %</td>
+                                <td>High (depends on intensity)</td>
+                                <td>Worker processes consuming CPU cycles</td>
+                            </tr>
+                            <tr>
+                                <td>Memory</td>
+                                <td>Slight increase</td>
+                                <td>Worker processes have small memory footprint</td>
+                            </tr>
+                            <tr>
+                                <td>Latency</td>
+                                <td>May increase slightly</td>
+                                <td>Less CPU available for request processing</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Real-World CPU Issues</h3>
+                    <p>High CPU in production is typically caused by:</p>
+                    <ul>
+                        <li>Inefficient algorithms (O(n²) when O(n) is possible)</li>
+                        <li>Infinite loops due to bugs</li>
+                        <li>Excessive regular expression backtracking</li>
+                        <li>Unoptimized data processing with large datasets</li>
+                        <li>CPU-bound operations blocking the event loop instead of being offloaded</li>
+                    </ul>
+
+                    <h3>Diagnosis Tools</h3>
+                    <ul>
+                        <li>Azure App Service → Diagnose and Solve Problems → CPU usage</li>
+                        <li>Application Insights Performance blade</li>
+                        <li><code>py-spy</code> for profiling Python processes</li>
+                        <li><code>top</code> / <code>htop</code> for real-time CPU monitoring</li>
+                    </ul>
+                </section>
+
+                <!-- Memory Pressure Section -->
+                <section id="memory" class="doc-section">
+                    <h2>📊 Memory Pressure Simulation</h2>
+                    <p>The Memory Pressure simulation allocates and holds large byte arrays to demonstrate memory consumption patterns and garbage collection behavior.</p>
+
+                    <h3>How It Works</h3>
+                    <p>Large <code>bytearray</code> objects are allocated and filled with random data to prevent memory optimization. These allocations are held in a list, simulating problematic allocation patterns like memory leaks. Multiple allocations are cumulative until explicitly released.</p>
+
+                    <h3>Dashboard Controls</h3>
+                    <ul>
+                        <li><strong>Size (MB):</strong> Amount of memory to allocate per click</li>
+                        <li><strong>Allocate:</strong> Adds a new memory block (cumulative)</li>
+                        <li><strong>Release:</strong> Frees all allocated blocks</li>
+                    </ul>
+
+                    <h3>What You'll Observe</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Expected</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Memory (MB)</td>
+                                <td>Increases by allocation size</td>
+                                <td>Charts reflect working set increase</td>
+                            </tr>
+                            <tr>
+                                <td>CPU</td>
+                                <td>Brief spike</td>
+                                <td>Memory allocation and data filling</td>
+                            </tr>
+                            <tr>
+                                <td>After Release</td>
+                                <td>Memory drops</td>
+                                <td>Python garbage collector reclaims memory</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Python Memory Management</h3>
+                    <p>Python uses automatic memory management with garbage collection. Key considerations:</p>
+                    <ul>
+                        <li>Large allocations may not be immediately returned to the OS even after release</li>
+                        <li>Python's memory allocator maintains pools for small objects</li>
+                        <li>Reference cycles require the cyclic garbage collector to clean up</li>
+                        <li><code>gc.collect()</code> can force garbage collection but doesn't guarantee memory is returned to OS</li>
+                    </ul>
+
+                    <h3>Real-World Memory Issues</h3>
+                    <ul>
+                        <li>Collections that accumulate data without limits (e.g., caches, logs)</li>
+                        <li>Circular references preventing garbage collection</li>
+                        <li>Global variables holding large objects</li>
+                        <li>Event handlers or callbacks keeping references alive</li>
+                        <li>Large file reads loaded entirely into memory</li>
+                    </ul>
+
+                    <h3>Diagnosis Tools</h3>
+                    <ul>
+                        <li>Azure App Service → Memory Working Set blade</li>
+                        <li><code>tracemalloc</code> for tracking memory allocations in Python</li>
+                        <li><code>memory_profiler</code> for line-by-line memory analysis</li>
+                        <li><code>objgraph</code> for visualizing object references</li>
+                    </ul>
+                </section>
+
+                <!-- Async Blocking Section -->
+                <section id="asyncblocking" class="doc-section">
+                    <h2>🧵 Async Blocking (Event Loop Starvation)</h2>
+                    <p>The Async Blocking simulation demonstrates the dangerous "sync-over-async" anti-pattern in Python, where synchronous blocking calls are made inside async functions, freezing the entire event loop.</p>
+
+                    <h3>How It Works</h3>
+                    <p>The simulation calls <code>time.sleep()</code> (a blocking operation) inside an async context instead of using <code>await asyncio.sleep()</code>. This blocks Python's single-threaded event loop, causing:</p>
+                    <ol>
+                        <li>The event loop thread becomes blocked</li>
+                        <li>ALL other async operations freeze (including other requests)</li>
+                        <li>Incoming requests queue up waiting for the event loop</li>
+                        <li>Request latency spikes dramatically</li>
+                    </ol>
+
+                    <h3>Dashboard Controls</h3>
+                    <ul>
+                        <li><strong>Delay (s):</strong> How long each blocking operation lasts</li>
+                        <li><strong>Count:</strong> Number of concurrent blocking operations to spawn</li>
+                        <li><strong>Start/Stop:</strong> Begin or cancel the simulation</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>⏱️ Duration Note:</strong> Python's asyncio runs on a single thread by default. Even a few blocking operations can cause significant impact — much more dramatic than thread pool starvation in multi-threaded frameworks.
+                    </div>
+
+                    <h3>The Sync-Over-Async Anti-Pattern</h3>
+                    <p>These patterns block the event loop and should be avoided:</p>
+                    
+                    <div class="code-block code-bad"><span class="comment"># ❌ BAD - Blocks event loop</span>
+import time
+
+async def handle_request():
+    time.sleep(5)  <span class="comment"># BLOCKS the entire event loop!</span>
+    return "Done"
+
+async def fetch_data():
+    response = requests.get(url)  <span class="comment"># BLOCKS - requests is synchronous!</span>
+    return response.json()</div>
+
+                    <div class="code-block code-good"><span class="comment"># ✅ GOOD - Properly async</span>
+import asyncio
+import httpx
+
+async def handle_request():
+    await asyncio.sleep(5)  <span class="comment"># Yields control back to event loop</span>
+    return "Done"
+
+async def fetch_data():
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)  <span class="comment"># Non-blocking HTTP</span>
+        return response.json()</div>
+
+                    <h3>What You'll Observe</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Expected</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>CPU</td>
+                                <td>LOW</td>
+                                <td>Event loop is waiting, not working</td>
+                            </tr>
+                            <tr>
+                                <td>Memory</td>
+                                <td>Normal</td>
+                                <td>No memory leak occurring</td>
+                            </tr>
+                            <tr>
+                                <td>Pending Tasks</td>
+                                <td>May increase</td>
+                                <td>Tasks queued waiting for event loop</td>
+                            </tr>
+                            <tr>
+                                <td>Latency</td>
+                                <td>🔴 Spikes to seconds</td>
+                                <td>Requests queued waiting for event loop</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Why CPU is Low but Latency is High</h3>
+                    <p>This is the signature of event loop blocking. The CPU isn't working because the event loop is blocked waiting. New requests can't start because the single event loop is occupied. It looks like the app is idle, but users experience timeouts.</p>
+
+                    <h3>Real-World Causes</h3>
+                    <ul>
+                        <li>Using synchronous libraries in async code: <code>requests.get()</code> instead of <code>httpx</code> or <code>aiohttp</code></li>
+                        <li>Calling <code>time.sleep()</code> instead of <code>await asyncio.sleep()</code></li>
+                        <li>Synchronous file I/O without <code>aiofiles</code></li>
+                        <li>Synchronous database drivers without async equivalents</li>
+                        <li>Third-party libraries that block internally</li>
+                        <li>CPU-intensive operations that should be offloaded to a thread pool</li>
+                    </ul>
+
+                    <h3>How to Fix</h3>
+                    <ul>
+                        <li>Use <code>await</code> with proper async libraries throughout</li>
+                        <li>Replace <code>requests</code> with <code>httpx</code> or <code>aiohttp</code></li>
+                        <li>Use <code>asyncio.to_thread()</code> to offload blocking operations</li>
+                        <li>Use <code>aiofiles</code> for async file operations</li>
+                        <li>Use async database drivers (e.g., <code>asyncpg</code>, <code>aiomysql</code>)</li>
+                    </ul>
+
+                    <h3>Diagnosis Tools</h3>
+                    <ul>
+                        <li>Response times spike for ALL endpoints simultaneously</li>
+                        <li>Azure App Service → Diagnose and Solve Problems</li>
+                        <li><code>py-spy</code> to see what the event loop thread is doing</li>
+                        <li>Custom asyncio event loop monitoring with <code>loop.slow_callback_duration</code></li>
+                    </ul>
+                </section>
+
+                <!-- Slow Requests Section -->
+                <section id="slowrequest" class="doc-section">
+                    <h2>🐌 Slow Request Simulator</h2>
+                    <p>The Slow Request Simulator generates long-running requests (~25 seconds each) specifically designed for profiler training and Azure diagnostics practice.</p>
+
+                    <h3>Purpose</h3>
+                    <p>Unlike the Async Blocking simulation (which causes many short blocks), this creates individual long requests that are clearly visible in profiler traces and monitoring dashboards. The extended duration makes it easy to capture them in diagnostic tools.</p>
+
+                    <h3>Dashboard Controls</h3>
+                    <ul>
+                        <li><strong>Duration (s):</strong> How long each request takes (5-60 seconds, default 25)</li>
+                        <li><strong>Interval (s):</strong> Time between requests</li>
+                        <li><strong>Max Requests:</strong> Total requests to generate</li>
+                        <li><strong>Start/Stop:</strong> Begin or cancel the simulation</li>
+                    </ul>
+
+                    <h3>Recommended Settings</h3>
+                    <p>For a 60-second profiler trace:</p>
+                    <ul>
+                        <li><strong>Duration:</strong> 25 seconds (allows capture within trace window)</li>
+                        <li><strong>Interval:</strong> 10 seconds (multiple samples)</li>
+                        <li><strong>Max Requests:</strong> 6 (doesn't overwhelm the system)</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>⚠️ Note on Queue Time:</strong> If the event loop is blocked, you may see additional delay before the request starts. This is "Queue Time" (waiting for event loop) vs "Execution Time" (running the code).
+                    </div>
+
+                    <h3>Using with Azure Diagnostics</h3>
+                    <ol>
+                        <li>Start a CPU Profiler trace (60-120 seconds) in Azure Portal</li>
+                        <li>Click 🐌 Start Slow Requests in the dashboard</li>
+                        <li>Wait for trace to complete</li>
+                        <li>Download and analyze - look for the long-running requests</li>
+                    </ol>
+                    <p>See the <a href="/azure-diagnostics.html">Azure Diagnostics Guide</a> for detailed profiler analysis instructions.</p>
+                </section>
+
+                <!-- Failed Requests Section -->
+                <section id="failedrequests" class="doc-section">
+                    <h2>❌ Failed Requests Simulation</h2>
+                    <p>The Failed Requests simulation generates HTTP 5xx errors for testing Azure diagnostics tools like AppLens and Application Insights.</p>
+
+                    <h3>Purpose</h3>
+                    <p>This simulation generates HTTP 500 Internal Server Error responses that are visible in:</p>
+                    <ul>
+                        <li><strong>AppLens</strong> - Azure Portal → Diagnose and solve problems</li>
+                        <li><strong>Application Insights</strong> - Failures blade</li>
+                        <li><strong>Azure Monitor</strong> - Error rate alerts</li>
+                    </ul>
+
+                    <h3>Dashboard Controls</h3>
+                    <ul>
+                        <li><strong>Error Count:</strong> Number of HTTP 500 errors to generate (1-100)</li>
+                        <li><strong>Generate:</strong> Triggers the error generation</li>
+                    </ul>
+
+                    <h3>Exception Types</h3>
+                    <p>The simulation randomly throws various exception types per request:</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Exception</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>ValueError</td><td>Invalid value provided</td></tr>
+                            <tr><td>RuntimeError</td><td>Runtime error occurred</td></tr>
+                            <tr><td>KeyError</td><td>Key not found in dictionary</td></tr>
+                            <tr><td>IndexError</td><td>Index out of range</td></tr>
+                            <tr><td>TypeError</td><td>Type mismatch error</td></tr>
+                            <tr><td>AttributeError</td><td>Attribute not found</td></tr>
+                            <tr><td>ZeroDivisionError</td><td>Division by zero</td></tr>
+                            <tr><td>ConnectionError</td><td>Connection failed</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Dashboard Event Log</h3>
+                    <p>Each failed request appears in the Event Log with:</p>
+                    <ul>
+                        <li><strong>Brown color</strong> - Distinctive styling for visibility</li>
+                        <li><strong>❌ icon</strong> - Failed request indicator</li>
+                        <li><strong>Exception type</strong> - The specific exception that was thrown</li>
+                    </ul>
+                    <p>See the <a href="/azure-diagnostics.html">Azure Diagnostics Guide</a> for detailed AppLens analysis instructions.</p>
+                </section>
+
+                <!-- Crash Simulation Section -->
+                <section id="crash" class="doc-section">
+                    <h2>💥 Crash Simulation</h2>
+                    <p>The dashboard includes a Crash Simulation feature for testing Azure crash monitoring and container restart behavior.</p>
+
+                    <div class="danger-box">
+                        <h4>⚠️ Warning - This will TERMINATE the application!</h4>
+                        <p>Crash simulations immediately terminate the process. Azure App Service will automatically restart the application after a crash. Make sure you have monitoring enabled before triggering a crash.</p>
+                    </div>
+
+                    <h3>Available Crash Types</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Use Case</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>exception</code></td>
+                                <td>Raises an unhandled exception that crashes the process</td>
+                                <td>General crash testing (recommended)</td>
+                            </tr>
+                            <tr>
+                                <td><code>stackoverflow</code></td>
+                                <td>Infinite recursion causing stack overflow</td>
+                                <td>Stack trace analysis practice</td>
+                            </tr>
+                            <tr>
+                                <td><code>oom</code></td>
+                                <td>Allocates memory until the process crashes</td>
+                                <td>Memory dump analysis</td>
+                            </tr>
+                            <tr>
+                                <td><code>sigabrt</code></td>
+                                <td>Sends SIGABRT signal to terminate process</td>
+                                <td>Testing signal handling / Docker restart</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Azure Crash Monitoring Setup</h3>
+                    <ol>
+                        <li>In Azure Portal, go to your App Service</li>
+                        <li>Navigate to Diagnose and solve problems</li>
+                        <li>Search for "Application Crashes"</li>
+                        <li>Enable crash monitoring if available</li>
+                        <li>Trigger a crash using the dashboard</li>
+                        <li>Observe the container restart and analyze logs</li>
+                    </ol>
+                </section>
+
+                <!-- API Reference Section -->
+                <section id="api" class="doc-section">
+                    <h2>🔌 API Reference</h2>
+                    <p>For automated testing and load testing scenarios, the following API endpoints are available. All endpoints are prefixed with <code>/api</code>.</p>
+
+                    <h3>Health & Monitoring</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>Method</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>/api/health</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Basic health check</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/health/probe</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Lightweight probe for latency measurement</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/metrics</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Current metrics snapshot</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/admin/stats</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Simulation and resource statistics</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/config</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Frontend configuration including idle state</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/activity</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Record activity to wake from idle state</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/footer</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>Get custom footer text (PAGE_FOOTER env var)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Simulation Endpoints</h3>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>Method</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>/api/cpu/start</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Start CPU stress simulation</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/cpu/stop-all</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Stop all CPU simulations</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/memory/allocate</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Allocate memory block</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/memory/release-all</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Release all memory blocks</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/blocking/async</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Block the event loop</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/slow/start</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Start slow request simulation</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/slow/stop</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Stop slow request simulation</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/crash/types</code></td>
+                                <td><span class="method-badge method-get">GET</span></td>
+                                <td>List available crash types</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/crash</code></td>
+                                <td><span class="method-badge method-post">POST</span></td>
+                                <td>Trigger crash (requires confirmation)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <aside class="doc-toc">
+            <div class="doc-toc-sticky">
+                <div class="doc-toc-card">
+                    <div class="doc-toc-title">On This Page</div>
+                    <ul>
+                        <li class="doc-toc-item"><a href="#overview"><span class="toc-icon">🎯</span> Overview</a></li>
+                        <li class="doc-toc-item"><a href="#quick-start"><span class="toc-icon">🚀</span> Quick Start</a></li>
+                        <li class="doc-toc-item"><a href="#environment-variables"><span class="toc-icon">⚙️</span> Environment Variables</a></li>
+                        <li class="doc-toc-divider" aria-hidden="true"></li>
+                        <li class="doc-toc-section-label">Dashboard</li>
+                        <li class="doc-toc-item"><a href="#dashboard"><span class="toc-icon">📊</span> Dashboard</a></li>
+                        <li class="doc-toc-item"><a href="#latency"><span class="toc-icon">⏱️</span> Latency Monitor</a></li>
+                        <li class="doc-toc-divider" aria-hidden="true"></li>
+                        <li class="doc-toc-section-label">Simulations</li>
+                        <li class="doc-toc-item"><a href="#cpu"><span class="toc-icon">🔥</span> CPU Stress</a></li>
+                        <li class="doc-toc-item"><a href="#memory"><span class="toc-icon">📊</span> Memory Pressure</a></li>
+                        <li class="doc-toc-item"><a href="#asyncblocking"><span class="toc-icon">🧵</span> Async Blocking</a></li>
+                        <li class="doc-toc-item"><a href="#slowrequest"><span class="toc-icon">🐌</span> Slow Requests</a></li>
+                        <li class="doc-toc-item"><a href="#failedrequests"><span class="toc-icon">❌</span> Failed Requests</a></li>
+                        <li class="doc-toc-item"><a href="#crash"><span class="toc-icon">💥</span> Crash Simulation</a></li>
+                        <li class="doc-toc-divider" aria-hidden="true"></li>
+                        <li class="doc-toc-item"><a href="#api"><span class="toc-icon">🔌</span> API Reference</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
     </div>
-    <div class="header-center">
-      <span class="sku-badge">Python Edition</span>
-    </div>
-    <div class="header-right"></div>
-  </header>
 
-  <!-- Table of Contents -->
-  <nav class="toc">
-    <strong>Contents</strong>
-    <a href="#health">Health & Metrics</a>
-    <a href="#cpu">CPU Stress</a>
-    <a href="#memory">Memory Pressure</a>
-    <a href="#blocking">Blocking</a>
-    <a href="#slow">Slow Requests</a>
-    <a href="#crash">Crash Simulation</a>
-    <a href="#admin">Admin</a>
-  </nav>
+    <footer class="footer">
+        <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
+        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
+        <p>Build: <span id="footerBuildTime">--</span></p>
+    </footer>
 
-  <!-- Main Content -->
-  <main class="main-content no-sidebar">
-    <div class="docs-content">
-      <h1>API Reference</h1>
-      <p>
-        Complete API documentation for the Performance Problem Simulator.
-        All endpoints are prefixed with <code>/api</code>.
-      </p>
+    <script>
+        // Sidebar drawer toggle
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarDrawer = document.getElementById('sidebar-drawer');
+        const sidebarClose = document.getElementById('sidebar-close');
 
-      <div class="warning-box">
-        ⚠️ <strong>Warning:</strong> Simulation endpoints intentionally create performance problems.
-        Only use in controlled educational environments.
-      </div>
+        function openSidebar() {
+            hamburgerBtn.classList.add('active');
+            sidebarOverlay.classList.add('active');
+            sidebarDrawer.classList.add('active');
+        }
 
-      <!-- Health & Metrics -->
-      <h2 id="health">Health & Metrics</h2>
-      
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/health</code>
-        <p>Check application health status.</p>
-        <p><strong>Response:</strong></p>
-        <pre>{ "status": "healthy", "timestamp": "2024-01-01T00:00:00Z" }</pre>
-      </div>
+        function closeSidebar() {
+            hamburgerBtn.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            sidebarDrawer.classList.remove('active');
+        }
 
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/metrics</code>
-        <p>Get current system and process metrics.</p>
-        <p><strong>Response:</strong></p>
-        <pre>{
-  "system": {
-    "cpu_percent": 25.5,
-    "memory_percent": 60.2,
-    "memory_available_mb": 8192
-  },
-  "process": {
-    "cpu_percent": 5.2,
-    "memory_mb": 128.5,
-    "threads": 8
-  }
-}</pre>
-      </div>
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
 
-      <!-- CPU Stress -->
-      <h2 id="cpu">CPU Stress Simulation</h2>
-      <p>Create CPU load using multiprocessing workers performing floating-point calculations.</p>
+        // Highlight active TOC item on scroll
+        const sections = document.querySelectorAll('.doc-section');
+        const tocLinks = document.querySelectorAll('.doc-toc-item a');
 
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/cpu/start</code>
-        <p>Start CPU stress simulation.</p>
-        <p><strong>Request Body:</strong></p>
-        <pre>{
-  "duration_seconds": 30,  // Optional, null for indefinite
-  "intensity": 5,          // 1-10, default 5
-  "workers": 2             // 1-16, default CPU count
-}</pre>
-        <p><strong>Response:</strong></p>
-        <pre>{
-  "simulation_id": "uuid",
-  "workers": 2,
-  "message": "CPU stress started"
-}</pre>
-      </div>
+        function highlightTocOnScroll() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
 
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/cpu/stop</code>
-        <p>Stop a specific CPU simulation by ID.</p>
-        <p><strong>Request Body:</strong></p>
-        <pre>{ "simulation_id": "uuid" }</pre>
-      </div>
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
 
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/cpu/stop-all</code>
-        <p>Stop all running CPU simulations.</p>
-      </div>
+        window.addEventListener('scroll', highlightTocOnScroll);
+        highlightTocOnScroll();
 
-      <!-- Memory Pressure -->
-      <h2 id="memory">Memory Pressure Simulation</h2>
-      <p>Allocate and release memory blocks to simulate memory pressure.</p>
+        // Fetch and display SKU
+        async function fetchAndDisplaySku() {
+            try {
+                const response = await fetch('/api/sku');
+                if (response.ok) {
+                    const data = await response.json();
+                    const skuDisplay = document.getElementById('skuDisplay');
+                    if (skuDisplay) {
+                        skuDisplay.textContent = `SKU: ${data.sku}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch SKU:', error);
+            }
+        }
+        fetchAndDisplaySku();
 
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/memory/allocate</code>
-        <p>Allocate a memory block.</p>
-        <p><strong>Request Body:</strong></p>
-        <pre>{ "size_mb": 100 }  // 1-2048 MB</pre>
-        <p><strong>Response:</strong></p>
-        <pre>{
-  "block_id": "uuid",
-  "size_mb": 100,
-  "message": "Memory allocated"
-}</pre>
-      </div>
+        // Fetch and display build time
+        async function fetchAndDisplayBuildTime() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.buildTime) {
+                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                        const footerBuildTime = document.getElementById('footerBuildTime');
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
+                        if (footerBuildTime) footerBuildTime.textContent = data.buildTime;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch build time:', error);
+            }
+        }
+        fetchAndDisplayBuildTime();
 
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/memory/release</code>
-        <p>Release a specific memory block.</p>
-        <pre>{ "block_id": "uuid" }</pre>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/memory/release-all</code>
-        <p>Release all allocated memory blocks.</p>
-      </div>
-
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/memory/status</code>
-        <p>Get current memory allocation status.</p>
-      </div>
-
-      <!-- Blocking -->
-      <h2 id="blocking">Blocking Simulation</h2>
-      <p>Simulate synchronous (thread pool) and asynchronous (event loop) blocking.</p>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/blocking/sync</code>
-        <p>Block thread pool workers with synchronous sleep.</p>
-        <pre>{
-  "duration_seconds": 5,  // 0-300
-  "count": 1              // 1-100
-}</pre>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/blocking/async</code>
-        <p>Block event loop with synchronous sleep (anti-pattern demo).</p>
-        <pre>{
-  "duration_seconds": 5,
-  "chunk_ms": 100  // Optional: yield between chunks
-}</pre>
-      </div>
-
-      <!-- Slow Requests -->
-      <h2 id="slow">Slow Request Simulation</h2>
-      <p>Generate artificially delayed responses.</p>
-
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/slow?delay_seconds=5</code>
-        <p>Return response after specified delay (0-300 seconds).</p>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/slow/start</code>
-        <p>Start periodic slow request generator.</p>
-        <pre>{
-  "interval_seconds": 1,
-  "max_requests": 10,
-  "delay_seconds": 5
-}</pre>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/slow/stop</code>
-        <p>Stop the slow request generator.</p>
-      </div>
-
-      <!-- Crash -->
-      <h2 id="crash">Crash Simulation</h2>
-      
-      <div class="warning-box">
-        ⚠️ <strong>Danger:</strong> These endpoints will terminate the application!
-      </div>
-
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/crash/types</code>
-        <p>List available crash types with diagnostic information.</p>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/crash</code>
-        <p>Trigger application crash (requires confirmation).</p>
-        <pre>{
-  "crash_type": "exception",  // exception, stackoverflow, oom, sigabrt
-  "confirmed": true           // Must be true
-}</pre>
-      </div>
-
-      <!-- Admin -->
-      <h2 id="admin">Administration</h2>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/failed-requests</code>
-        <p>Generate HTTP 500 error log entries.</p>
-        <pre>{ "count": 10 }  // 1-1000</pre>
-      </div>
-
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/admin/reset</code>
-        <p>Stop all simulations and release all resources.</p>
-      </div>
-
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/admin/stats</code>
-        <p>Get detailed application statistics.</p>
-      </div>
-
-      <h2>WebSocket</h2>
-      <div class="endpoint">
-        <strong>WS</strong>
-        <code>/ws/metrics</code>
-        <p>Real-time metrics stream. Receives JSON messages every 500ms with system/process metrics.</p>
-      </div>
-
-    </div>
-  </main>
+        // Fetch and display custom footer (if configured)
+        async function fetchAndDisplayFooter() {
+            try {
+                const response = await fetch('/api/footer');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.has_custom_footer && data.footer) {
+                        const footerCredits = document.getElementById('footerCredits');
+                        if (footerCredits) {
+                            footerCredits.innerHTML = data.footer;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch footer:', error);
+            }
+        }
+        fetchAndDisplayFooter();
+    </script>
 </body>
 </html>

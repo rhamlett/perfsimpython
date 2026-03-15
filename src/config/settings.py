@@ -14,11 +14,10 @@ class Settings(BaseSettings):
     """Application configuration settings.
 
     Attributes:
-        app_env: Application environment (development, staging, production).
-        log_level: Logging verbosity level.
-        host: Server host address.
-        port: Server port number.
         ws_heartbeat_interval: WebSocket metrics broadcast interval in milliseconds.
+        health_probe_rate: Health probe interval in milliseconds (min 100ms).
+        idle_timeout_minutes: Minutes of inactivity before app goes idle.
+        page_footer: Custom footer text for attribution.
     """
 
     model_config = SettingsConfigDict(
@@ -28,28 +27,27 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Application environment
-    app_env: Literal["development", "staging", "production"] = "development"
-
-    # Logging configuration
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-
-    # Server configuration
-    host: str = "0.0.0.0"
-    port: int = 8000
-
     # WebSocket configuration
     ws_heartbeat_interval: int = 500  # milliseconds
 
-    @property
-    def is_production(self) -> bool:
-        """Check if running in production environment."""
-        return self.app_env == "production"
+    # Health probe configuration
+    health_probe_rate: int = 200  # milliseconds (default 5 probes/sec)
+
+    # Idle timeout configuration
+    idle_timeout_minutes: int = 20  # minutes before app goes idle (0 = disabled)
+
+    # Page footer configuration (HTML allowed)
+    page_footer: str | None = None  # Custom footer text for attribution
 
     @property
-    def is_development(self) -> bool:
-        """Check if running in development environment."""
-        return self.app_env == "development"
+    def health_probe_rate_clamped(self) -> int:
+        """Get health probe rate clamped to minimum 100ms."""
+        return max(100, self.health_probe_rate)
+
+    @property
+    def idle_timeout_seconds(self) -> int:
+        """Get idle timeout in seconds (0 = disabled)."""
+        return self.idle_timeout_minutes * 60
 
 
 @lru_cache

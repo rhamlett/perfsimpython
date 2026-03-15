@@ -4,25 +4,60 @@
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   CSS Variables / Theme
+   CSS Variables / Theme - Python Edition
+   Using Python logo colors: Blue (#306998) and Yellow (#FFD43B)
    -------------------------------------------------------------------------- */
 :root {
-    --color-primary: #0078d4;
-    --color-primary-dark: #005a9e;
+    /* Python Blue Palette */
+    --python-blue-darkest: #1a3a52;
+    --python-blue-darker: #234d6b;
+    --python-blue-dark: #2a5f84;
+    --python-blue: #306998;
+    --python-blue-light: #4B8BBE;
+    --python-blue-lighter: #6ba8dc;
+    --python-blue-pale: #b8d4ed;
+    --python-blue-faint: #e3eef7;
+    
+    /* Python Yellow Palette */
+    --python-yellow-darkest: #8a6d00;
+    --python-yellow-darker: #b8920e;
+    --python-yellow-dark: #d4a800;
+    --python-yellow: #FFD43B;
+    --python-yellow-light: #FFE066;
+    --python-yellow-lighter: #FFE873;
+    --python-yellow-pale: #fff4cc;
+    --python-yellow-faint: #fffae6;
+    
+    /* Theme Colors - Python themed */
+    --color-primary: var(--python-blue);
+    --color-primary-dark: var(--python-blue-dark);
+    --color-primary-darker: var(--python-blue-darker);
+    --color-accent: var(--python-yellow);
+    --color-accent-dark: var(--python-yellow-dark);
     --color-success: #107c10;
     --color-warning: #ffb900;
     --color-danger: #d13438;
     --color-secondary: #6c757d;
     
-    --color-bg: #e8f1f8;
+    /* Background uses very desaturated Python yellow */
+    --color-bg: linear-gradient(135deg, var(--python-yellow-faint) 0%, #faf9f5 50%, var(--python-yellow-pale) 100%);
+    --color-bg-solid: #faf8f2;
     --color-card: #ffffff;
-    --color-text: #323130;
-    --color-text-muted: #605e5c;
+    --color-text: #1a1a1a;
+    --color-text-muted: #5c5c5c;
     
+    /* Metric colors - DO NOT CHANGE (per requirements) */
     --color-cpu: #0078d4;
     --color-memory: #107c10;
     --color-threads: #8764b8;
     --color-queue: #ffb900;
+    
+    /* Documentation page aliases - maps to Python theme */
+    --primary-color: var(--python-blue);
+    --surface-color: var(--python-blue-faint);
+    --border-color: var(--python-blue-pale);
+    --bg-color: var(--python-yellow-pale);
+    --text-secondary: var(--color-text-muted);
     
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.15);
     --shadow-md: 0 6px 12px rgba(0,0,0,0.18);
@@ -55,22 +90,34 @@
 body {
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--color-bg);
+    background-color: var(--color-bg-solid);
     color: var(--color-text);
     line-height: 1.5;
     min-height: 100vh;
 }
 
+/* Documentation pages - horizontal gradient that stays light on long pages */
+body.page-doc {
+    background-color: #f9f9f8;
+    background: linear-gradient(90deg, 
+        rgba(255, 240, 180, 0.4) 5%, 
+        #fafaf9 30%, 
+        rgba(255, 238, 170, 0.35) 60%
+    );
+    background-attachment: fixed;
+}
+
 /* --------------------------------------------------------------------------
-   Header
+   Header - Python themed
    -------------------------------------------------------------------------- */
 .header {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    background: linear-gradient(135deg, var(--python-blue-dark) 0%, var(--python-blue) 50%, var(--python-blue-darker) 100%);
     color: white;
     padding: 0.75rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-md), inset 0 -2px 0 var(--python-yellow);
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -98,6 +145,26 @@ body {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0;
+}
+
+/* Python Logo in Header */
+.python-logo {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.python-logo-with-bg {
+    background: white;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.python-logo-sm {
+    width: 22px;
+    height: 22px;
+    margin-right: 6px;
+    vertical-align: middle;
 }
 
 .connection-status {
@@ -128,6 +195,11 @@ body {
     animation: pulse 1s infinite;
 }
 
+.indicator.idle {
+    background: #6c757d;
+    box-shadow: 0 0 8px #6c757d;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
@@ -141,28 +213,31 @@ body {
     left: 50%;
     transform: translateX(-50%);
     font-weight: bold;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--python-yellow);
+    color: var(--python-blue-darkest);
     padding: 0.25rem 0.75rem;
     border-radius: 12px;
     font-size: 0.9em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
 .btn-panel-toggle {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: var(--python-yellow);
+    color: var(--python-blue-darkest);
+    border: 1px solid var(--python-yellow-dark);
     padding: 0.5rem 1rem;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     text-decoration: none;
 }
 
 .btn-panel-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: var(--python-yellow-light);
+    border-color: var(--python-yellow);
+    box-shadow: 0 2px 8px rgba(255, 212, 59, 0.3);
 }
 
 /* --------------------------------------------------------------------------
@@ -232,7 +307,7 @@ body {
     left: 0;
     width: var(--sidebar-width);
     height: 100vh;
-    background: var(--color-primary-dark);
+    background: linear-gradient(180deg, var(--python-blue-darker) 0%, var(--python-blue-darkest) 100%);
     z-index: 300;
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
@@ -296,12 +371,12 @@ body {
 
 .sidebar-nav-item:hover {
     background: rgba(255,255,255,0.1);
-    border-left-color: #90EE90;
+    border-left-color: var(--python-yellow);
 }
 
 .sidebar-nav-item.active {
-    background: rgba(255,255,255,0.15);
-    border-left-color: white;
+    background: rgba(255,212,59,0.15);
+    border-left-color: var(--python-yellow);
 }
 
 .sidebar-nav-item .nav-icon {
@@ -565,18 +640,19 @@ body {
 }
 
 .latency-stat {
-    background: var(--color-bg);
+    background: var(--color-bg-solid);
     border-radius: var(--radius-md);
     padding: 0.4rem 0.75rem;
     display: flex;
     align-items: baseline;
     gap: 0.4rem;
-    border: 2px solid var(--color-primary);
+    border: 2px solid var(--python-blue-light);
     transition: border-color var(--transition-fast);
 }
 
 .latency-stat.current {
-    border-color: var(--color-primary);
+    border-color: var(--python-blue);
+    background: var(--python-blue-faint);
 }
 
 .latency-label {
@@ -722,8 +798,9 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    background: linear-gradient(135deg, var(--python-blue-dark) 0%, var(--python-blue) 100%);
     color: white;
+    border-bottom: 3px solid var(--python-yellow);
 }
 
 .side-panel-header h2 {
@@ -984,9 +1061,9 @@ body {
 
 .info-note {
     font-size: 0.75rem;
-    color: var(--color-primary);
-    background: rgba(0, 120, 212, 0.1);
-    border-left: 3px solid var(--color-primary);
+    color: var(--python-blue-dark);
+    background: var(--python-blue-faint);
+    border-left: 3px solid var(--python-blue);
     padding: 0.4rem 0.6rem;
     margin: 0.5rem 0;
     border-radius: 0 4px 4px 0;
@@ -1009,7 +1086,7 @@ body {
     align-items: center;
     margin-left: 0.35rem;
     font-size: 0.85rem;
-    color: var(--color-primary);
+    color: var(--python-blue);
     cursor: help;
 }
 
@@ -1130,13 +1207,43 @@ body {
 .log-entry.cpu { color: var(--color-cpu); }
 .log-entry.memory { color: var(--color-memory); }
 .log-entry.threads { color: var(--color-threads); }
-.log-entry.slowrequest { color: #b8860b; }
+.log-entry.slowrequest { color: #ff8c00; }
 .log-entry.failedrequests { color: #8B4513; }
 .log-entry.crash { color: var(--color-danger); }
+.log-entry.restart { color: var(--color-danger); }
+.log-entry.loadtest { color: var(--python-blue); }
 .log-entry.system { color: var(--color-text-muted); }
+.log-entry.ws-connect { color: var(--color-success); }
+.log-entry.ws-disconnect { color: var(--color-warning); }
 
 .log-icon {
     margin-right: 0.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   Tables
+   -------------------------------------------------------------------------- */
+.api-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.api-table th,
+.api-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--bg-color);
+}
+
+.api-table th {
+    background: var(--bg-color);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.api-table tr:hover td {
+    background: rgba(56, 139, 253, 0.05);
 }
 
 /* --------------------------------------------------------------------------
@@ -1149,36 +1256,55 @@ body {
     font-size: 0.875rem;
 }
 
+.footer a {
+    color: var(--python-blue);
+    text-decoration: none;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
 /* --------------------------------------------------------------------------
-   Responsive Adjustments
+   Documentation Pages - Icon Button & SKU Badge
    -------------------------------------------------------------------------- */
-@media (max-width: 768px) {
-    .header {
-        flex-direction: column;
-        gap: 0.75rem;
-        text-align: center;
-    }
-    
-    .charts-section {
-        grid-template-columns: 1fr;
-    }
-    
-    .metrics-cards {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .latency-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .latency-chart-container {
-        height: 200px;
-    }
-    
-    .side-panel {
-        width: 100%;
-        right: -100%;
-    }
+.icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.icon-btn:hover {
+    background: var(--python-yellow);
+    color: var(--python-blue-darkest);
+}
+
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.sku-badge {
+    font-weight: bold;
+    background: var(--python-yellow);
+    color: var(--python-blue-darkest);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 /* Overlay */

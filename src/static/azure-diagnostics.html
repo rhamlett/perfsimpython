@@ -3,23 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azure Diagnostics Guide - Performance Problem Simulator</title>
+  <title>Azure Diagnostics Guide - Performance Problem Simulator - Python 3.12</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
-    .docs-content {
-      max-width: 900px;
+    /* Documentation layout styles */
+    .doc-layout {
+      display: flex;
+      gap: 2rem;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 2rem;
     }
-    .docs-content h1 { margin-bottom: 1.5rem; }
-    .docs-content h2 { 
+    .doc-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .doc-container {
+      max-width: 900px;
+    }
+    .doc-toc {
+      width: 280px;
+      flex-shrink: 0;
+    }
+    .doc-toc-sticky {
+      position: sticky;
+      top: 80px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+    }
+    .doc-toc-card {
+      background: var(--surface-color);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.25rem;
+    }
+    .doc-toc-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--bg-color);
+    }
+    .doc-toc ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .doc-toc-item {
+      margin-bottom: 0.25rem;
+    }
+    .doc-toc-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.15s ease;
+      border-left: 2px solid transparent;
+    }
+    .doc-toc-item a:hover {
+      background: rgba(56, 139, 253, 0.08);
+      color: var(--primary-color);
+      border-left-color: var(--primary-color);
+    }
+    .toc-icon {
+      font-size: 1rem;
+      width: 1.25rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .doc-section {
+      scroll-margin-top: 80px;
+    }
+    .deploy-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .deploy-header h1 {
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+    .deploy-header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    /* Page-specific styles */
+    .doc-container h2 { 
       margin-top: 2.5rem; 
       margin-bottom: 1rem;
       padding-bottom: 0.5rem;
       border-bottom: 1px solid var(--border-color);
     }
-    .docs-content h3 { margin-top: 1.5rem; color: var(--primary-color); }
+    .doc-container h3 { margin-top: 1.5rem; color: var(--primary-color); }
     .tool-card {
       background: var(--surface-color);
       padding: 1.5rem;
@@ -85,32 +168,85 @@
     }
   </style>
 </head>
-<body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <a href="/" class="icon-btn" aria-label="Back to dashboard">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
-      </a>
-      <h1 class="header-title">Azure Diagnostics Guide</h1>
-    </div>
-    <div class="header-center">
-      <span class="sku-badge">Python Edition</span>
-    </div>
-    <div class="header-right"></div>
-  </header>
+<body class="page-doc">
+    <header class="header">
+        <div class="header-left">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <svg class="python-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="pythonBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#5A9FD4"/>
+                        <stop offset="100%" stop-color="#306998"/>
+                    </linearGradient>
+                    <linearGradient id="pythonYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD43B"/>
+                        <stop offset="100%" stop-color="#FFE873"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+            </svg>
+            <h1 class="header-title">Performance Problem Simulator - Python 3.12</h1>
+        </div>
+        <div id="skuDisplay" class="sku-display">SKU: Loading...</div>
+        <div class="header-right">
+            <a href="/" class="btn-panel-toggle">🏠 Dashboard</a>
+        </div>
+    </header>
+
+    <!-- Sidebar Drawer Navigation -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-header">
+            <h2>🐍 PerfSim Python</h2>
+            <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">&times;</button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">Application</div>
+            <a href="/" class="sidebar-nav-item">
+                <span class="nav-icon">🎮</span>
+                <span class="nav-label">Dashboard<span class="nav-desc">Live metrics & controls</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">Documentation</div>
+            <a href="/docs.html" class="sidebar-nav-item">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">Documentation<span class="nav-desc">API reference & guides</span></span>
+            </a>
+            <a href="/azure-diagnostics.html" class="sidebar-nav-item active">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
+            </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">External</div>
+            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+                <span class="nav-icon">🐙</span>
+                <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            Build: <span id="sidebarBuildTime">--</span>
+        </div>
+    </aside>
 
   <!-- Main Content -->
-  <main class="main-content no-sidebar">
-    <div class="docs-content">
-      <h1>Diagnosing Performance Problems in Azure</h1>
-      <p>
-        This guide covers the diagnostic tools and techniques available in Azure App Service
-        for identifying and resolving performance issues in Python applications.
-      </p>
+    <div class="doc-layout">
+        <div class="doc-main">
+            <div class="doc-container">
+                <div class="deploy-header">
+                    <h1>☁️ Azure Diagnostics Guide</h1>
+                    <p>Diagnostic tools and techniques for identifying and resolving performance issues in Python applications</p>
+                </div>
 
+      <section id="quick-reference" class="doc-section">
       <h2>Quick Reference: Problem to Tool</h2>
       <table class="problem-table">
         <thead>
@@ -148,7 +284,9 @@
           </tr>
         </tbody>
       </table>
+      </section>
 
+      <section id="diagnose-solve" class="doc-section">
       <h2>Azure Portal: Diagnose and Solve Problems</h2>
       <div class="tool-card">
         <h3>Accessing the Tool</h3>
@@ -167,7 +305,9 @@
           <li><strong>Web App Slow</strong> - Identifies latency causes</li>
         </ul>
       </div>
+      </section>
 
+      <section id="app-insights" class="doc-section">
       <h2>Application Insights</h2>
       <div class="tool-card">
         <h3>Setting Up Application Insights</h3>
@@ -199,7 +339,9 @@ tracer = Tracer(
         <strong>💡 Tip:</strong> Use the Transaction Search feature in Application Insights to trace 
         specific requests end-to-end, including all dependency calls and their timing.
       </div>
+      </section>
 
+      <section id="kudu" class="doc-section">
       <h2>Kudu Console (Advanced Diagnostics)</h2>
       <div class="tool-card">
         <h3>Accessing Kudu</h3>
@@ -228,7 +370,9 @@ ps aux | grep python
 # View application logs
 tail -f /home/LogFiles/docker/*.log</pre>
       </div>
+      </section>
 
+      <section id="profiling" class="doc-section">
       <h2>Python Profiling Tools</h2>
       
       <div class="tool-card">
@@ -279,7 +423,9 @@ top_stats = snapshot.statistics('lineno')
 for stat in top_stats[:10]:
     print(stat)</pre>
       </div>
+      </section>
 
+      <section id="kql" class="doc-section">
       <h2>Log Analytics Queries (KQL)</h2>
       <div class="tool-card">
         <h3>Common Queries</h3>
@@ -301,7 +447,9 @@ for stat in top_stats[:10]:
 | where Log_s contains "exited"
 | project TimeGenerated, Log_s</pre>
       </div>
+      </section>
 
+      <section id="simulation-diagnostics" class="doc-section">
       <h2>Simulation-Specific Diagnostics</h2>
       
       <h3>CPU Stress</h3>
@@ -335,8 +483,113 @@ for stat in top_stats[:10]:
         <li>App Insights → Failures shows unhandled exceptions</li>
         <li>Activity Log shows container restart events</li>
       </ul>
+      </section>
 
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <aside class="doc-toc">
+            <div class="doc-toc-sticky">
+                <div class="doc-toc-card">
+                    <div class="doc-toc-title">On This Page</div>
+                    <ul>
+                        <li class="doc-toc-item"><a href="#quick-reference"><span class="toc-icon">📋</span>Quick Reference</a></li>
+                        <li class="doc-toc-item"><a href="#diagnose-solve"><span class="toc-icon">🔍</span>Diagnose & Solve</a></li>
+                        <li class="doc-toc-item"><a href="#app-insights"><span class="toc-icon">📊</span>Application Insights</a></li>
+                        <li class="doc-toc-item"><a href="#kudu"><span class="toc-icon">🖥️</span>Kudu Console</a></li>
+                        <li class="doc-toc-item"><a href="#profiling"><span class="toc-icon">⚡</span>Python Profiling</a></li>
+                        <li class="doc-toc-item"><a href="#kql"><span class="toc-icon">📝</span>KQL Queries</a></li>
+                        <li class="doc-toc-item"><a href="#simulation-diagnostics"><span class="toc-icon">🧪</span>Simulation Diagnostics</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
     </div>
-  </main>
+
+    <footer class="footer">
+        <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
+        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
+        <p>Build: <span id="footerBuildTime">--</span></p>
+    </footer>
+
+    <script>
+        // Sidebar drawer toggle
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarDrawer = document.getElementById('sidebar-drawer');
+        const sidebarClose = document.getElementById('sidebar-close');
+
+        function openSidebar() {
+            hamburgerBtn.classList.add('active');
+            sidebarOverlay.classList.add('active');
+            sidebarDrawer.classList.add('active');
+        }
+
+        function closeSidebar() {
+            hamburgerBtn.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            sidebarDrawer.classList.remove('active');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+
+        // Fetch and display SKU
+        async function fetchAndDisplaySku() {
+            try {
+                const response = await fetch('/api/sku');
+                if (response.ok) {
+                    const data = await response.json();
+                    const skuDisplay = document.getElementById('skuDisplay');
+                    if (skuDisplay) {
+                        skuDisplay.textContent = `SKU: ${data.sku}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch SKU:', error);
+            }
+        }
+        fetchAndDisplaySku();
+
+        // Fetch and display build time
+        async function fetchAndDisplayBuildTime() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.buildTime) {
+                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                        const footerBuildTime = document.getElementById('footerBuildTime');
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
+                        if (footerBuildTime) footerBuildTime.textContent = data.buildTime;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch build time:', error);
+            }
+        }
+        fetchAndDisplayBuildTime();
+
+        // Fetch and display custom footer (if configured)
+        async function fetchAndDisplayFooter() {
+            try {
+                const response = await fetch('/api/footer');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.has_custom_footer && data.footer) {
+                        const footerCredits = document.getElementById('footerCredits');
+                        if (footerCredits) {
+                            footerCredits.innerHTML = data.footer;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch footer:', error);
+            }
+        }
+        fetchAndDisplayFooter();
+    </script>
 </body>
 </html>

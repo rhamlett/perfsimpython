@@ -9,8 +9,9 @@
 
 const CONFIG = {
     maxDataPoints: 240,  // 1 minute of data at 250ms intervals
-    maxLatencyDataPoints: 600, // 60 seconds of probe data
-    latencyProbeIntervalMs: 100,
+    maxLatencyDataPoints: 600, // 60 seconds of chart data at 100ms updates
+    latencyChartUpdateIntervalMs: 100, // Chart update rate (fixed)
+    latencyProbeIntervalMs: 200, // Health probe rate (may be overwritten by server config)
     latencyTimeoutMs: 30000,
     reconnectDelayMs: 2000,
     apiBaseUrl: '/api'
@@ -40,8 +41,133 @@ const state = {
         timeoutCount: 0
     },
     activeSimulations: new Map(),
-    lastProcessId: null
+    lastProcessId: null,
+    // Idle state tracking
+    isIdle: false,
+    idleTimeoutMinutes: 20,
+    secondsUntilIdle: -1
 };
+
+// ==========================================================================
+// Latency Threshold Colors (matches Node.js version)
+// ==========================================================================
+
+// RGB values for smooth color interpolation
+const LATENCY_RGB = {
+    good:     { r: 16,  g: 124, b: 16  }, // Green (< 150ms)
+    degraded: { r: 255, g: 185, b: 0   }, // Yellow (150ms - 1s)
+    severe:   { r: 255, g: 140, b: 0   }, // Orange (1s - 30s)
+    critical: { r: 209, g: 52,  b: 56  }  // Red (30s+)
+};
+
+/**
+ * Interpolates between two RGB colors.
+ * @param {Object} color1 - Start color {r, g, b}
+ * @param {Object} color2 - End color {r, g, b}
+ * @param {number} t - Interpolation factor (0-1)
+ * @returns {string} - RGB color string
+ */
+function lerpColor(color1, color2, t) {
+    t = Math.max(0, Math.min(1, t)); // Clamp to 0-1
+    const r = Math.round(color1.r + (color2.r - color1.r) * t);
+    const g = Math.round(color1.g + (color2.g - color1.g) * t);
+    const b = Math.round(color1.b + (color2.b - color1.b) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * Gets a smoothly interpolated color for a latency value.
+ * Blends between threshold colors based on where the value falls.
+ * @param {number} latencyMs - Latency value in milliseconds
+ * @returns {string} - RGB color string
+ */
+function getInterpolatedLatencyColor(latencyMs) {
+    if (latencyMs <= 0) return lerpColor(LATENCY_RGB.good, LATENCY_RGB.good, 0);
+    
+    // 0-150ms: green → yellow
+    if (latencyMs <= 150) {
+        const t = latencyMs / 150;
+        return lerpColor(LATENCY_RGB.good, LATENCY_RGB.degraded, t);
+    }
+    
+    // 150-1000ms: yellow → orange
+    if (latencyMs <= 1000) {
+        const t = (latencyMs - 150) / (1000 - 150);
+        return lerpColor(LATENCY_RGB.degraded, LATENCY_RGB.severe, t);
+    }
+    
+    // 1000-30000ms: orange → red
+    if (latencyMs <= 30000) {
+        const t = (latencyMs - 1000) / (30000 - 1000);
+        return lerpColor(LATENCY_RGB.severe, LATENCY_RGB.critical, t);
+    }
+    
+    // >30000ms: solid red
+    return lerpColor(LATENCY_RGB.critical, LATENCY_RGB.critical, 1);
+}
+
+/**
+ * Gets a smoothly interpolated RGBA color for a latency value (for gradient fills).
+ * @param {number} latencyMs - Latency value in milliseconds
+ * @param {number} alpha - Alpha value (0-1)
+ * @returns {string} - RGBA color string
+ */
+function getInterpolatedLatencyColorRGBA(latencyMs, alpha) {
+    let r, g, b;
+    
+    if (latencyMs <= 0) {
+        r = LATENCY_RGB.good.r; g = LATENCY_RGB.good.g; b = LATENCY_RGB.good.b;
+    } else if (latencyMs <= 150) {
+        const t = latencyMs / 150;
+        r = Math.round(LATENCY_RGB.good.r + (LATENCY_RGB.degraded.r - LATENCY_RGB.good.r) * t);
+        g = Math.round(LATENCY_RGB.good.g + (LATENCY_RGB.degraded.g - LATENCY_RGB.good.g) * t);
+        b = Math.round(LATENCY_RGB.good.b + (LATENCY_RGB.degraded.b - LATENCY_RGB.good.b) * t);
+    } else if (latencyMs <= 1000) {
+        const t = (latencyMs - 150) / (1000 - 150);
+        r = Math.round(LATENCY_RGB.degraded.r + (LATENCY_RGB.severe.r - LATENCY_RGB.degraded.r) * t);
+        g = Math.round(LATENCY_RGB.degraded.g + (LATENCY_RGB.severe.g - LATENCY_RGB.degraded.g) * t);
+        b = Math.round(LATENCY_RGB.degraded.b + (LATENCY_RGB.severe.b - LATENCY_RGB.degraded.b) * t);
+    } else if (latencyMs <= 30000) {
+        const t = (latencyMs - 1000) / (30000 - 1000);
+        r = Math.round(LATENCY_RGB.severe.r + (LATENCY_RGB.critical.r - LATENCY_RGB.severe.r) * t);
+        g = Math.round(LATENCY_RGB.severe.g + (LATENCY_RGB.critical.g - LATENCY_RGB.severe.g) * t);
+        b = Math.round(LATENCY_RGB.severe.b + (LATENCY_RGB.critical.b - LATENCY_RGB.severe.b) * t);
+    } else {
+        r = LATENCY_RGB.critical.r; g = LATENCY_RGB.critical.g; b = LATENCY_RGB.critical.b;
+    }
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Creates a vertical gradient for the latency chart with smooth color blending.
+ * Adds many intermediate color stops for seamless transitions between thresholds.
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {Object} chartArea - Chart area dimensions
+ * @param {Object} scales - Chart scales
+ * @returns {CanvasGradient} - The gradient fill
+ */
+function createLatencyGradient(ctx, chartArea, scales) {
+    if (!chartArea || !scales.y) return 'rgba(16, 124, 16, 0.2)';
+    
+    const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+    const yMax = scales.y.max || 200;
+    
+    // Add many color stops for smooth blending (20 stops from bottom to top)
+    const numStops = 20;
+    for (let i = 0; i <= numStops; i++) {
+        const position = i / numStops; // 0 = bottom, 1 = top
+        const latencyAtPosition = position * yMax;
+        
+        // Alpha increases slightly with latency for better visual distinction
+        const alpha = 0.25 + (position * 0.25); // 0.25 at bottom to 0.50 at top
+        
+        const color = getInterpolatedLatencyColorRGBA(latencyAtPosition, alpha);
+        gradient.addColorStop(position, color);
+    }
+    
+    return gradient;
+}
 
 // ==========================================================================
 // UTC Time Formatting
@@ -63,6 +189,9 @@ function getCurrentUtcTime() {
 // WebSocket Connection
 // ==========================================================================
 
+let wsDisconnectTime = null;
+let wsDisconnectMessageTimeout = null;
+
 function initializeWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/metrics`;
@@ -73,8 +202,26 @@ function initializeWebSocket() {
         state.wsConnection = new WebSocket(wsUrl);
         
         state.wsConnection.onopen = () => {
+            // Clear any pending disconnect message
+            if (wsDisconnectMessageTimeout) {
+                clearTimeout(wsDisconnectMessageTimeout);
+                wsDisconnectMessageTimeout = null;
+            }
+            
             updateConnectionStatus('connected', 'Connected');
-            logEvent('system', 'Connected to metrics hub');
+            
+            // Calculate disconnect duration if we're reconnecting
+            if (wsDisconnectTime) {
+                const duration = Math.round((Date.now() - wsDisconnectTime) / 1000);
+                if (duration >= 10) {
+                    logEvent('ws-connect', `Reconnected to metrics hub (was disconnected for ${formatDuration(duration)})`);
+                } else {
+                    logEvent('ws-connect', 'Connected to metrics hub');
+                }
+                wsDisconnectTime = null;
+            } else {
+                logEvent('ws-connect', 'Connected to metrics hub');
+            }
         };
         
         state.wsConnection.onmessage = (event) => {
@@ -88,7 +235,20 @@ function initializeWebSocket() {
         
         state.wsConnection.onclose = (event) => {
             updateConnectionStatus('disconnected', 'Disconnected');
-            logEvent('system', 'Connection closed. Attempting to reconnect...');
+            
+            // Record disconnect time if not already set
+            if (!wsDisconnectTime) {
+                wsDisconnectTime = Date.now();
+            }
+            
+            // Only show disconnect message after 10 seconds
+            if (!wsDisconnectMessageTimeout) {
+                wsDisconnectMessageTimeout = setTimeout(() => {
+                    logEvent('ws-disconnect', 'Connection lost. Attempting to reconnect...');
+                    wsDisconnectMessageTimeout = null;
+                }, 10000);
+            }
+            
             setTimeout(initializeWebSocket, CONFIG.reconnectDelayMs);
         };
         
@@ -375,7 +535,7 @@ function initializeCharts() {
         });
     }
 
-    // Latency chart
+    // Latency chart with dynamic gradient coloring based on latency thresholds
     const latencyCtx = document.getElementById('latencyChart');
     if (latencyCtx) {
         state.charts.latency = new Chart(latencyCtx, {
@@ -386,11 +546,28 @@ function initializeCharts() {
                     {
                         label: 'Latency (ms)',
                         data: [],
-                        borderColor: '#0078d4',
-                        backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                        // Segment-based border color - smooth gradient based on data value
+                        segment: {
+                            borderColor: (ctx) => {
+                                const p0 = ctx.p0.parsed?.y;
+                                const p1 = ctx.p1.parsed?.y;
+                                if (p0 == null || p1 == null) return 'rgba(0,0,0,0)';
+                                const value = Math.max(p0, p1);
+                                return getInterpolatedLatencyColor(value);
+                            },
+                        },
+                        borderColor: '#107c10', // Default/fallback (green)
+                        // Dynamic gradient fill based on latency thresholds
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const { ctx, chartArea, scales } = chart;
+                            if (!chartArea) return 'rgba(16, 124, 16, 0.2)';
+                            return createLatencyGradient(ctx, chartArea, scales);
+                        },
                         tension: 0.2,
-                        fill: 'origin',
+                        fill: true,
                         pointRadius: 0,
+                        pointHoverRadius: 0,
                         borderWidth: 1
                     }
                 ]
@@ -430,7 +607,20 @@ function initializeCharts() {
                         }
                     }
                 },
-                plugins: { legend: { display: false } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                if (value >= 1000) {
+                                    return `Latency: ${(value / 1000).toFixed(1)}s`;
+                                }
+                                return `Latency: ${value.toFixed(0)}ms`;
+                            }
+                        }
+                    }
+                }
             }
         });
     }
@@ -646,18 +836,20 @@ function logEvent(type, message, options = {}) {
 
 function getEventIcon(type) {
     const icons = {
-        'system': '💻',
+        'system': '',
         'cpu': '🔥',
         'memory': '📊',
         'threads': '🧵',
         'slowrequest': '🐌',
         'failedrequests': '❌',
         'crash': '💥',
+        'restart': '🔄',
+        'loadtest': '📈',
         'success': '✅',
         'warning': '⚠️',
         'error': '🚨'
     };
-    return icons[type] || '📝';
+    return icons[type] || '';
 }
 
 // ==========================================================================
@@ -899,11 +1091,97 @@ function setupEventHandlers() {
 // ==========================================================================
 
 let latencyProbeInterval = null;
+let latencyChartUpdateInterval = null;
+let lastProbeResult = null; // Store the last probe result for interpolation
+
+async function fetchConfig() {
+    try {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/config`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.latencyProbeIntervalMs && data.latencyProbeIntervalMs >= 100) {
+                CONFIG.latencyProbeIntervalMs = data.latencyProbeIntervalMs;
+                console.log(`Health probe interval set to ${CONFIG.latencyProbeIntervalMs}ms from server config`);
+            }
+            // Update build time displays
+            if (data.buildTime) {
+                const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                const footerBuildTime = document.getElementById('footerBuildTime');
+                if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
+                if (footerBuildTime) footerBuildTime.textContent = data.buildTime;
+            }
+            // Update idle state
+            if (data.idleTimeoutMinutes !== undefined) {
+                state.idleTimeoutMinutes = data.idleTimeoutMinutes;
+                state.isIdle = data.isIdle;
+                state.secondsUntilIdle = data.secondsUntilIdle;
+                console.log(`Idle timeout: ${state.idleTimeoutMinutes}m, isIdle: ${state.isIdle}`);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch config, using defaults:', error);
+    }
+}
+
+// Record activity with the server (only called on page load, not WebSocket reconnects)
+async function recordActivity(source = 'page_load') {
+    try {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/activity`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source: source })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.wasIdle) {
+                state.isIdle = false;
+                logEvent('system', 'App waking up from idle state. There may be gaps in diagnostics and logs.');
+                updateIdleDisplay(false);
+            }
+            console.log(`Activity recorded: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Failed to record activity:', error);
+    }
+}
+
+// Update idle state display in UI
+function updateIdleDisplay(isIdle) {
+    const connectionText = document.getElementById('connectionText');
+    const indicator = document.getElementById('connectionIndicator');
+    
+    if (isIdle) {
+        if (connectionText) connectionText.textContent = 'Idle';
+        if (indicator) indicator.className = 'indicator idle';
+    } else {
+        // Restore connected status if we have an active connection
+        if (state.wsConnection && state.wsConnection.readyState === WebSocket.OPEN) {
+            if (connectionText) connectionText.textContent = 'Connected';
+            if (indicator) indicator.className = 'indicator connected';
+        }
+    }
+}
 
 async function startLatencyProbe() {
     if (latencyProbeInterval) return;
     
+    // Don't start probes if idle
+    if (state.isIdle) {
+        console.log('App is idle, not starting latency probes');
+        updateIdleDisplay(true);
+        return;
+    }
+    
+    // Start the probe interval (runs at configurable server rate)
     latencyProbeInterval = setInterval(async () => {
+        // Check if we've gone idle (stop probing)
+        if (state.isIdle) {
+            stopLatencyProbe();
+            updateIdleDisplay(true);
+            logEvent('system', 'Health probes paused due to idle state');
+            return;
+        }
+        
         const startTime = performance.now();
         try {
             const response = await fetch('/api/health', { 
@@ -913,22 +1191,44 @@ async function startLatencyProbe() {
             const endTime = performance.now();
             const latencyMs = endTime - startTime;
             
-            handleLatencyUpdate({
+            // Store the probe result for interpolation
+            lastProbeResult = {
                 timestamp: new Date(),
                 latencyMs: latencyMs,
                 isTimeout: latencyMs >= CONFIG.latencyTimeoutMs,
                 isError: !response.ok
-            });
+            };
+            
+            // Update display immediately with actual probe data
+            updateLatencyDisplay(latencyMs, lastProbeResult.isTimeout, lastProbeResult.isError);
+            updateProbeVisualization(latencyMs);
         } catch (err) {
             const endTime = performance.now();
-            handleLatencyUpdate({
+            const latencyMs = endTime - startTime;
+            lastProbeResult = {
                 timestamp: new Date(),
-                latencyMs: endTime - startTime,
+                latencyMs: latencyMs,
                 isTimeout: false,
                 isError: true
-            });
+            };
+            updateLatencyDisplay(latencyMs, false, true);
+            updateProbeVisualization(latencyMs);
         }
     }, CONFIG.latencyProbeIntervalMs);
+    
+    // Start the chart update interval (always runs at 100ms for smooth charts)
+    latencyChartUpdateInterval = setInterval(() => {
+        if (lastProbeResult) {
+            // Add data point to chart history (interpolates by repeating last value)
+            addLatencyToHistory(
+                new Date(),
+                lastProbeResult.latencyMs,
+                lastProbeResult.isTimeout,
+                lastProbeResult.isError
+            );
+            updateLatencyChart();
+        }
+    }, CONFIG.latencyChartUpdateIntervalMs);
 }
 
 function stopLatencyProbe() {
@@ -936,25 +1236,95 @@ function stopLatencyProbe() {
         clearInterval(latencyProbeInterval);
         latencyProbeInterval = null;
     }
+    if (latencyChartUpdateInterval) {
+        clearInterval(latencyChartUpdateInterval);
+        latencyChartUpdateInterval = null;
+    }
 }
 
 // ==========================================================================
 // Initialization
 // ==========================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
+// ==========================================================================
+// Footer Display
+// ==========================================================================
+
+async function fetchAndDisplayFooter() {
+    try {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/footer`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.has_custom_footer && data.footer) {
+                const footerCredits = document.getElementById('footerCredits');
+                if (footerCredits) {
+                    footerCredits.innerHTML = data.footer;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch footer:', error);
+        // Keep default footer on error
+    }
+}
+
+// ==========================================================================
+// SKU Display
+// ==========================================================================
+
+async function fetchAndDisplaySku() {
+    try {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/sku`);
+        if (response.ok) {
+            const data = await response.json();
+            const skuDisplay = document.getElementById('skuDisplay');
+            if (skuDisplay) {
+                skuDisplay.textContent = `SKU: ${data.sku}`;
+            }
+            // Log initialization message with SKU info
+            if (data.is_azure && data.worker) {
+                logEvent('system', `Application is currently running on ${data.sku} SKU on worker ${data.worker}`);
+            } else {
+                logEvent('system', 'Application is currently running on Local');
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch SKU:', error);
+        // Keep default text on error
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
     // Initialize charts
     initializeCharts();
     
     // Set up event handlers
     setupEventHandlers();
     
+    // Record activity with server FIRST (this wakes the app from idle)
+    // Only page loads record activity, not WebSocket reconnects
+    await recordActivity('page_load');
+    
+    // Fetch config from server (will get updated idle state)
+    await fetchConfig();
+    
     // Connect to WebSocket
     initializeWebSocket();
     
-    // Start latency probe
+    // Start latency probe (with server-configured interval)
+    // Will not start if server reports app is idle
     startLatencyProbe();
     
+    // Fetch and display Azure SKU
+    fetchAndDisplaySku();
+    
+    // Fetch and display custom footer (if configured)
+    fetchAndDisplayFooter();
+    
     // Log startup
-    logEvent('system', 'Dashboard initialized');
+    if (state.idleTimeoutMinutes > 0) {
+        logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: ${state.idleTimeoutMinutes}m)`);
+    } else {
+        logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: disabled)`);
+    }
 });

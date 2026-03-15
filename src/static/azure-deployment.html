@@ -3,23 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deploy to Azure - Performance Problem Simulator</title>
+  <title>Deploy to Azure - Performance Problem Simulator - Python 3.12</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
-    .docs-content {
-      max-width: 900px;
+    /* Documentation layout styles */
+    .doc-layout {
+      display: flex;
+      gap: 2rem;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 2rem;
     }
-    .docs-content h1 { margin-bottom: 1.5rem; }
-    .docs-content h2 { 
+    .doc-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .doc-container {
+      max-width: 900px;
+    }
+    .doc-toc {
+      width: 280px;
+      flex-shrink: 0;
+    }
+    .doc-toc-sticky {
+      position: sticky;
+      top: 80px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+    }
+    .doc-toc-card {
+      background: var(--surface-color);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.25rem;
+    }
+    .doc-toc-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--bg-color);
+    }
+    .doc-toc ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .doc-toc-item {
+      margin-bottom: 0.25rem;
+    }
+    .doc-toc-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.15s ease;
+      border-left: 2px solid transparent;
+    }
+    .doc-toc-item a:hover {
+      background: rgba(56, 139, 253, 0.08);
+      color: var(--primary-color);
+      border-left-color: var(--primary-color);
+    }
+    .toc-icon {
+      font-size: 1rem;
+      width: 1.25rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .doc-section {
+      scroll-margin-top: 80px;
+    }
+    .deploy-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .deploy-header h1 {
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+    .deploy-header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    /* Page-specific styles */
+    .doc-container h2 { 
       margin-top: 2.5rem; 
       margin-bottom: 1rem;
       padding-bottom: 0.5rem;
       border-bottom: 1px solid var(--border-color);
     }
-    .docs-content h3 { margin-top: 1.5rem; color: var(--primary-color); }
+    .doc-container h3 { margin-top: 1.5rem; color: var(--primary-color); }
     .steps {
       counter-reset: step;
       list-style: none;
@@ -92,44 +175,99 @@
     }
   </style>
 </head>
-<body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <a href="/" class="icon-btn" aria-label="Back to dashboard">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
-      </a>
-      <h1 class="header-title">Deploy to Azure</h1>
-    </div>
-    <div class="header-center">
-      <span class="sku-badge">Python Edition</span>
-    </div>
-    <div class="header-right"></div>
-  </header>
+<body class="page-doc">
+    <header class="header">
+        <div class="header-left">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <svg class="python-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="pythonBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#5A9FD4"/>
+                        <stop offset="100%" stop-color="#306998"/>
+                    </linearGradient>
+                    <linearGradient id="pythonYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD43B"/>
+                        <stop offset="100%" stop-color="#FFE873"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+            </svg>
+            <h1 class="header-title">Performance Problem Simulator - Python 3.12</h1>
+        </div>
+        <div id="skuDisplay" class="sku-display">SKU: Loading...</div>
+        <div class="header-right">
+            <a href="/" class="btn-panel-toggle">🏠 Dashboard</a>
+        </div>
+    </header>
+
+    <!-- Sidebar Drawer Navigation -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-header">
+            <h2>🐍 PerfSim Python</h2>
+            <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">&times;</button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">Application</div>
+            <a href="/" class="sidebar-nav-item">
+                <span class="nav-icon">🎮</span>
+                <span class="nav-label">Dashboard<span class="nav-desc">Live metrics & controls</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">Documentation</div>
+            <a href="/docs.html" class="sidebar-nav-item">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">Documentation<span class="nav-desc">API reference & guides</span></span>
+            </a>
+            <a href="/azure-diagnostics.html" class="sidebar-nav-item">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
+            </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item active">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">External</div>
+            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+                <span class="nav-icon">🐙</span>
+                <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            Build: <span id="sidebarBuildTime">--</span>
+        </div>
+    </aside>
 
   <!-- Main Content -->
-  <main class="main-content no-sidebar">
-    <div class="docs-content">
-      <h1>Deploying to Azure App Service</h1>
-      <p>
-        This guide covers deploying the Performance Problem Simulator to Azure App Service
-        using GitHub Actions with OIDC authentication (no secrets required).
-      </p>
+    <div class="doc-layout">
+        <div class="doc-main">
+            <div class="doc-container">
+                <div class="deploy-header">
+                    <h1>🚀 Deploy to Azure</h1>
+                    <p>Deploy the Performance Problem Simulator to Azure App Service using GitHub Actions with OIDC authentication</p>
+                </div>
 
       <div class="warning-box">
         ⚠️ <strong>Educational Use Only:</strong> This application intentionally creates performance 
         problems. Deploy only to dedicated test/training environments, not production workloads.
       </div>
 
+      <section id="prerequisites" class="doc-section">
       <h2>Prerequisites</h2>
       <ul>
         <li>Azure subscription</li>
         <li>GitHub repository with the simulator code</li>
         <li>Azure CLI installed locally</li>
       </ul>
+      </section>
 
+      <section id="github-actions" class="doc-section">
       <h2>Option 1: Automated Deployment with GitHub Actions</h2>
 
       <h3>Step 1: Create Azure Resources</h3>
@@ -242,7 +380,9 @@ jobs:
           app-name: ${{ vars.AZURE_WEBAPP_NAME }}
           package: .</pre>
       </div>
+      </section>
 
+      <section id="manual" class="doc-section">
       <h2>Option 2: Manual Deployment</h2>
 
       <h3>Using Azure CLI</h3>
@@ -271,7 +411,9 @@ az webapp config container set \
   --name app-perf-simulator-py \
   --resource-group rg-perf-simulator \
   --docker-custom-image-name myregistry.azurecr.io/perfsim-py:latest</pre>
+      </section>
 
+      <section id="post-deployment" class="doc-section">
       <h2>Post-Deployment Configuration</h2>
 
       <h3>Configure Application Settings</h3>
@@ -280,7 +422,14 @@ az webapp config container set \
   --resource-group rg-perf-simulator \
   --settings \
     APP_ENV=production \
-    LOG_LEVEL=INFO</pre>
+    LOG_LEVEL=INFO \
+    HEALTH_PROBE_RATE=200</pre>
+
+      <p><strong>Note:</strong> <code>HEALTH_PROBE_RATE</code> controls the dashboard health probe interval in milliseconds (default: 200, minimum: 100). Increase this value to reduce probe overhead during profiling:</p>
+      <pre>az webapp config appsettings set \
+  --name app-perf-simulator-py \
+  --resource-group rg-perf-simulator \
+  --settings HEALTH_PROBE_RATE=400</pre>
 
       <h3>Enable Application Insights</h3>
       <pre># Create Application Insights
@@ -305,7 +454,62 @@ az webapp config appsettings set \
   --name app-perf-simulator-py \
   --resource-group rg-perf-simulator \
   --startup-file "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.main:app"</pre>
+      </section>
 
+      <section id="environment-variables" class="doc-section">
+      <h2>Environment Variables</h2>
+      <p>The following environment variables can be configured to customize application behavior. Set these via Azure App Service Application Settings.</p>
+
+      <table class="api-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+            <th>Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>HEALTH_PROBE_RATE</code></td>
+            <td>Health probe interval in milliseconds (min 100). Lower values = more granular latency data.</td>
+            <td>200</td>
+          </tr>
+          <tr>
+            <td><code>IDLE_TIMEOUT_MINUTES</code></td>
+            <td>Minutes of inactivity before suspending health probes. Reduces network traffic and App Insights telemetry.</td>
+            <td>20</td>
+          </tr>
+          <tr>
+            <td><code>PAGE_FOOTER</code></td>
+            <td>Custom HTML footer text displayed at the bottom of the dashboard. Supports HTML links.</td>
+            <td><em>None</em></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>HEALTH_PROBE_RATE</h3>
+      <p>Controls how frequently the dashboard probes the application for latency measurement.</p>
+      <pre>az webapp config appsettings set \
+  --resource-group rg-perf-simulator \
+  --name app-perf-simulator-py \
+  --settings HEALTH_PROBE_RATE=400</pre>
+
+      <h3>IDLE_TIMEOUT_MINUTES</h3>
+      <p>When the application is idle, health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend, AppLens, and Application Insights.</p>
+      <pre>az webapp config appsettings set \
+  --resource-group rg-perf-simulator \
+  --name app-perf-simulator-py \
+  --settings IDLE_TIMEOUT_MINUTES=30</pre>
+
+      <h3>PAGE_FOOTER</h3>
+      <p>Customize the footer credits displayed on the dashboard. Useful for attributing tools, teams, or linking to resources.</p>
+      <pre>az webapp config appsettings set \
+  --resource-group rg-perf-simulator \
+  --name app-perf-simulator-py \
+  --settings PAGE_FOOTER='Created by &lt;a href="https://speckit.org/"&gt;SpecKit&lt;/a&gt;'</pre>
+      </section>
+
+      <section id="verify" class="doc-section">
       <h2>Verifying the Deployment</h2>
       <ol class="steps">
         <li>
@@ -323,7 +527,9 @@ az webapp config appsettings set \
   -d '{"duration_seconds": 10, "workers": 1}'</pre>
         </li>
       </ol>
+      </section>
 
+      <section id="troubleshooting" class="doc-section">
       <h2>Troubleshooting</h2>
       
       <h3>Common Issues</h3>
@@ -344,8 +550,113 @@ az webapp log tail \
 az webapp log download \
   --name app-perf-simulator-py \
   --resource-group rg-perf-simulator</pre>
+      </section>
 
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <aside class="doc-toc">
+            <div class="doc-toc-sticky">
+                <div class="doc-toc-card">
+                    <div class="doc-toc-title">On This Page</div>
+                    <ul>
+                        <li class="doc-toc-item"><a href="#prerequisites"><span class="toc-icon">📋</span>Prerequisites</a></li>
+                        <li class="doc-toc-item"><a href="#github-actions"><span class="toc-icon">🤖</span>GitHub Actions</a></li>
+                        <li class="doc-toc-item"><a href="#manual"><span class="toc-icon">⌨️</span>Manual Deployment</a></li>
+                        <li class="doc-toc-item"><a href="#post-deployment"><span class="toc-icon">⚙️</span>Post-Deployment</a></li>
+                        <li class="doc-toc-item"><a href="#environment-variables"><span class="toc-icon">📝</span>Environment Variables</a></li>
+                        <li class="doc-toc-item"><a href="#verify"><span class="toc-icon">✅</span>Verify Deployment</a></li>
+                        <li class="doc-toc-item"><a href="#troubleshooting"><span class="toc-icon">🔧</span>Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
     </div>
-  </main>
+
+    <footer class="footer">
+        <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
+        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
+        <p>Build: <span id="footerBuildTime">--</span></p>
+    </footer>
+
+    <script>
+        // Sidebar drawer toggle
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarDrawer = document.getElementById('sidebar-drawer');
+        const sidebarClose = document.getElementById('sidebar-close');
+
+        function openSidebar() {
+            hamburgerBtn.classList.add('active');
+            sidebarOverlay.classList.add('active');
+            sidebarDrawer.classList.add('active');
+        }
+
+        function closeSidebar() {
+            hamburgerBtn.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            sidebarDrawer.classList.remove('active');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+
+        // Fetch and display SKU
+        async function fetchAndDisplaySku() {
+            try {
+                const response = await fetch('/api/sku');
+                if (response.ok) {
+                    const data = await response.json();
+                    const skuDisplay = document.getElementById('skuDisplay');
+                    if (skuDisplay) {
+                        skuDisplay.textContent = `SKU: ${data.sku}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch SKU:', error);
+            }
+        }
+        fetchAndDisplaySku();
+
+        // Fetch and display build time
+        async function fetchAndDisplayBuildTime() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.buildTime) {
+                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                        const footerBuildTime = document.getElementById('footerBuildTime');
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
+                        if (footerBuildTime) footerBuildTime.textContent = data.buildTime;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch build time:', error);
+            }
+        }
+        fetchAndDisplayBuildTime();
+
+        // Fetch and display custom footer (if configured)
+        async function fetchAndDisplayFooter() {
+            try {
+                const response = await fetch('/api/footer');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.has_custom_footer && data.footer) {
+                        const footerCredits = document.getElementById('footerCredits');
+                        if (footerCredits) {
+                            footerCredits.innerHTML = data.footer;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch footer:', error);
+            }
+        }
+        fetchAndDisplayFooter();
+    </script>
 </body>
 </html>

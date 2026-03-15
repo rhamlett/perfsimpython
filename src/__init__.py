@@ -16,5 +16,10 @@ Usage:
 For more information, see the documentation at /docs.html
 """
 
+from datetime import datetime, timezone
+
 __version__ = "1.0.0"
 __author__ = "Azure Support Engineering"
+
+# Capture build time at module load (matches Java pattern)
+BUILD_TIME = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + " UTC"

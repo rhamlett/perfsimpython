@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performance Problem Simulator - Python Edition - Dashboard</title>
+    <title>Performance Problem Simulator - Python 3.12 - Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/styles.css">
     <!-- Chart.js for real-time graphs -->
@@ -17,9 +17,23 @@
                 <span></span>
                 <span></span>
             </button>
-            <h1>🔥 Performance Problem Simulator - Python Edition</h1>
+            <svg class="python-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="pythonBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#5A9FD4"/>
+                        <stop offset="100%" stop-color="#306998"/>
+                    </linearGradient>
+                    <linearGradient id="pythonYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD43B"/>
+                        <stop offset="100%" stop-color="#FFE873"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+            </svg>
+            <h1>Performance Problem Simulator - Python 3.12</h1>
         </div>
-        <div id="skuDisplay" class="sku-display">SKU: Python</div>
+        <div id="skuDisplay" class="sku-display">SKU: Loading...</div>
         <div class="header-right">
             <button class="btn-panel-toggle" id="btnTogglePanel" title="Toggle Simulation Controls">
                 🎮 Simulation Controls
@@ -35,7 +49,13 @@
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
     <aside id="sidebar-drawer" class="sidebar-drawer">
         <div class="sidebar-header">
-            <h2>🔥 PerfSim Python</h2>
+            <h2>
+                <svg class="python-logo-sm" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#5A9FD4" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                    <path fill="#FFD43B" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+                </svg>
+                PerfSim Python
+            </h2>
             <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">&times;</button>
         </div>
         <nav class="sidebar-nav">
@@ -63,10 +83,6 @@
             <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
-            </a>
-            <a href="/api/docs" class="sidebar-nav-item" target="_blank" rel="noopener">
-                <span class="nav-icon">📖</span>
-                <span class="nav-label">OpenAPI Docs<span class="nav-desc">Interactive API explorer</span></span>
             </a>
         </nav>
         <div class="sidebar-footer">
@@ -317,11 +333,9 @@
 
     <footer class="footer">
         <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
-        <p>Last Update: <span id="lastUpdate">--</span></p>
+        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
+        <p>Build: <span id="footerBuildTime">--</span></p>
     </footer>
-
-    <!-- Overlay -->
-    <div class="overlay" id="overlay"></div>
 
     <!-- Scripts -->
     <script src="/js/dashboard.js"></script>
@@ -351,7 +365,6 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeSidebar();
-                closeSidePanel();
             }
         });
 
@@ -359,21 +372,19 @@
         const btnTogglePanel = document.getElementById('btnTogglePanel');
         const btnClosePanel = document.getElementById('btnClosePanel');
         const sidePanel = document.getElementById('sidePanel');
-        const overlay = document.getElementById('overlay');
 
         function openSidePanel() {
             sidePanel.classList.add('open');
-            overlay.classList.add('active');
         }
 
         function closeSidePanel() {
             sidePanel.classList.remove('open');
-            overlay.classList.remove('active');
         }
 
-        btnTogglePanel.addEventListener('click', openSidePanel);
+        btnTogglePanel.addEventListener('click', () => {
+            sidePanel.classList.toggle('open');
+        });
         btnClosePanel.addEventListener('click', closeSidePanel);
-        overlay.addEventListener('click', closeSidePanel);
     </script>
 </body>
 </html>

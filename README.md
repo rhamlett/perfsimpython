@@ -112,15 +112,63 @@ The real-time dashboard provides:
 
 ## ⚙️ Configuration
 
-Environment variables (can be set in `.env` file):
+Environment variables (can be set in `.env` file or as Azure App Service Application Settings):
 
 | Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_ENV` | Environment (development/production) | development |
-| `LOG_LEVEL` | Logging verbosity | INFO |
-| `HOST` | Server bind address | 0.0.0.0 |
-| `PORT` | Server port | 8000 |
+|----------|-------------|-------|
+| `HEALTH_PROBE_RATE` | Health probe interval in ms (min 100). Lower values = more granular latency data but increased overhead. | 200 |
+| `IDLE_TIMEOUT_MINUTES` | Minutes of inactivity before suspending health probes (0 = disabled). Reduces network traffic and Application Insights telemetry when idle. | 20 |
+| `PAGE_FOOTER` | Custom HTML footer text displayed at the bottom of the dashboard. Supports HTML links for attribution. | *None* |
 
+### HEALTH_PROBE_RATE
+
+Controls how frequently the dashboard probes the application for latency measurement. Lower values provide more granular data but can cause probe overlaps during profiling.
+
+- **Default**: 200ms (5 probes/second)
+- **Minimum**: 100ms (values below this are clamped)
+- **Chart updates**: The latency chart always updates at 100ms using interpolation
+
+```bash
+# Set via Azure CLI
+az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings HEALTH_PROBE_RATE=400
+```
+
+### IDLE_TIMEOUT_MINUTES
+
+When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend, AppLens, and Application Insights.
+
+- **Default**: 20 minutes
+- **Wake-up**: Simply reload the dashboard or send any API request
+- **Activity sources**: Dashboard page loads, API calls (load test traffic counts as activity)
+- **Disable**: Set to 0 to disable idle mode completely
+
+```bash
+# Set via Azure CLI
+az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings IDLE_TIMEOUT_MINUTES=30
+```
+
+### PAGE_FOOTER
+
+The `PAGE_FOOTER` environment variable allows you to customize the footer credits displayed on the dashboard. This is useful for attributing tools, teams, or linking to relevant resources.
+
+```bash
+# Example value
+export PAGE_FOOTER='Created by <a href="https://speckit.org/" target="_blank">SpecKit</a>'
+
+# Set via Azure CLI  
+az webapp config appsettings set \
+    --resource-group rg-perfsimpython \
+    --name perfsimpython \
+    --settings PAGE_FOOTER='Created by <a href="https://speckit.org/" target="_blank">SpecKit</a>'
+```
+
+The footer is retrieved via the `/api/footer` endpoint and rendered in the dashboard's footer section. If `PAGE_FOOTER` is not set, the default credits are shown.
 ## 🧪 Development
 
 ### Running Tests

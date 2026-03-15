@@ -17,7 +17,9 @@ from fastapi.staticfiles import StaticFiles
 from src.config.settings import get_settings
 from src.middleware.error_handler import error_handler_middleware
 from src.middleware.request_logger import RequestLoggerMiddleware, configure_logging
+from src.middleware.activity_tracker import ActivityTrackerMiddleware
 from src.routers import admin, blocking, cpu, crash, health, memory, metrics, slow
+from src.services.event_log_service import event_log_service
 from src.services.metrics_service import MetricsService
 from src.services.simulation_tracker import SimulationTracker
 from src.websocket.metrics_broadcaster import ConnectionManager
@@ -47,7 +49,7 @@ async def _measure_event_loop_lag() -> float:
 async def _broadcast_metrics() -> None:
     """Background task that broadcasts metrics to connected WebSocket clients.
 
-    Runs every 500ms while the application is running.
+    Runs every 250ms while the application is running (240 points = 60 seconds).
     """
     metrics_service = MetricsService()
     simulation_tracker = SimulationTracker()
@@ -107,8 +109,8 @@ async def _broadcast_metrics() -> None:
 
                 await ws_manager.broadcast(message)
 
-            # Wait 500ms before next broadcast
-            await asyncio.sleep(0.5)
+            # Wait 250ms before next broadcast (240 points = 60 seconds)
+            await asyncio.sleep(0.25)
 
         except asyncio.CancelledError:
             logger.info("Metrics broadcast task cancelled")
@@ -131,11 +133,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         None during the application lifetime.
     """
     # Startup
-    settings = get_settings()
-    configure_logging(settings.log_level)
-    logger.info(
-        "Performance Problem Simulator starting in %s mode",
-        settings.app_env,
+    configure_logging()
+    logger.info("Performance Problem Simulator starting")
+
+    # Log startup event with hostname
+    import os
+    hostname = os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown"
+    event_log_service.log(
+        event_type="info",
+        simulation_type="system",
+        message=f"Application started on {hostname}",
     )
 
     # Start background metrics broadcast task
@@ -179,14 +186,15 @@ def create_app() -> FastAPI:
         title="Performance Problem Simulator",
         description="Educational tool for simulating performance problems to practice Azure diagnostics",
         version="1.0.0",
-        docs_url="/api/docs" if settings.is_development else None,
-        redoc_url="/api/redoc" if settings.is_development else None,
-        openapi_url="/api/openapi.json" if settings.is_development else None,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
 
     # Register middleware (order matters - first registered = last executed)
     app.add_middleware(RequestLoggerMiddleware)
+    app.add_middleware(ActivityTrackerMiddleware)
     error_handler_middleware(app)
 
     # Register routers
