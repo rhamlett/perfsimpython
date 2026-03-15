@@ -318,13 +318,13 @@ function initializeCharts() {
                     {
                         label: 'Event Loop Lag (ms)',
                         data: [],
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.3)',
+                        borderColor: '#ffb900',
+                        backgroundColor: 'rgba(255, 185, 0, 0.1)',
                         tension: 0.3,
                         fill: 'origin',
                         yAxisID: 'y',
                         pointRadius: 0,
-                        borderWidth: 2
+                        borderWidth: 1
                     },
                     {
                         label: 'Active Threads',
