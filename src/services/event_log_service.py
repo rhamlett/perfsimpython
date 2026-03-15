@@ -6,7 +6,7 @@ for display in the dashboard and debugging purposes.
 
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from uuid import UUID
 
@@ -24,7 +24,7 @@ class SimulationEvent:
         data: Additional event data.
     """
 
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     event_type: str = "info"
     simulation_type: str = ""
     simulation_id: str | None = None

@@ -14,6 +14,7 @@ from httpx import AsyncClient
 class TestSlowRequestAPI:
     """Tests for GET /api/slow endpoint."""
 
+    @pytest.mark.slow
     async def test_slow_request_timing(self, async_client: AsyncClient) -> None:
         """Test slow request returns after specified delay."""
         delay = 0.5  # 500ms
@@ -36,6 +37,7 @@ class TestSlowRequestAPI:
         data = response.json()
         assert "delay_seconds" in data
 
+    @pytest.mark.slow
     async def test_slow_request_validation(self, async_client: AsyncClient) -> None:
         """Test slow request validation for max delay."""
         # Try to set extremely long delay
@@ -44,6 +46,7 @@ class TestSlowRequestAPI:
         # Should either reject or cap the delay
         assert response.status_code in [200, 400, 422]
 
+    @pytest.mark.slow
     async def test_slow_request_is_non_blocking(self, async_client: AsyncClient) -> None:
         """Test that slow requests don't block other requests."""
         delay = 0.3

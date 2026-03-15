@@ -14,6 +14,7 @@ from httpx import AsyncClient
 class TestSyncBlockingAPI:
     """Tests for POST /api/blocking/sync endpoint."""
 
+    @pytest.mark.slow
     async def test_sync_blocking_increases_latency(self, async_client: AsyncClient) -> None:
         """Test that sync blocking delays the response."""
         duration = 0.5  # 500ms
@@ -59,6 +60,7 @@ class TestSyncBlockingAPI:
 class TestAsyncBlockingAPI:
     """Tests for POST /api/blocking/async endpoint."""
 
+    @pytest.mark.slow
     async def test_async_blocking_delays_all_requests(self, async_client: AsyncClient) -> None:
         """Test that async blocking delays concurrent requests."""
         duration = 0.5  # 500ms
@@ -96,6 +98,7 @@ class TestAsyncBlockingAPI:
 class TestBlockingConcurrency:
     """Tests for concurrent blocking behavior."""
 
+    @pytest.mark.slow
     async def test_sync_blocking_affects_throughput(self, async_client: AsyncClient) -> None:
         """Test that sync blocking reduces server throughput."""
         # Make requests in quick succession
@@ -122,6 +125,7 @@ class TestBlockingConcurrency:
         # (but with enough workers, they might all run in parallel)
         assert elapsed >= duration * 0.5
 
+    @pytest.mark.slow
     async def test_async_blocking_serializes_requests(self, async_client: AsyncClient) -> None:
         """Test that async blocking serializes event loop processing."""
         duration = 0.2

@@ -629,7 +629,7 @@ function logEvent(type, message, options = {}) {
     const container = document.getElementById('eventLog');
     if (!container) return;
     
-    const timestamp = getCurrentUtcTime();
+    const timestamp = getCurrentUtcTime() + ' UTC';
     const icon = options.icon || getEventIcon(type);
     
     const entry = document.createElement('div');
