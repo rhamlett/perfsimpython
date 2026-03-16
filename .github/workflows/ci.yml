@@ -76,6 +76,31 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Ensure SCM Basic Auth is Enabled
+        run: |
+          echo "Checking SCM basic auth status..."
+          SCM_AUTH=$(az resource show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name scm \
+            --namespace Microsoft.Web \
+            --resource-type basicPublishingCredentialsPolicies \
+            --parent sites/${{ env.AZURE_WEBAPP_NAME }} \
+            --query properties.allow -o tsv 2>/dev/null || echo "unknown")
+          
+          if [ "$SCM_AUTH" != "true" ]; then
+            echo "SCM basic auth is disabled ($SCM_AUTH). Enabling..."
+            az resource update \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --name scm \
+              --namespace Microsoft.Web \
+              --resource-type basicPublishingCredentialsPolicies \
+              --parent sites/${{ env.AZURE_WEBAPP_NAME }} \
+              --set properties.allow=true
+            echo "SCM basic auth enabled successfully."
+          else
+            echo "SCM basic auth is already enabled."
+          fi
+
       - name: Deploy via Git Push to Kudu
         run: |
           # Get deployment credentials
