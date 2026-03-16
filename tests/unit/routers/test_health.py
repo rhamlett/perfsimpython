@@ -30,8 +30,8 @@ class TestHealthRouter:
         assert "active_simulations" in data
 
         # Verify types
-        assert isinstance(data["cpu_percent"], (int, float))
-        assert isinstance(data["memory_percent"], (int, float))
+        assert isinstance(data["cpu_percent"], int | float)
+        assert isinstance(data["memory_percent"], int | float)
         assert isinstance(data["active_simulations"], int)
 
     def test_health_includes_version(self, client: TestClient):

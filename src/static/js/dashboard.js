@@ -795,7 +795,7 @@ function updateSimulationsList(simulations) {
     }
     
     const html = simulations.map(sim => {
-        const typeClass = sim.type?.toLowerCase().replace('_', '') || 'cpu';
+        const typeClass = getSimulationTypeClass(sim.type);
         return `
             <div class="simulation-badge ${typeClass}">
                 <span class="spinner"></span>
@@ -808,6 +808,17 @@ function updateSimulationsList(simulations) {
     container.innerHTML = html;
 }
 
+function getSimulationTypeClass(type) {
+    const classMap = {
+        'cpu_stress': 'cpu',
+        'memory_pressure': 'memory',
+        'sync_blocking': 'threadblock',
+        'async_blocking': 'threadblock',
+        'slow_request': 'slowrequest',
+    };
+    return classMap[type] || 'cpu';
+}
+
 function formatSimulationType(type) {
     const types = {
         'cpu_stress': '🔥 CPU Stress',
@@ -815,7 +826,6 @@ function formatSimulationType(type) {
         'sync_blocking': '🧵 Sync Block',
         'async_blocking': '🧵 Async Block',
         'slow_request': '🐌 Slow Request',
-        'failed_request': '❌ Failed Request'
     };
     return types[type] || type;
 }
@@ -893,7 +903,7 @@ async function triggerCpuStress() {
         if (response.ok) {
             const result = await response.json();
             logEvent('cpu', 'CPU stress started');
-        } else {
+        } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -928,7 +938,7 @@ async function allocateMemory() {
         
         if (response.ok) {
             logEvent('memory', `Allocated ${sizeMb} MB`);
-        } else {
+        } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -968,7 +978,7 @@ async function triggerThreadBlock() {
         
         if (response.ok) {
             logEvent('threads', 'Blocking operations started');
-        } else {
+        } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1009,7 +1019,7 @@ async function startSlowRequests() {
         
         if (response.ok) {
             logEvent('slowrequest', 'Slow request generator started');
-        } else {
+        } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1036,7 +1046,7 @@ async function generateFailedRequests() {
     
     try {
         logEvent('failedrequests', `Generating ${count} HTTP 500 errors...`);
-        const response = await fetch(`${CONFIG.apiBaseUrl}/crash/failed-requests`, {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count: count })
@@ -1044,7 +1054,8 @@ async function generateFailedRequests() {
         
         if (response.ok) {
             logEvent('failedrequests', `Generated ${count} failed requests`);
-        } else {
+        } else if (response.status !== 405) {
+            // Silently ignore Method Not Allowed errors
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1062,10 +1073,10 @@ async function triggerCrash() {
     
     try {
         logEvent('crash', `Triggering ${crashType} crash...`);
-        const response = await fetch(`${CONFIG.apiBaseUrl}/crash/trigger`, {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/crash`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: crashType })
+            body: JSON.stringify({ crash_type: crashType, confirmed: true })
         });
         
         // If we get here, the crash didn't happen

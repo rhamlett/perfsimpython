@@ -68,6 +68,12 @@ async def _broadcast_metrics() -> None:
                 # Gather system metrics
                 system_metrics = metrics_service.get_system_metrics()
                 process_metrics = metrics_service.get_process_metrics()
+
+                # Clean up expired simulations and their resources
+                from src.services.cpu_stress_service import cpu_stress_service
+
+                cpu_stress_service.cleanup_finished()
+                simulation_tracker.cleanup_expired()
                 active_simulations = simulation_tracker.get_all_simulations()
 
                 # Build message payload
@@ -100,6 +106,8 @@ async def _broadcast_metrics() -> None:
                                     "id": str(sim.id),
                                     "type": sim.type.value,
                                     "started_at": sim.started_at.isoformat(),
+                                    "duration_seconds": sim.duration_seconds,
+                                    "elapsed_seconds": round(sim.elapsed_seconds, 1),
                                     "params": sim.params,
                                 }
                                 for sim in active_simulations

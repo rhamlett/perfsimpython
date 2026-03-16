@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from threading import Lock
 from uuid import UUID, uuid4
 
-from src.models.entities import AllocatedMemoryBlock
+from src.models.entities import AllocatedMemoryBlock, SimulationState, SimulationType
+from src.services.simulation_tracker import simulation_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class MemoryPressureService:
         max_allocation_mb: Maximum total memory that can be allocated (very high by default).
         _blocks: Dictionary of allocated memory blocks.
         _data: Dictionary of actual byte arrays (kept separate for GC).
+        _simulations: Dictionary mapping block IDs to simulation IDs.
         _lock: Thread lock for concurrent access.
     """
 
@@ -38,6 +40,7 @@ class MemoryPressureService:
         self.max_allocation_mb = max_allocation_mb
         self._blocks: dict[UUID, AllocatedMemoryBlock] = {}
         self._data: dict[UUID, bytearray] = {}
+        self._simulations: dict[UUID, UUID] = {}  # block_id -> simulation_id
         self._lock = Lock()
 
     def allocate_memory(self, size_mb: int) -> AllocatedMemoryBlock:
@@ -82,6 +85,15 @@ class MemoryPressureService:
                 self._data[block_id] = bytearray(size_bytes)
                 self._blocks[block_id] = block
 
+                # Track as a simulation for dashboard visibility
+                simulation = SimulationState(
+                    type=SimulationType.MEMORY_PRESSURE,
+                    duration_seconds=None,  # Indefinite - until released
+                    params={"size_mb": size_mb, "block_id": str(block_id)},
+                )
+                simulation_tracker.add(simulation)
+                self._simulations[block_id] = simulation.id
+
                 logger.info(
                     "Allocated %d MB memory (block %s). Total: %d MB",
                     size_mb,
@@ -111,6 +123,11 @@ class MemoryPressureService:
             del self._blocks[block_id]
             del self._data[block_id]
 
+            # Remove from simulation tracker
+            sim_id = self._simulations.pop(block_id, None)
+            if sim_id:
+                simulation_tracker.remove(sim_id)
+
             logger.info(
                 "Released %d MB memory (block %s). Total: %d MB",
                 block.size_mb,
@@ -133,6 +150,11 @@ class MemoryPressureService:
                 total_mb = self.get_total_allocated_mb()
                 self._blocks.clear()
                 self._data.clear()
+
+                # Remove all simulations from tracker
+                for sim_id in self._simulations.values():
+                    simulation_tracker.remove(sim_id)
+                self._simulations.clear()
 
                 logger.info(
                     "Released all memory: %d blocks, %d MB total",

@@ -9,8 +9,10 @@ import logging
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from src.models.entities import SimulationState, SimulationType
 from src.services.blocking_service import blocking_service
 from src.services.event_log_service import event_log_service
+from src.services.simulation_tracker import simulation_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +114,19 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
     Returns:
         Response with actual blocked duration.
     """
+    # Track as simulation for dashboard visibility
+    total_duration = request.duration_seconds * request.count
+    simulation = SimulationState(
+        type=SimulationType.SYNC_BLOCKING,
+        duration_seconds=total_duration,
+        params={
+            "duration_seconds": request.duration_seconds,
+            "count": request.count,
+            "type": "sync",
+        },
+    )
+    simulation_tracker.add(simulation)
+
     event_log_service.log_event(
         event_type="blocking_started",
         message=f"Starting sync blocking for {request.duration_seconds}s x{request.count}",
@@ -122,29 +137,33 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
         },
     )
 
-    total_blocked = 0.0
-    for i in range(request.count):
-        # Run sync blocking in thread pool (proper async handling)
-        blocked = await blocking_service.run_sync_in_thread(request.duration_seconds)
-        total_blocked += blocked
-        logger.debug("Sync blocking iteration %d/%d complete", i + 1, request.count)
+    try:
+        total_blocked = 0.0
+        for i in range(request.count):
+            # Run sync blocking in thread pool (proper async handling)
+            blocked = await blocking_service.run_sync_in_thread(request.duration_seconds)
+            total_blocked += blocked
+            logger.debug("Sync blocking iteration %d/%d complete", i + 1, request.count)
 
-    event_log_service.log_event(
-        event_type="blocking_completed",
-        message=f"Sync blocking completed: {total_blocked:.2f}s total",
-        metadata={
-            "type": "sync",
-            "total_blocked": total_blocked,
-            "count": request.count,
-        },
-    )
+        event_log_service.log_event(
+            event_type="blocking_completed",
+            message=f"Sync blocking completed: {total_blocked:.2f}s total",
+            metadata={
+                "type": "sync",
+                "total_blocked": total_blocked,
+                "count": request.count,
+            },
+        )
 
-    return BlockingResponse(
-        message=f"Sync blocked for {total_blocked:.2f} seconds",
-        blocked_duration=total_blocked,
-        count=request.count,
-        chunked=False,
-    )
+        return BlockingResponse(
+            message=f"Sync blocked for {total_blocked:.2f} seconds",
+            blocked_duration=total_blocked,
+            count=request.count,
+            chunked=False,
+        )
+    finally:
+        # Always remove simulation when done
+        simulation_tracker.remove(simulation.id)
 
 
 @router.post(
@@ -171,6 +190,19 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
     """
     chunked = request.chunk_ms is not None
 
+    # Track as simulation for dashboard visibility
+    simulation = SimulationState(
+        type=SimulationType.ASYNC_BLOCKING,
+        duration_seconds=request.duration_seconds,
+        params={
+            "duration_seconds": request.duration_seconds,
+            "type": "async",
+            "chunked": chunked,
+            "chunk_ms": request.chunk_ms,
+        },
+    )
+    simulation_tracker.add(simulation)
+
     event_log_service.log_event(
         event_type="blocking_started",
         message=f"Starting async blocking for {request.duration_seconds}s",
@@ -182,32 +214,36 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
         },
     )
 
-    if chunked and request.chunk_ms is not None:
-        # Chunked blocking with yields
-        blocked = await blocking_service.chunked_block(
-            request.duration_seconds,
-            request.chunk_ms,
+    try:
+        if chunked and request.chunk_ms is not None:
+            # Chunked blocking with yields
+            blocked = await blocking_service.chunked_block(
+                request.duration_seconds,
+                request.chunk_ms,
+            )
+        else:
+            # Full event loop blocking (BAD!)
+            blocked = await blocking_service.async_block(request.duration_seconds)
+
+        event_log_service.log_event(
+            event_type="blocking_completed",
+            message=f"Async blocking completed: {blocked:.2f}s",
+            metadata={
+                "type": "async",
+                "blocked_duration": blocked,
+                "chunked": chunked,
+            },
         )
-    else:
-        # Full event loop blocking (BAD!)
-        blocked = await blocking_service.async_block(request.duration_seconds)
 
-    event_log_service.log_event(
-        event_type="blocking_completed",
-        message=f"Async blocking completed: {blocked:.2f}s",
-        metadata={
-            "type": "async",
-            "blocked_duration": blocked,
-            "chunked": chunked,
-        },
-    )
-
-    return BlockingResponse(
-        message=f"Async blocked for {blocked:.2f} seconds",
-        blocked_duration=blocked,
-        count=1,
-        chunked=chunked,
-    )
+        return BlockingResponse(
+            message=f"Async blocked for {blocked:.2f} seconds",
+            blocked_duration=blocked,
+            count=1,
+            chunked=chunked,
+        )
+    finally:
+        # Always remove simulation when done
+        simulation_tracker.remove(simulation.id)
 
 
 @router.post(
@@ -282,6 +318,22 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
     Returns:
         Response indicating blocking was started.
     """
+    # Track as simulation for dashboard visibility
+    total_duration = request.duration_seconds * request.count
+    sim_type = (
+        SimulationType.ASYNC_BLOCKING if request.type == "async" else SimulationType.SYNC_BLOCKING
+    )
+    simulation = SimulationState(
+        type=sim_type,
+        duration_seconds=total_duration,
+        params={
+            "duration_seconds": request.duration_seconds,
+            "count": request.count,
+            "type": request.type,
+        },
+    )
+    simulation_tracker.add(simulation)
+
     event_log_service.log_event(
         event_type="blocking_started",
         message=f"Starting {request.count} blocking operations ({request.duration_seconds}s each)",
@@ -292,35 +344,39 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
         },
     )
 
-    # Fire off the blocking operations (they'll run in background for sync)
-    if request.type == "async":
-        # Run async blocking
-        for _ in range(request.count):
-            await blocking_service.async_block(request.duration_seconds)
-    else:
-        # Run sync blocking in thread pool (default)
-        for _ in range(request.count):
-            await blocking_service.run_sync_in_thread(request.duration_seconds)
+    try:
+        # Fire off the blocking operations (they'll run in background for sync)
+        if request.type == "async":
+            # Run async blocking
+            for _ in range(request.count):
+                await blocking_service.async_block(request.duration_seconds)
+        else:
+            # Run sync blocking in thread pool (default)
+            for _ in range(request.count):
+                await blocking_service.run_sync_in_thread(request.duration_seconds)
 
-    event_log_service.log_event(
-        event_type="blocking_completed",
-        message="Blocking operations completed",
-        metadata={
-            "type": request.type,
-            "duration": request.duration_seconds,
-            "count": request.count,
-        },
-    )
+        event_log_service.log_event(
+            event_type="blocking_completed",
+            message="Blocking operations completed",
+            metadata={
+                "type": request.type,
+                "duration": request.duration_seconds,
+                "count": request.count,
+            },
+        )
 
-    return BlockingStartResponse(
-        started=True,
-        message=f"Started {request.count} {request.type} blocking operations",
-        config={
-            "type": request.type,
-            "duration_seconds": request.duration_seconds,
-            "count": request.count,
-        },
-    )
+        return BlockingStartResponse(
+            started=True,
+            message=f"Started {request.count} {request.type} blocking operations",
+            config={
+                "type": request.type,
+                "duration_seconds": request.duration_seconds,
+                "count": request.count,
+            },
+        )
+    finally:
+        # Always remove simulation when done
+        simulation_tracker.remove(simulation.id)
 
 
 @router.post(

@@ -6,8 +6,11 @@ for observing application behavior under latency conditions.
 
 import asyncio
 import logging
+from uuid import UUID
 
+from src.models.entities import SimulationState, SimulationType
 from src.services.event_log_service import event_log_service
+from src.services.simulation_tracker import simulation_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class SlowRequestService:
         self._max_requests = 0
         self._interval_seconds = 0.0
         self._delay_seconds = 0.0
+        self._simulation_id: UUID | None = None
 
     async def slow_response(self, delay_seconds: float) -> float:
         """Add artificial delay to a response.
@@ -93,6 +97,20 @@ class SlowRequestService:
         self._delay_seconds = delay_seconds
         self._is_running = True
 
+        # Track as simulation for dashboard visibility
+        total_duration = interval_seconds * max_requests + delay_seconds * max_requests
+        simulation = SimulationState(
+            type=SimulationType.SLOW_REQUEST,
+            duration_seconds=total_duration,
+            params={
+                "interval_seconds": interval_seconds,
+                "max_requests": max_requests,
+                "delay_seconds": delay_seconds,
+            },
+        )
+        simulation_tracker.add(simulation)
+        self._simulation_id = simulation.id
+
         self._generator_task = asyncio.create_task(
             self._run_generator(interval_seconds, max_requests, delay_seconds)
         )
@@ -148,6 +166,10 @@ class SlowRequestService:
             logger.info("Slow request generator cancelled")
         finally:
             self._is_running = False
+            # Remove from simulation tracker
+            if self._simulation_id:
+                simulation_tracker.remove(self._simulation_id)
+                self._simulation_id = None
             event_log_service.log_event(
                 event_type="slow_generator_stopped",
                 message=f"Slow request generator stopped after {self._generated_count} requests",
@@ -168,6 +190,11 @@ class SlowRequestService:
         if self._generator_task:
             self._generator_task.cancel()
             self._generator_task = None
+
+        # Remove from simulation tracker
+        if self._simulation_id:
+            simulation_tracker.remove(self._simulation_id)
+            self._simulation_id = None
 
         logger.info(
             "Stopped slow request generator after %d requests",

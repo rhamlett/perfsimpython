@@ -198,6 +198,38 @@ class CpuStressService:
         """
         return len(self._processes)
 
+    def cleanup_finished(self) -> int:
+        """Clean up any CPU stress simulations whose processes have naturally finished.
+
+        This is called periodically to remove simulations from the tracker
+        when their worker processes have completed their duration.
+
+        Returns:
+            Number of simulations cleaned up.
+        """
+        finished_ids: list[UUID] = []
+
+        for sim_id, processes in self._processes.items():
+            # Check if all processes for this simulation have finished
+            all_finished = all(not p.is_alive() for p in processes)
+            if all_finished:
+                finished_ids.append(sim_id)
+
+        cleaned_count = 0
+        for sim_id in finished_ids:
+            # Remove the processes
+            processes = self._processes.pop(sim_id, [])
+            for p in processes:
+                p.join(timeout=0.1)  # Brief join to clean up zombies
+
+            # Remove from the simulation tracker
+            simulation_tracker.remove(sim_id)
+            cleaned_count += 1
+
+            logger.debug("Cleaned up finished CPU stress simulation %s", sim_id)
+
+        return cleaned_count
+
     def get_active_simulations(self) -> list[UUID]:
         """Get list of active CPU stress simulation IDs.
 
