@@ -21,7 +21,7 @@ from src.middleware.request_logger import RequestLoggerMiddleware, configure_log
 from src.routers import admin, blocking, cpu, crash, health, memory, metrics, slow
 from src.services.event_log_service import event_log_service
 from src.services.metrics_service import MetricsService
-from src.services.simulation_tracker import SimulationTracker
+from src.services.simulation_tracker import simulation_tracker
 from src.websocket.metrics_broadcaster import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -51,8 +51,9 @@ async def _broadcast_metrics() -> None:
 
     Runs every 250ms while the application is running (240 points = 60 seconds).
     """
+    from src.services.idle_service import idle_service
+
     metrics_service = MetricsService()
-    simulation_tracker = SimulationTracker()
 
     while True:
         try:
@@ -103,6 +104,10 @@ async def _broadcast_metrics() -> None:
                                 }
                                 for sim in active_simulations
                             ],
+                        },
+                        "idle": {
+                            "is_idle": idle_service.check_idle_state(),
+                            "seconds_until_idle": idle_service.get_seconds_until_idle(),
                         },
                     },
                 }

@@ -310,6 +310,26 @@ function handleMetricsUpdate(message) {
         totalMemoryEl.textContent = `of ${totalFormatted}`;
     }
 
+    // Handle idle state from WebSocket broadcast
+    const idleData = data.idle || {};
+    if (idleData.is_idle !== undefined) {
+        const wasIdle = state.isIdle;
+        state.isIdle = idleData.is_idle;
+        state.secondsUntilIdle = idleData.seconds_until_idle || -1;
+        
+        // Transition to idle
+        if (idleData.is_idle && !wasIdle) {
+            stopLatencyProbe();
+            updateIdleDisplay(true);
+            logEvent('warning', 'Application going idle, health probes paused');
+        }
+        // Transition from idle
+        else if (!idleData.is_idle && wasIdle) {
+            updateIdleDisplay(false);
+            startLatencyProbe();
+        }
+    }
+
     // Update history for charts
     const timestamp = new Date();
     addToHistory(timestamp, cpuPercent, memoryMb, threadCount, eventLoopLagMs);
@@ -327,10 +347,8 @@ function handleMetricsUpdate(message) {
         });
     }
     
-    // Update active simulations
-    if (activeSimulations.length > 0) {
-        updateSimulationsList(activeSimulations);
-    }
+    // Update active simulations (always update to clear when empty)
+    updateSimulationsList(activeSimulations);
     
     // Update last update time
     const lastUpdateEl = document.getElementById('lastUpdate');
