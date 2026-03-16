@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from threading import Lock
 
 from src.config.settings import get_settings
-from src.services.event_log_service import event_log_service
 
 
 class IdleService:
@@ -51,12 +50,7 @@ class IdleService:
 
             if was_idle:
                 self._is_idle = False
-                event_log_service.log(
-                    event_type="info",
-                    simulation_type="system",
-                    message="App waking up from idle state. There may be gaps in diagnostics and logs.",
-                    data={"source": source},
-                )
+                # Note: Wake-up message is logged client-side in dashboard.js
 
     def check_idle_state(self) -> bool:
         """Check and update the idle state.
@@ -77,15 +71,9 @@ class IdleService:
 
             should_be_idle = seconds_since_activity >= idle_threshold
 
-            # Log transition to idle state
+            # Update idle state (message is logged client-side in dashboard.js)
             if should_be_idle and not self._is_idle:
                 self._is_idle = True
-                event_log_service.log(
-                    event_type="warning",
-                    simulation_type="system",
-                    message="Application going idle, no health probes being sent. There will be gaps in diagnostics and logs.",
-                    data={"idle_after_seconds": idle_threshold},
-                )
 
             return self._is_idle
 

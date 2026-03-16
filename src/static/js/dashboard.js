@@ -321,7 +321,7 @@ function handleMetricsUpdate(message) {
         if (idleData.is_idle && !wasIdle) {
             stopLatencyProbe();
             updateIdleDisplay(true);
-            logEvent('warning', 'Application going idle, health probes paused');
+            logEvent('warning', 'Application going idle, no health probes being sent.  There will be gaps in diagnostics and logs.');
         }
         // Transition from idle
         else if (!idleData.is_idle && wasIdle) {
@@ -510,7 +510,7 @@ function initializeCharts() {
                         borderColor: '#8764b8',
                         backgroundColor: 'rgba(135, 100, 184, 0.2)',
                         tension: 0.3,
-                        fill: false,
+                        fill: 'origin',
                         yAxisID: 'y1',
                         pointRadius: 0,
                         borderWidth: 1

@@ -24,6 +24,7 @@ class ActivityTrackerMiddleware(BaseHTTPMiddleware):
     # Paths that should NOT count as activity (health probes)
     EXCLUDED_PATHS = {
         "/api/health",
+        "/api/health/activity",
         "/api/config",
         "/api/sku",
         "/api/metrics",
