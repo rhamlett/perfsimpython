@@ -74,23 +74,34 @@ class SlowGeneratorStatusResponse(BaseModel):
 @router.get(
     "",
     response_model=SlowResponse,
-    summary="Slow response",
-    description="Returns a response after an artificial delay",
+    summary="Slow response (sync-over-async anti-pattern)",
+    description=(
+        "Returns a response after blocking with time.sleep() (INTENTIONALLY BAD). "
+        "This demonstrates the sync-over-async anti-pattern visible in profilers "
+        "and diagnostics: event loop lag spikes, increased concurrent request latency, "
+        "and time.sleep appearing in stack traces."
+    ),
 )
 async def slow_request(
     delay_seconds: float = Query(
         default=5.0,
         gt=0,
-        description="Delay in seconds",
+        description="Delay in seconds (blocks event loop)",
     ),
 ) -> SlowResponse:
-    """Return a slow response after specified delay.
+    """Return a slow response using blocking time.sleep (INTENTIONALLY BAD!).
 
-    This endpoint adds artificial latency to demonstrate
-    slow response diagnostics.
+    This endpoint demonstrates the sync-over-async anti-pattern where
+    time.sleep() is used in async context, blocking the event loop.
+
+    Diagnostic visibility:
+    - Event loop lag metric will spike
+    - Profilers show time.sleep in stack traces
+    - Concurrent requests will queue/timeout
+    - Application Insights shows increased response times
 
     Args:
-        delay_seconds: How long to delay the response.
+        delay_seconds: How long to block the event loop.
 
     Returns:
         Response with delay information.

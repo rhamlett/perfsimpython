@@ -798,9 +798,7 @@ function updateSimulationsList(simulations) {
         const typeClass = getSimulationTypeClass(sim.type);
         return `
             <div class="simulation-badge ${typeClass}">
-                <span class="spinner"></span>
                 <span>${formatSimulationType(sim.type)}</span>
-                <span>${formatDuration(sim.elapsed_seconds || 0)}</span>
             </div>
         `;
     }).join('');
@@ -815,6 +813,8 @@ function getSimulationTypeClass(type) {
         'sync_blocking': 'threadblock',
         'async_blocking': 'threadblock',
         'slow_request': 'slowrequest',
+        'failed_request': 'failedrequests',
+        'failed_requests': 'failedrequests',
     };
     return classMap[type] || 'cpu';
 }
@@ -826,6 +826,8 @@ function formatSimulationType(type) {
         'sync_blocking': '🧵 Sync Block',
         'async_blocking': '🧵 Async Block',
         'slow_request': '🐌 Slow Request',
+        'failed_request': '❌ Failed Requests',
+        'failed_requests': '❌ Failed Requests',
     };
     return types[type] || type;
 }
@@ -950,10 +952,11 @@ async function allocateMemory() {
 async function releaseMemory() {
     try {
         logEvent('memory', 'Releasing all memory allocations...');
-        const response = await fetch(`${CONFIG.apiBaseUrl}/memory/release`, { method: 'POST' });
+        const response = await fetch(`${CONFIG.apiBaseUrl}/memory/release-all`, { method: 'POST' });
         
         if (response.ok) {
-            logEvent('memory', 'Memory released');
+            const data = await response.json();
+            logEvent('memory', `Released ${data.released_count} memory block(s)`);
         }
     } catch (err) {
         logEvent('error', `Release request failed: ${err.message}`);
@@ -965,12 +968,12 @@ async function triggerThreadBlock() {
     const count = parseInt(document.getElementById('threadConcurrent').value) || 10;
     
     try {
-        logEvent('threads', `Starting ${count} blocking operations (${delay}s each)...`);
+        logEvent('threads', `Starting ${count} async blocking operations (${delay}s each)...`);
         const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                type: 'sync',
+                type: 'async',
                 duration_seconds: delay,
                 count: count
             })
@@ -1045,17 +1048,17 @@ async function generateFailedRequests() {
     const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
     
     try {
-        logEvent('failedrequests', `Generating ${count} HTTP 500 errors...`);
-        const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests`, {
+        logEvent('failedrequests', `Starting generation of ${count} HTTP 500 errors...`);
+        const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count: count })
         });
         
         if (response.ok) {
-            logEvent('failedrequests', `Generated ${count} failed requests`);
+            const data = await response.json();
+            logEvent('failedrequests', data.message || `Started generating ${count} failed requests`);
         } else if (response.status !== 405) {
-            // Silently ignore Method Not Allowed errors
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }

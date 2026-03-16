@@ -6,7 +6,10 @@ for observing application behavior under latency conditions.
 
 import asyncio
 import logging
+import time
 from uuid import UUID
+
+import httpx
 
 from src.models.entities import SimulationState, SimulationType
 from src.services.event_log_service import event_log_service
@@ -39,16 +42,26 @@ class SlowRequestService:
         self._simulation_id: UUID | None = None
 
     async def slow_response(self, delay_seconds: float) -> float:
-        """Add artificial delay to a response.
+        """Add artificial delay using BLOCKING time.sleep (INTENTIONALLY BAD!).
 
-        Uses asyncio.sleep for non-blocking delay, allowing other
-        requests to be processed concurrently.
+        This demonstrates the sync-over-async anti-pattern where blocking
+        calls (like time.sleep, synchronous I/O, or synchronous HTTP requests)
+        are used in async context. This blocks the event loop and prevents
+        other concurrent operations from making progress.
+
+        In real code, you should use asyncio.sleep() instead.
+
+        Diagnostic visibility:
+        - Event loop lag will spike during the sleep
+        - Profilers will show time.sleep in stack traces
+        - Concurrent request latency will increase
+        - Application Insights will show increased response times
 
         Args:
-            delay_seconds: How long to delay in seconds.
+            delay_seconds: How long to block in seconds.
 
         Returns:
-            The actual delay duration.
+            The actual blocking duration.
 
         Raises:
             ValueError: If delay is negative.
@@ -59,11 +72,16 @@ class SlowRequestService:
         if delay_seconds == 0:
             return 0
 
-        start = asyncio.get_event_loop().time()
-        await asyncio.sleep(delay_seconds)
-        actual = asyncio.get_event_loop().time() - start
+        start = time.perf_counter()
+        # INTENTIONALLY BAD: Using time.sleep in async context blocks the event loop
+        # This is the classic sync-over-async anti-pattern
+        time.sleep(delay_seconds)
+        actual = time.perf_counter() - start
 
-        logger.debug("Slowed response by %.3f seconds", actual)
+        logger.warning(
+            "Slow response blocked event loop for %.3f seconds (THIS IS INTENTIONAL - demonstrating anti-pattern)",
+            actual,
+        )
         return actual
 
     async def start_slow_generator(
@@ -142,25 +160,48 @@ class SlowRequestService:
     ) -> None:
         """Background task for generating slow requests.
 
+        Makes actual HTTP requests to the slow endpoint to create
+        observable slow requests in the system.
+
         Args:
             interval_seconds: Time between requests.
             max_requests: Maximum requests to generate.
             delay_seconds: Delay for each request.
         """
         try:
-            while self._generated_count < max_requests and self._is_running:
-                # Simulate a slow request
-                await self.slow_response(delay_seconds)
-                self._generated_count += 1
+            # Use httpx to make actual HTTP requests to ourselves
+            async with httpx.AsyncClient(timeout=delay_seconds + 30) as client:
+                while self._generated_count < max_requests and self._is_running:
+                    try:
+                        # Make actual HTTP request to slow endpoint
+                        response = await client.get(
+                            f"http://127.0.0.1:8000/api/slow?delay_seconds={delay_seconds}"
+                        )
+                        self._generated_count += 1
 
-                logger.debug(
-                    "Generated slow request %d/%d",
-                    self._generated_count,
-                    max_requests,
-                )
+                        logger.debug(
+                            "Generated slow request %d/%d (status: %d)",
+                            self._generated_count,
+                            max_requests,
+                            response.status_code,
+                        )
 
-                if self._generated_count < max_requests:
-                    await asyncio.sleep(interval_seconds)
+                        event_log_service.log_event(
+                            event_type="slow_request_generated",
+                            message=f"Slow request {self._generated_count}/{max_requests} completed ({delay_seconds}s delay)",
+                            metadata={
+                                "request_num": self._generated_count,
+                                "max_requests": max_requests,
+                                "delay_seconds": delay_seconds,
+                            },
+                        )
+
+                    except httpx.RequestError as e:
+                        logger.warning("Slow request failed: %s", e)
+                        self._generated_count += 1  # Count failed requests too
+
+                    if self._generated_count < max_requests and self._is_running:
+                        await asyncio.sleep(interval_seconds)
 
         except asyncio.CancelledError:
             logger.info("Slow request generator cancelled")

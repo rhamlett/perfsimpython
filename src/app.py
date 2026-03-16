@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from src.middleware.activity_tracker import ActivityTrackerMiddleware
 from src.middleware.error_handler import error_handler_middleware
 from src.middleware.request_logger import RequestLoggerMiddleware, configure_logging
-from src.routers import admin, blocking, cpu, crash, health, memory, metrics, slow
+from src.routers import admin, blocking, cpu, crash, health, loadtest, memory, metrics, slow
 from src.services.event_log_service import event_log_service
 from src.services.metrics_service import MetricsService
 from src.services.simulation_tracker import simulation_tracker
@@ -219,6 +219,7 @@ def create_app() -> FastAPI:
     app.include_router(crash.router, prefix="/api", tags=["crash"])
     app.include_router(admin.router, prefix="/api", tags=["admin"])
     app.include_router(admin.failed_requests_router, prefix="/api", tags=["failed-requests"])
+    app.include_router(loadtest.router, prefix="/api", tags=["loadtest"])
 
     # WebSocket endpoint for real-time metrics
     @app.websocket("/ws/metrics")

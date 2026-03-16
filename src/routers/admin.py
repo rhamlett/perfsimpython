@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.services.cpu_stress_service import cpu_stress_service
 from src.services.event_log_service import event_log_service
+from src.services.failed_request_service import failed_request_service
 from src.services.memory_pressure_service import memory_pressure_service
 from src.services.slow_request_service import slow_request_service
 
@@ -25,16 +26,36 @@ class FailedRequestsRequest(BaseModel):
     count: int = Field(
         default=10,
         ge=1,
-        description="Number of 500 errors to generate",
+        description="Number of HTTP 500 errors to generate",
     )
 
 
-class FailedRequestsResponse(BaseModel):
-    """Response for failed requests generation."""
+class FailedRequestsStartResponse(BaseModel):
+    """Response for starting failed request generation."""
 
-    generated_count: int
-    error_code: int
+    simulation_id: str
+    status: str
     message: str
+
+
+class FailedRequestsStopResponse(BaseModel):
+    """Response for stopping failed request generation."""
+
+    simulation_id: str
+    status: str
+    message: str
+    requests_sent: int
+    requests_completed: int
+
+
+class FailedRequestsStatusResponse(BaseModel):
+    """Response for failed request status."""
+
+    is_running: bool
+    requests_sent: int
+    requests_completed: int
+    requests_in_progress: int
+    target_count: int
 
 
 class ResetResponse(BaseModel):
@@ -56,52 +77,90 @@ class StatsResponse(BaseModel):
     slow_requests_generated: int
 
 
-# Failed requests endpoint at /api/failed-requests (not under /admin)
+# Failed requests endpoints at /api/failed-requests (not under /admin)
 failed_requests_router = APIRouter()
 
 
 @failed_requests_router.post(
-    "/failed-requests",
-    response_model=FailedRequestsResponse,
-    summary="Generate failed requests",
-    description="Generate HTTP 500 error responses for testing error handling",
+    "/failed-requests/start",
+    response_model=FailedRequestsStartResponse,
+    summary="Start generating failed requests",
+    description=(
+        "Start generating HTTP 500 errors by calling the load test endpoint "
+        "with error injection configured for guaranteed failure. Each request "
+        "takes ~1.5 seconds and throws a random exception type."
+    ),
 )
-async def generate_failed_requests(
+async def start_failed_requests(
     request: FailedRequestsRequest | None = None,
-    count: int | None = Query(None, ge=1),
-) -> FailedRequestsResponse:
-    """Generate HTTP 500 error responses.
+    count: int | None = Query(None, ge=1, description="Number of errors to generate"),
+) -> FailedRequestsStartResponse:
+    """Start generating HTTP 500 error responses.
 
-    This endpoint logs errors to simulate failed requests for
-    testing Application Insights error tracking and alerting.
+    This endpoint starts a background process that generates real HTTP 500 errors
+    by calling the load test endpoint with 100% error probability. The errors
+    appear in Azure AppLens and Application Insights failure metrics.
 
     Args:
         request: Request body with count.
         count: Query parameter alternative for count.
 
     Returns:
-        Response with count of generated errors.
+        Response with simulation ID and status.
     """
-    # Get count from request body or query param
     actual_count = count or (request.count if request else 10)
+    result = failed_request_service.start(actual_count)
 
-    # Log each failed request
-    for i in range(actual_count):
-        logger.error(
-            "Simulated error %d/%d: Intentional 500 error for diagnostic practice",
-            i + 1,
-            actual_count,
-        )
-        event_log_service.log_event(
-            event_type="failed_request",
-            message=f"Simulated HTTP 500 error ({i + 1}/{actual_count})",
-            metadata={"error_number": i + 1, "total": actual_count},
-        )
+    return FailedRequestsStartResponse(
+        simulation_id=str(result.simulation_id),
+        status=result.status,
+        message=result.message,
+    )
 
-    return FailedRequestsResponse(
-        generated_count=actual_count,
-        error_code=500,
-        message=f"Generated {actual_count} failed request log entries",
+
+@failed_requests_router.post(
+    "/failed-requests/stop",
+    response_model=FailedRequestsStopResponse,
+    summary="Stop generating failed requests",
+    description="Stop the failed request generation. Requests already in progress will complete.",
+)
+async def stop_failed_requests() -> FailedRequestsStopResponse:
+    """Stop generating failed requests.
+
+    Returns:
+        Response with final counts.
+    """
+    result = failed_request_service.stop()
+
+    return FailedRequestsStopResponse(
+        simulation_id=str(result.simulation_id),
+        status=result.status,
+        message=result.message,
+        requests_sent=result.requests_sent,
+        requests_completed=result.requests_completed,
+    )
+
+
+@failed_requests_router.get(
+    "/failed-requests/status",
+    response_model=FailedRequestsStatusResponse,
+    summary="Get failed request generation status",
+    description="Get the current status of the failed request generator.",
+)
+async def get_failed_requests_status() -> FailedRequestsStatusResponse:
+    """Get current status of the failed request generator.
+
+    Returns:
+        Response with current counts and running state.
+    """
+    status = failed_request_service.get_status()
+
+    return FailedRequestsStatusResponse(
+        is_running=status.is_running,
+        requests_sent=status.requests_sent,
+        requests_completed=status.requests_completed,
+        requests_in_progress=status.requests_in_progress,
+        target_count=status.target_count,
     )
 
 
