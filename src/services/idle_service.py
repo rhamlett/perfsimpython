@@ -32,11 +32,11 @@ class IdleService:
         self._is_idle: bool = False
         self._lock = Lock()
 
-    def record_activity(self, _source: str = "unknown") -> None:
+    def record_activity(self, source: str = "unknown") -> None:  # noqa: ARG002
         """Record user activity to reset the idle timer.
 
         Args:
-            _source: Description of activity source (e.g., "page_load", "api_call").
+            source: Description of activity source (e.g., "page_load", "api_call").
         """
         settings = get_settings()
 
