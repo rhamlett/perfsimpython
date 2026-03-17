@@ -42,6 +42,7 @@ const state = {
     },
     activeSimulations: new Map(),
     lastProcessId: null,
+    lastInstanceId: null,  // Server instance ID (unique per server start - reliable for containers)
     checkProcessIdOnNextMessage: false,
     // Idle state tracking
     isIdle: false,
@@ -287,29 +288,35 @@ function handleMetricsUpdate(message) {
     const asyncioData = data.asyncio || {};
     const simulationsData = data.simulations || {};
     
-    // Check for process ID change (indicates app restart/crash)
+    // Check for server restart using instance_id (works in containers where PID is always 1)
+    const currentInstanceId = processData.instance_id;
     const currentProcessId = processData.pid;
     
-    // Get the previous PID from state or sessionStorage (for persistence across reconnections)
-    let previousProcessId = state.lastProcessId;
-    if (previousProcessId === null) {
-        const storedPid = sessionStorage.getItem('lastProcessId');
-        if (storedPid) {
-            previousProcessId = parseInt(storedPid, 10);
-            state.lastProcessId = previousProcessId;
+    // Get the previous instance ID from state or sessionStorage
+    let previousInstanceId = state.lastInstanceId;
+    if (previousInstanceId === null) {
+        const storedInstanceId = sessionStorage.getItem('lastInstanceId');
+        if (storedInstanceId) {
+            previousInstanceId = storedInstanceId;
+            state.lastInstanceId = previousInstanceId;
         }
     }
     
-    // Check for restart: either on reconnection flag or when PID changes
-    if (currentProcessId && previousProcessId !== null && currentProcessId !== previousProcessId) {
-        // Process ID changed - app was restarted
-        logEvent('restart', `APPLICATION RESTARTED! Process ID changed from ${previousProcessId} to ${currentProcessId}. This may indicate an unexpected crash (OOM, StackOverflow, etc.).`, { icon: '🔄' });
+    // Check for restart: instance_id change is the reliable indicator
+    if (currentInstanceId && previousInstanceId !== null && currentInstanceId !== previousInstanceId) {
+        // Server instance changed - app was restarted
+        const startedAt = processData.started_at ? new Date(processData.started_at).toLocaleTimeString() : 'unknown';
+        logEvent('restart', `APPLICATION RESTARTED! Server instance changed (${previousInstanceId} → ${currentInstanceId}). New instance started at ${startedAt}. This may indicate an unexpected crash (OOM, StackOverflow, FailFast, etc.).`, { icon: '🔄' });
     }
     
     // Clear the reconnection check flag
     state.checkProcessIdOnNextMessage = false;
     
-    // Update the stored process ID (both in state and sessionStorage)
+    // Update the stored instance ID and process ID (both in state and sessionStorage)
+    if (currentInstanceId) {
+        state.lastInstanceId = currentInstanceId;
+        sessionStorage.setItem('lastInstanceId', currentInstanceId);
+    }
     if (currentProcessId) {
         state.lastProcessId = currentProcessId;
         sessionStorage.setItem('lastProcessId', currentProcessId.toString());

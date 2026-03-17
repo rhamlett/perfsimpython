@@ -8,8 +8,10 @@ import asyncio
 import contextlib
 import logging
 import os
+import uuid
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +36,11 @@ ws_manager = ConnectionManager()
 # Background task reference
 _metrics_broadcast_task: asyncio.Task | None = None
 
+# Server instance ID - unique per process start, used to detect restarts
+# This is more reliable than PID which can be the same in containers (always PID 1)
+SERVER_INSTANCE_ID = str(uuid.uuid4())[:8]
+SERVER_START_TIME = datetime.now(UTC)
+
 
 async def _measure_event_loop_lag() -> float:
     """Measure event loop lag in milliseconds.
@@ -54,8 +61,6 @@ async def _broadcast_metrics() -> None:
     Runs every 250ms while the application is running (240 points = 60 seconds).
     Also broadcasts new event log entries since the last broadcast.
     """
-    from datetime import UTC, datetime
-
     from src.services.idle_service import idle_service
 
     metrics_service = MetricsService()
@@ -107,6 +112,8 @@ async def _broadcast_metrics() -> None:
                         },
                         "process": {
                             "pid": os.getpid(),
+                            "instance_id": SERVER_INSTANCE_ID,
+                            "started_at": SERVER_START_TIME.isoformat(),
                             "cpu_percent": process_metrics.cpu_percent,
                             "memory_mb": round(process_metrics.memory_rss_bytes / (1024 * 1024), 2),
                             "threads": process_metrics.threads,
