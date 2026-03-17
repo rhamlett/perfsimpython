@@ -21,6 +21,7 @@ from src.middleware.request_logger import RequestLoggerMiddleware, configure_log
 from src.routers import admin, blocking, cpu, crash, health, loadtest, memory, metrics, slow
 from src.services.event_log_service import event_log_service
 from src.services.metrics_service import MetricsService
+from src.services.request_latency_service import request_latency_service
 from src.services.simulation_tracker import simulation_tracker
 from src.websocket.metrics_broadcaster import ConnectionManager
 
@@ -77,6 +78,9 @@ async def _broadcast_metrics() -> None:
                 active_simulations = simulation_tracker.get_all_simulations()
 
                 # Build message payload
+                # Get recent request latencies (last 2 seconds for smooth updates)
+                recent_latencies = request_latency_service.get_recent_latencies(max_age_seconds=2.0)
+
                 message = {
                     "type": "metrics",
                     "data": {
@@ -117,6 +121,7 @@ async def _broadcast_metrics() -> None:
                             "is_idle": idle_service.check_idle_state(),
                             "seconds_until_idle": idle_service.get_seconds_until_idle(),
                         },
+                        "requestLatencies": recent_latencies,
                     },
                 }
 

@@ -337,7 +337,7 @@ function handleMetricsUpdate(message) {
     // Update charts
     updateCharts();
     
-    // Handle latency if present
+    // Handle latency if present (for backwards compatibility)
     if (message.latency_ms !== undefined) {
         handleLatencyUpdate({
             timestamp: timestamp,
@@ -345,6 +345,22 @@ function handleMetricsUpdate(message) {
             isTimeout: message.latency_ms >= CONFIG.latencyTimeoutMs,
             isError: false
         });
+    }
+
+    // Process request latencies from all API endpoints (new format)
+    const requestLatencies = data.requestLatencies || [];
+    if (requestLatencies.length > 0) {
+        // Process each latency record - these are actual API request latencies
+        for (const record of requestLatencies) {
+            // Skip if we've already processed this timestamp (dedup)
+            const recordTime = new Date(record.timestamp * 1000); // Convert unix timestamp
+            handleLatencyUpdate({
+                timestamp: recordTime,
+                latencyMs: record.latencyMs,
+                isTimeout: record.latencyMs >= CONFIG.latencyTimeoutMs,
+                isError: record.statusCode >= 500
+            });
+        }
     }
     
     // Update active simulations (always update to clear when empty)

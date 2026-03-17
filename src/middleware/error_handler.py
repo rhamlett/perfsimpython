@@ -46,8 +46,12 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 str(exc),
             )
 
-            # Determine error details
-            error_detail = str(exc) if str(exc) else type(exc).__name__
+            # Get exception type name and message
+            exception_type = type(exc).__name__
+            exception_message = str(exc) if str(exc) else "No details"
+
+            # Format detail as "ExceptionType: message" for easy parsing
+            error_detail = f"{exception_type}: {exception_message}"
 
             # Return structured error response
             return JSONResponse(
@@ -56,6 +60,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "error": "InternalServerError",
                     "message": "An unexpected error occurred",
                     "detail": error_detail,
+                    "exceptionType": exception_type,
                     "timestamp": datetime.utcnow().isoformat(),
                     "path": str(request.url.path),
                 },

@@ -6,6 +6,7 @@ error injection configured for guaranteed failure.
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -128,14 +129,14 @@ class FailedRequestService:
         )
 
         logger.warning(
-            "❌ Failed request simulation started: %s. Generating %d HTTP 500 errors",
+            "❌ Failed request simulation started: %s. Generating %d failures",
             self._simulation_id,
             self._target_count,
         )
 
         event_log_service.log_event(
-            event_type="failed_requests_started",
-            message=f"Generating {self._target_count} failed requests (HTTP 500 errors)",
+            event_type="failedrequests",
+            message=f"Started generating {self._target_count} failures",
             metadata={
                 "simulation_id": str(self._simulation_id),
                 "target_count": self._target_count,
@@ -225,11 +226,16 @@ class FailedRequestService:
                     request_num = self._requests_sent
 
                     try:
+                        # Time the request
+                        request_start = time.perf_counter()
+
                         # Make request to load test endpoint - will fail with 500
                         response = await client.post(
                             "http://127.0.0.1:8000/api/loadtest",
                             json=FAILURE_REQUEST_BODY,
                         )
+
+                        request_duration = time.perf_counter() - request_start
 
                         # This should NOT succeed (we expect 500)
                         if response.status_code == 200:
@@ -239,48 +245,58 @@ class FailedRequestService:
                                 self._target_count,
                             )
                         else:
-                            # Extract error details from response
+                            # Extract exception type from error response
+                            exception_type = "Unknown"
                             try:
                                 error_data = response.json()
-                                error_detail = error_data.get("detail", "Unknown error")
+                                error_detail = error_data.get("detail", "")
+                                # Parse exception type from detail (format: "ExceptionType: message")
+                                if ":" in error_detail:
+                                    exception_type = error_detail.split(":")[0].strip()
+                                elif error_detail:
+                                    exception_type = error_detail
                             except Exception:
-                                error_detail = (
-                                    response.text[:200] if response.text else "No details"
-                                )
+                                pass
 
                             logger.info(
-                                "Failed request %d/%d completed with HTTP %d: %s",
+                                "Failed request %d/%d: %s (%.2fs)",
                                 request_num,
                                 self._target_count,
-                                response.status_code,
-                                error_detail,
+                                exception_type,
+                                request_duration,
                             )
 
+                            # Format message like .NET version: "Failed Request: ExceptionType (1.57s)"
                             event_log_service.log_event(
-                                event_type="failed_request",
-                                message=f"HTTP {response.status_code}: {error_detail}",
+                                event_type="failedrequests",
+                                message=f"Failed Request: {exception_type} ({request_duration:.2f}s)",
                                 metadata={
                                     "request_num": request_num,
+                                    "exception_type": exception_type,
+                                    "duration_seconds": round(request_duration, 2),
                                     "status_code": response.status_code,
-                                    "error": error_detail,
                                 },
                             )
 
                     except httpx.RequestError as e:
-                        # Connection/timeout errors also count as failures
+                        request_duration = time.perf_counter() - request_start
+                        exception_type = type(e).__name__
+
                         logger.info(
-                            "Failed request %d/%d failed with error: %s",
+                            "Failed request %d/%d: %s (%.2fs)",
                             request_num,
                             self._target_count,
-                            str(e),
+                            exception_type,
+                            request_duration,
                         )
+
                         event_log_service.log_event(
-                            event_type="failed_request",
-                            message=f"Request error: {type(e).__name__}: {e}",
+                            event_type="failedrequests",
+                            message=f"Failed Request: {exception_type} ({request_duration:.2f}s)",
                             metadata={
                                 "request_num": request_num,
-                                "error_type": type(e).__name__,
-                                "error": str(e),
+                                "exception_type": exception_type,
+                                "duration_seconds": round(request_duration, 2),
                             },
                         )
 
