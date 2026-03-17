@@ -13,7 +13,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from src.services.event_log_service import event_log_service
+
 logger = logging.getLogger(__name__)
+
+# Period length for stats reporting (seconds)
+STATS_PERIOD_SECONDS = 60
 
 
 # =============================================================================
@@ -106,6 +111,13 @@ class LoadTestService:
         self._total_response_time_ms = 0
         self._lock = asyncio.Lock()
 
+        # Period stats tracking (resets every STATS_PERIOD_SECONDS)
+        self._period_start_time = time.time()
+        self._period_requests = 0
+        self._period_errors = 0
+        self._period_total_ms = 0
+        self._period_max_ms = 0
+
     async def execute_work(self, request: LoadTestRequest) -> LoadTestResult:
         """Execute load test work with configurable parameters.
 
@@ -131,6 +143,7 @@ class LoadTestService:
         start_time = time.perf_counter()
         total_cpu_work_done = 0
         buffer: bytearray | None = None
+        had_error = False
 
         try:
             # STEP 1: Allocate memory up front and hold for entire request
@@ -200,6 +213,7 @@ class LoadTestService:
 
         except Exception as ex:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            had_error = True
             async with self._lock:
                 self._total_exceptions_thrown += 1
 
@@ -220,12 +234,72 @@ class LoadTestService:
                 self._total_requests_processed += 1
                 self._total_response_time_ms += elapsed_final
 
+                # Track period stats
+                self._period_requests += 1
+                self._period_total_ms += elapsed_final
+                if elapsed_final > self._period_max_ms:
+                    self._period_max_ms = elapsed_final
+                if had_error:
+                    self._period_errors += 1
+
+                # Check if period has elapsed and emit stats
+                self._check_and_emit_period_stats()
+
     def _touch_memory_buffer(self, buffer: bytearray) -> None:
         """Touch memory buffer to prevent GC optimization."""
         checksum = 0
         for i in range(0, len(buffer), 4096):  # Touch every page
             buffer[i] = buffer[i] ^ 0xFF
             checksum += buffer[i]
+
+    def _check_and_emit_period_stats(self) -> None:
+        """Check if stats period has elapsed and emit event log message.
+
+        Should be called while holding self._lock.
+        Emits stats like: "Load test period stats (60s): 437 requests, 4802.9 avg ms, 12100 max ms, 7.28 RPS, 31.1% errors"
+        """
+        now = time.time()
+        elapsed = now - self._period_start_time
+
+        if elapsed >= STATS_PERIOD_SECONDS and self._period_requests > 0:
+            # Calculate stats
+            avg_ms = self._period_total_ms / self._period_requests
+            max_ms = self._period_max_ms
+            rps = self._period_requests / elapsed
+            error_pct = (self._period_errors / self._period_requests) * 100
+
+            # Format message matching sister app format
+            message = (
+                f"Load test period stats ({STATS_PERIOD_SECONDS}s): "
+                f"{self._period_requests} requests, "
+                f"{avg_ms:.1f} avg ms, "
+                f"{max_ms} max ms, "
+                f"{rps:.2f} RPS, "
+                f"{error_pct:.1f}% errors"
+            )
+
+            # Emit event log
+            event_log_service.log_event(
+                event_type="loadtest",
+                message=message,
+                metadata={
+                    "requests": self._period_requests,
+                    "avg_ms": round(avg_ms, 1),
+                    "max_ms": max_ms,
+                    "rps": round(rps, 2),
+                    "error_percent": round(error_pct, 1),
+                    "period_seconds": STATS_PERIOD_SECONDS,
+                },
+            )
+
+            logger.info(message)
+
+            # Reset period stats
+            self._period_start_time = now
+            self._period_requests = 0
+            self._period_errors = 0
+            self._period_total_ms = 0
+            self._period_max_ms = 0
 
     def _perform_cpu_work(self, work_ms: int) -> None:
         """Perform CPU-intensive work for specified duration.
