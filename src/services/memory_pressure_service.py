@@ -11,6 +11,7 @@ from threading import Lock
 from uuid import UUID, uuid4
 
 from src.models.entities import AllocatedMemoryBlock, SimulationState, SimulationType
+from src.services.event_log_service import event_log_service
 from src.services.simulation_tracker import simulation_tracker
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,13 @@ class MemoryPressureService:
                     self.get_total_allocated_mb(),
                 )
 
+                # Log event for dashboard
+                event_log_service.log_event(
+                    event_type="memory_pressure",
+                    message=f"Allocated {size_mb} MB (block {str(block_id)[:8]}...)",
+                    metadata={"size_mb": size_mb, "block_id": str(block_id)},
+                )
+
                 return block
             except MemoryError:
                 logger.error("Failed to allocate %d MB - out of memory", size_mb)
@@ -139,6 +147,13 @@ class MemoryPressureService:
                 self.get_total_allocated_mb(),
             )
 
+            # Log event for dashboard
+            event_log_service.log_event(
+                event_type="memory_pressure",
+                message=f"Released {block.size_mb} MB (block {str(block_id)[:8]}...)",
+                metadata={"size_mb": block.size_mb, "block_id": str(block_id)},
+            )
+
             return True
 
     def release_all(self) -> int:
@@ -167,6 +182,13 @@ class MemoryPressureService:
                     "Released all memory: %d blocks, %d MB total",
                     count,
                     total_mb,
+                )
+
+                # Log event for dashboard
+                event_log_service.log_event(
+                    event_type="memory_pressure",
+                    message=f"Released {count} memory block(s), {total_mb} MB total",
+                    metadata={"released_count": count, "total_mb": total_mb},
                 )
 
             return count

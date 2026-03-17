@@ -142,7 +142,7 @@ class SlowRequestService:
 
         event_log_service.log_event(
             event_type="slow_generator_started",
-            message="Slow request generator started",
+            message=f"Starting slow request generator ({delay_seconds}s, interval {interval_seconds}s, max {max_requests})...",
             metadata={
                 "interval_seconds": interval_seconds,
                 "max_requests": max_requests,

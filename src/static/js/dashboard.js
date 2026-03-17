@@ -990,6 +990,8 @@ function getEventIcon(type) {
 function getServerEventIcon(eventType) {
     const icons = {
         'system': '',
+        'info': '',
+        'admin_reset': '⚠️',
         'cpu': '🔥',
         'cpu_stress': '🔥',
         'memory': '📊',
@@ -999,11 +1001,13 @@ function getServerEventIcon(eventType) {
         'async_blocking': '🧵',
         'slowrequest': '🐌',
         'slow_request': '🐌',
+        'slow_generator_started': '🐌',
         'slow_generator_stopped': '🐌',
         'failedrequests': '❌',
         'failed_requests': '❌',
         'failed_requests_stopped': '❌',
         'crash': '💥',
+        'crash_triggered': '💥',
         'restart': '🔄',
         'loadtest': '📈',
         'load_test': '📈',
@@ -1048,11 +1052,12 @@ async function triggerCpuStress() {
 
 async function stopCpuStress() {
     try {
-        logEvent('cpu', 'Stopping CPU stress simulations...');
+        // Server broadcasts stop event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/cpu/stop`, { method: 'POST' });
         
-        if (response.ok) {
-            logEvent('cpu', 'CPU stress stopped');
+        if (!response.ok && response.status !== 405) {
+            const error = await response.json();
+            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
         }
     } catch (err) {
         logEvent('error', `Stop request failed: ${err.message}`);
@@ -1063,17 +1068,14 @@ async function allocateMemory() {
     const sizeMb = parseInt(document.getElementById('memorySize').value) || 100;
     
     try {
-        logEvent('memory', `Allocating ${sizeMb} MB of memory...`);
+        // Server broadcasts allocation event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/memory/allocate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ size_mb: sizeMb })
         });
         
-        if (response.ok) {
-            const result = await response.json();
-            logEvent('memory', `Allocated ${sizeMb} MB (block ${result.block_id.substring(0, 8)}...)`);
-        } else {
+        if (!response.ok) {
             const error = await response.json();
             logEvent('error', `Memory allocation failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1084,17 +1086,10 @@ async function allocateMemory() {
 
 async function releaseMemory() {
     try {
-        logEvent('memory', 'Releasing all memory allocations...');
+        // Server broadcasts release event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/memory/release-all`, { method: 'POST' });
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.released_count > 0) {
-                logEvent('memory', `Released ${data.released_count} memory block(s). Memory will be reclaimed by GC.`);
-            } else {
-                logEvent('memory', 'No memory blocks to release');
-            }
-        } else {
+        if (!response.ok) {
             const error = await response.json();
             logEvent('error', `Memory release failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1148,7 +1143,7 @@ async function startSlowRequests() {
     const maxRequests = parseInt(document.getElementById('slowRequestMax').value) || 10;
     
     try {
-        logEvent('slowrequest', `Starting slow request generator (${duration}s, interval ${interval}s, max ${maxRequests})...`);
+        // Server broadcasts start event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/slow/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1159,9 +1154,7 @@ async function startSlowRequests() {
             })
         });
         
-        if (response.ok) {
-            // Server broadcasts the "started" event via WebSocket
-        } else if (response.status !== 405) {
+        if (!response.ok && response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1172,11 +1165,12 @@ async function startSlowRequests() {
 
 async function stopSlowRequests() {
     try {
-        logEvent('slowrequest', 'Stopping slow requests...');
+        // Server broadcasts stop event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/slow/stop`, { method: 'POST' });
         
-        if (response.ok) {
-            logEvent('slowrequest', 'Slow requests stopped');
+        if (!response.ok && response.status !== 405) {
+            const error = await response.json();
+            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
         }
     } catch (err) {
         logEvent('error', `Stop request failed: ${err.message}`);
@@ -1187,17 +1181,14 @@ async function generateFailedRequests() {
     const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
     
     try {
-        logEvent('failedrequests', `Generating ${count} failed requests...`);
+        // Server broadcasts start event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count: count })
         });
         
-        if (response.ok) {
-            const result = await response.json();
-            logEvent('failedrequests', `Started generating ${count} HTTP 500 errors`);
-        } else if (response.status !== 405) {
+        if (!response.ok && response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1258,6 +1249,42 @@ function setupEventHandlers() {
     
     // Crash controls
     document.getElementById('btnTriggerCrash')?.addEventListener('click', triggerCrash);
+    
+    // Event log copy
+    document.getElementById('btnCopyEventLog')?.addEventListener('click', copyEventLogToClipboard);
+}
+
+// ==========================================================================
+// Event Log Copy
+// ==========================================================================
+
+/**
+ * Copies the event log contents to clipboard as plain text.
+ */
+async function copyEventLogToClipboard() {
+    const container = document.getElementById('eventLog');
+    const btn = document.getElementById('btnCopyEventLog');
+    if (!container) return;
+    
+    // Extract text content from all log entries
+    const entries = container.querySelectorAll('.log-entry');
+    const lines = Array.from(entries).map(entry => entry.textContent.trim());
+    const logText = lines.join('\n');
+    
+    try {
+        await navigator.clipboard.writeText(logText);
+        // Visual feedback
+        const originalText = btn.textContent;
+        btn.textContent = '✅';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('copied');
+        }, 1500);
+    } catch (err) {
+        console.error('Failed to copy event log:', err);
+        logEvent('error', 'Failed to copy event log to clipboard');
+    }
 }
 
 // ==========================================================================
