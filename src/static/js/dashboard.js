@@ -327,7 +327,7 @@ function handleMetricsUpdate(message) {
     updateMetricCard('cpu', cpuPercent, '%', 100);
     updateMetricCard('memory', memoryMb, 'MB', totalMemoryMb);
     updateMetricCard('threads', threadCount, 'threads', 100);
-    updateMetricCard('queue', pendingTasks, 'tasks', 50);
+    updateMetricCard('queue', eventLoopLagMs, 'ms', 100);
 
     // Update total memory display
     const totalMemoryEl = document.getElementById('memoryTotal');
