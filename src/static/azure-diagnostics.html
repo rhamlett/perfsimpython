@@ -485,6 +485,103 @@ for stat in top_stats[:10]:
       </ul>
       </section>
 
+      <section id="load-testing" class="doc-section">
+      <h2>Azure Load Testing</h2>
+      <p>The Performance Problem Simulator includes a dedicated load testing endpoint designed for use with Azure Load Testing. This endpoint simulates realistic application behavior that degrades gracefully under load.</p>
+
+      <h3>Load Test Endpoint</h3>
+      <p>The <code>/api/loadtest</code> endpoint is designed to:</p>
+      <ul>
+        <li>Perform sustained CPU work (interleaved SHA256 cycles at ~50% CPU per thread)</li>
+        <li>Hold memory buffers for entire request duration (creates visible memory pressure)</li>
+        <li>Degrade gracefully as concurrent requests increase (soft limit pattern)</li>
+        <li>Throw random exceptions after configurable threshold (default: 120 seconds at 20% probability)</li>
+        <li>Eventually trigger Azure's 230-second timeout under extreme load</li>
+      </ul>
+
+      <h3>Setting Up Azure Load Testing</h3>
+      <ol>
+        <li>In the Azure Portal, create an Azure Load Testing resource</li>
+        <li>Create a new test and configure the target URL</li>
+        <li>Configure load pattern (ramp up, steady state, ramp down)</li>
+        <li>Set up Azure Monitor integration to correlate metrics</li>
+      </ol>
+
+      <h4>GET with Query Parameters</h4>
+      <p>Use the target URL directly — no JMeter script required:</p>
+      <pre># With defaults (tuned for Premium0V3)
+https://your-app.azurewebsites.net/api/loadtest
+
+# Custom parameters
+https://your-app.azurewebsites.net/api/loadtest?workIterations=500&bufferSizeKb=10000
+
+# Thread pool only (no CPU work)
+https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=100</pre>
+
+      <h4>Query Parameters Reference</h4>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Default</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>workIterations</code></td><td>200</td><td>SHA256 iterations per CPU work cycle</td></tr>
+          <tr><td><code>bufferSizeKb</code></td><td>20000</td><td>Memory buffer held for request duration in KB</td></tr>
+          <tr><td><code>baselineDelayMs</code></td><td>500</td><td>Minimum request duration in ms</td></tr>
+          <tr><td><code>softLimit</code></td><td>25</td><td>Concurrent requests before degradation</td></tr>
+          <tr><td><code>degradationFactor</code></td><td>500</td><td>Delay ms per request over limit</td></tr>
+          <tr><td><code>errorAfter</code></td><td>120</td><td>Seconds before random errors may be thrown (0 disables)</td></tr>
+          <tr><td><code>errorPercent</code></td><td>20</td><td>Percentage chance (0-100) of random error after threshold</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Understanding the Soft Limit</h3>
+      <p>The soft limit creates a degradation curve where response times increase as concurrent requests exceed the threshold:</p>
+      <pre>additionalDelay = max(0, concurrent - softLimit) × degradationFactor</pre>
+      <p><strong>Note:</strong> Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment.</p>
+
+      <h3>Diagnosing Load Test Results</h3>
+      <h4>1. Application Insights Integration</h4>
+      <ul>
+        <li>Go to Application Insights → Performance</li>
+        <li>Filter by operation name <code>GET /api/loadtest</code></li>
+        <li>Observe response time percentiles (p50, p95, p99)</li>
+        <li>Check failure rates for the configurable random error threshold</li>
+      </ul>
+
+      <h4>2. Azure Monitor Metrics</h4>
+      <ul>
+        <li><strong>Requests</strong> - Total request count and rate</li>
+        <li><strong>Response Time</strong> - Average and percentile latencies</li>
+        <li><strong>Http Server Errors</strong> - 5xx errors from random exceptions</li>
+        <li><strong>CPU Percentage</strong> - Should increase with load</li>
+      </ul>
+
+      <h4>3. Load Testing Statistics</h4>
+      <p>Query the stats endpoint during the test:</p>
+      <pre>GET /api/loadtest/stats
+
+{
+  "currentConcurrentRequests": 127,
+  "totalRequestsProcessed": 45230,
+  "totalExceptionsThrown": 23,
+  "averageResponseTimeMs": 847.5
+}</pre>
+
+      <h3>Tuning Parameters for Different Scenarios</h3>
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th>workIterations</th><th>bufferSizeKb</th><th>baselineDelayMs</th><th>softLimit</th><th>degradationFactor</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Thread pool only</td><td>0</td><td>2000</td><td>500</td><td>25</td><td>500</td><td>Thread pool exhaustion, minimal CPU</td></tr>
+          <tr><td>CPU intensive</td><td>10000</td><td>2000</td><td>0</td><td>500</td><td>25</td><td>High CPU, minimal thread blocking</td></tr>
+          <tr><td>Memory pressure</td><td>20</td><td>100000</td><td>100</td><td>100</td><td>125</td><td>High memory allocation (100MB/request)</td></tr>
+          <tr><td>Balanced (default)</td><td>200</td><td>20000</td><td>500</td><td>25</td><td>500</td><td>Tuned for Premium0V3 worker</td></tr>
+          <tr><td>High concurrency</td><td>100</td><td>10000</td><td>200</td><td>250</td><td>50</td><td>Gradual degradation under high load</td></tr>
+        </tbody>
+      </table>
+      </section>
+
             </div>
         </div>
 
@@ -501,6 +598,7 @@ for stat in top_stats[:10]:
                         <li class="doc-toc-item"><a href="#profiling"><span class="toc-icon">⚡</span>Python Profiling</a></li>
                         <li class="doc-toc-item"><a href="#kql"><span class="toc-icon">📝</span>KQL Queries</a></li>
                         <li class="doc-toc-item"><a href="#simulation-diagnostics"><span class="toc-icon">🧪</span>Simulation Diagnostics</a></li>
+                        <li class="doc-toc-item"><a href="#load-testing"><span class="toc-icon">🔬</span>Azure Load Testing</a></li>
                     </ul>
                 </div>
             </div>

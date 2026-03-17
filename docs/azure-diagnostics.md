@@ -312,6 +312,124 @@ for stat in top_stats[:10]:
 3. Logs show the crash type
 4. Exit code varies by crash type
 
+## Azure Load Testing
+
+The Performance Problem Simulator includes a dedicated load testing endpoint designed for use with Azure Load Testing. This endpoint simulates realistic application behavior that degrades gracefully under load.
+
+### Load Test Endpoint
+
+The `/api/loadtest` endpoint is designed to:
+
+- Perform sustained CPU work (interleaved SHA256 cycles at ~50% CPU per thread)
+- Hold memory buffers for entire request duration (creates visible memory pressure)
+- Degrade gracefully as concurrent requests increase (soft limit pattern)
+- Throw random exceptions after configurable threshold (default: 120 seconds at 20% probability)
+- Eventually trigger Azure's 230-second timeout under extreme load
+
+### Setting Up Azure Load Testing
+
+1. In the Azure Portal, create an Azure Load Testing resource
+2. Create a new test and configure the target URL using one of these options:
+
+#### GET with Query Parameters
+
+Use the target URL directly — no JMeter script required:
+
+```
+# With defaults (tuned for Premium0V3)
+https://your-app.azurewebsites.net/api/loadtest
+
+# Custom parameters
+https://your-app.azurewebsites.net/api/loadtest?workIterations=500&bufferSizeKb=10000
+
+# Thread pool only (no CPU work)
+https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=100
+```
+
+Query Parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `workIterations` | 200 | SHA256 iterations per CPU work cycle |
+| `bufferSizeKb` | 20000 | Memory buffer held for request duration in KB |
+| `baselineDelayMs` | 500 | Minimum request duration in ms |
+| `softLimit` | 25 | Concurrent requests before degradation |
+| `degradationFactor` | 500 | Delay ms per request over limit |
+| `errorAfter` | 120 | Seconds before random errors may be thrown (0 disables) |
+| `errorPercent` | 20 | Percentage chance (0-100) of random error after threshold |
+
+3. Configure load pattern (ramp up, steady state, ramp down)
+4. Set up Azure Monitor integration to correlate metrics
+
+### Understanding the Soft Limit
+
+The soft limit creates a degradation curve where response times increase as concurrent requests exceed the threshold. The degradation formula is:
+
+```
+additionalDelay = max(0, concurrent - softLimit) × degradationFactor
+```
+
+> **Note:** Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment. These example scenarios, and the defaults, are for a Premium0V3 worker. Any other SKU or worker size will need individual tuning.
+
+### Diagnosing Load Test Results
+
+#### 1. Application Insights Integration
+
+- Go to Application Insights > Performance
+- Filter by operation name `GET /api/loadtest`
+- Observe response time percentiles (p50, p95, p99)
+- Check failure rates for the configurable random error threshold (default: 120s)
+
+#### 2. Azure Monitor Metrics
+
+- **Requests** - Total request count and rate
+- **Response Time** - Average and percentile latencies
+- **Http Server Errors** - 5xx errors from random exceptions
+- **CPU Percentage** - Should increase with load
+
+#### 3. Load Testing Statistics
+
+Query the stats endpoint during the test:
+
+```
+GET /api/loadtest/stats
+
+{
+  "currentConcurrentRequests": 127,
+  "totalRequestsProcessed": 45230,
+  "totalExceptionsThrown": 23,
+  "averageResponseTimeMs": 847.5
+}
+```
+
+### Request Body Parameters Reference
+
+For POST requests, each parameter controls a specific resource independently:
+
+| Parameter | Default | Target | Description |
+|-----------|---------|--------|-------------|
+| workIterations | 200 | CPU | SHA256 hash iterations per CPU work cycle. Controls sustained CPU usage (~50% per thread). |
+| bufferSizeKb | 20000 | Memory | Memory held for entire request duration. Creates sustained memory pressure. |
+| baselineDelayMs | 500 | Thread Pool | Minimum request duration (ms). CPU work and sleep interleaved throughout. |
+| softLimit | 25 | Thread Pool | Concurrent requests before degradation. Lower = faster exhaustion. |
+| degradationFactor | 500 | Thread Pool | Additional delay (ms) per request over softLimit. |
+| errorAfter | 120 | Chaos | Seconds before random errors may be thrown. Set to 0 to disable. |
+| errorPercent | 20 | Chaos | Percentage chance (0-100) of throwing a random error per check interval after threshold. |
+
+### Tuning Parameters for Different Scenarios
+
+Complete request parameter examples for various test scenarios:
+
+> **Note:** Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment. These example scenarios, and the defaults, are for a Premium0V3 worker. Any other SKU or worker size will need individual tuning.
+
+| Scenario | workIterations | bufferSizeKb | baselineDelayMs | softLimit | degradationFactor | Purpose |
+|----------|----------------|--------------|-----------------|-----------|-------------------|---------|
+| Thread pool only | 0 | 2000 | 500 | 25 | 500 | Thread pool exhaustion, minimal CPU |
+| CPU intensive | 10000 | 2000 | 0 | 500 | 25 | High CPU, minimal thread blocking |
+| Memory pressure | 20 | 100000 | 100 | 100 | 125 | High memory allocation (100MB/request) |
+| Balanced (default) | 200 | 20000 | 500 | 25 | 500 | Tuned for Premium0V3 worker |
+| High concurrency | 100 | 10000 | 200 | 250 | 50 | Gradual degradation under high load |
+
 ## Best Practices
 
 1. **Always set up Application Insights** before deploying diagnostic workloads
