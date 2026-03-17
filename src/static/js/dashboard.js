@@ -48,7 +48,9 @@ const state = {
     idleTimeoutMinutes: 20,
     secondsUntilIdle: -1,
     // Track processed latency timestamps to avoid duplicates
-    processedLatencyTimestamps: new Set()
+    processedLatencyTimestamps: new Set(),
+    // Track processed event keys to avoid duplicate server event display
+    processedEventKeys: new Set()
 };
 
 // ==========================================================================
@@ -359,6 +361,22 @@ function handleMetricsUpdate(message) {
     // Process server-side events broadcast via WebSocket
     const serverEvents = data.events || [];
     for (const event of serverEvents) {
+        // Deduplicate events using timestamp + message as key
+        const eventKey = `${event.timestamp}-${event.message}`;
+        if (state.processedEventKeys.has(eventKey)) {
+            console.warn('Duplicate event suppressed:', event.message, event.timestamp);
+            continue; // Already displayed this event
+        }
+        state.processedEventKeys.add(eventKey);
+        
+        // Keep set size bounded
+        if (state.processedEventKeys.size > 500) {
+            const iterator = state.processedEventKeys.values();
+            for (let i = 0; i < 250; i++) {
+                state.processedEventKeys.delete(iterator.next().value);
+            }
+        }
+        
         // Map server event_type to dashboard log type
         const logType = event.event_type || 'system';
         const message = event.message || '';
