@@ -18,44 +18,44 @@ class TestCpuStressService:
         # Clean up after test
         svc.stop_all()
 
-    def test_start_creates_process(self, service):
-        """Test that starting stress creates worker processes."""
+    def test_start_creates_threads(self, service):
+        """Test that starting stress creates worker threads."""
         simulation = service.start_stress(duration_seconds=2, intensity=1, workers=1)
 
         assert simulation is not None
-        assert simulation.id in service._processes
-        assert len(service._processes[simulation.id]) == 1
-        assert service._processes[simulation.id][0].is_alive()
+        assert simulation.id in service._workers
+        assert len(service._workers[simulation.id].threads) == 1
+        assert service._workers[simulation.id].threads[0].is_alive()
 
         # Clean up
         service.stop_stress(simulation.id)
 
     def test_start_multiple_workers(self, service):
-        """Test that starting with multiple workers creates multiple processes."""
+        """Test that starting with multiple workers creates multiple threads."""
         simulation = service.start_stress(duration_seconds=2, intensity=1, workers=3)
 
-        assert len(service._processes[simulation.id]) == 3
-        for process in service._processes[simulation.id]:
-            assert process.is_alive()
+        assert len(service._workers[simulation.id].threads) == 3
+        for thread in service._workers[simulation.id].threads:
+            assert thread.is_alive()
 
         # Clean up
         service.stop_stress(simulation.id)
 
-    def test_stop_terminates_process(self, service):
-        """Test that stopping a simulation terminates its processes."""
+    def test_stop_terminates_threads(self, service):
+        """Test that stopping a simulation terminates its threads."""
         simulation = service.start_stress(duration_seconds=60, intensity=1, workers=1)
-        process = service._processes[simulation.id][0]
+        thread = service._workers[simulation.id].threads[0]
 
-        # Verify process is running
-        assert process.is_alive()
+        # Verify thread is running
+        assert thread.is_alive()
 
         # Stop the simulation
         result = service.stop_stress(simulation.id)
 
         assert result is True
-        # Give some time for process to terminate
+        # Give some time for thread to terminate
         time.sleep(0.2)
-        assert not process.is_alive()
+        assert not thread.is_alive()
 
     def test_stop_nonexistent_returns_false(self, service):
         """Test that stopping non-existent simulation returns False."""

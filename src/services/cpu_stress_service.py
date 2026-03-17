@@ -1,20 +1,25 @@
 """CPU stress simulation service.
 
-This service creates CPU-bound work using multiprocessing to consume
-CPU resources. Each worker process performs intensive calculations
-to drive CPU usage higher.
+This service creates CPU-bound work using in-process threads to consume
+CPU resources. Each worker thread performs intensive calculations that
+compete with the FastAPI event loop due to Python's GIL.
 
 EDUCATIONAL NOTE: In production, excessive CPU usage causes:
-- Slow response times for all requests
+- Slow response times for all requests (directly observable with this approach)
 - Health check failures leading to restarts
 - Autoscaling triggers (if configured)
 - In Azure App Service: visible in CPU % metrics and App Service Diagnostics
+
+WHY IN-PROCESS: Unlike multiprocessing, in-process threads share the GIL
+with the main event loop. CPU-bound work in these threads directly competes
+for execution time, causing measurable request latency increases.
 """
 
 import logging
 import math
-import multiprocessing
+import threading
 import time
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from src.models.entities import SimulationState, SimulationType
@@ -24,22 +29,42 @@ from src.services.simulation_tracker import simulation_tracker
 logger = logging.getLogger(__name__)
 
 
-def _cpu_worker(duration: float | None, intensity: int) -> None:
+@dataclass
+class CpuWorkerState:
+    """State for a CPU stress worker thread.
+
+    Attributes:
+        threads: List of worker threads.
+        stop_event: Event to signal threads to stop.
+    """
+
+    threads: list[threading.Thread] = field(default_factory=list)
+    stop_event: threading.Event = field(default_factory=threading.Event)
+
+
+def _cpu_worker(
+    stop_event: threading.Event,
+    duration: float | None,
+    intensity: int,
+) -> None:
     """Worker function that performs CPU-intensive calculations.
 
-    This function runs in a separate process and performs mathematical
-    operations to consume CPU cycles.
+    This function runs in a thread within the main process. Due to Python's
+    GIL, CPU-bound work here directly competes with the event loop, causing
+    request latency to increase.
 
     Args:
+        stop_event: Event to check for stop signal.
         duration: How long to run (None for indefinite).
         intensity: How aggressively to use CPU (1-10).
     """
     start_time = time.time()
 
     # Intensity affects how many iterations we do per cycle
-    iterations_per_cycle = intensity * 10000
+    # Reduced from 10000 to allow more frequent stop checks
+    iterations_per_cycle = intensity * 1000
 
-    while True:
+    while not stop_event.is_set():
         # Check if duration exceeded
         if duration is not None:
             elapsed = time.time() - start_time
@@ -58,17 +83,17 @@ def _cpu_worker(duration: float | None, intensity: int) -> None:
 class CpuStressService:
     """Service for managing CPU stress simulations.
 
-    This service can spawn multiple worker processes that perform
-    CPU-intensive calculations, allowing simulation of high CPU usage
-    scenarios for diagnostic practice.
+    This service spawns worker threads that perform CPU-intensive calculations
+    within the main process. Due to Python's GIL, this directly competes with
+    the FastAPI event loop, causing observable request latency increases.
 
     Attributes:
-        _processes: Dictionary mapping simulation IDs to worker processes.
+        _workers: Dictionary mapping simulation IDs to worker state.
     """
 
     def __init__(self) -> None:
         """Initialize the CPU stress service."""
-        self._processes: dict[UUID, list[multiprocessing.Process]] = {}
+        self._workers: dict[UUID, CpuWorkerState] = {}
 
     def start_stress(
         self,
@@ -78,13 +103,13 @@ class CpuStressService:
     ) -> SimulationState:
         """Start a CPU stress simulation.
 
-        Creates worker processes that perform CPU-intensive calculations.
+        Creates worker threads that perform CPU-intensive calculations.
         Multiple calls stack to increase CPU load.
 
         Args:
             duration_seconds: How long to run (None for indefinite).
             intensity: CPU stress intensity from 1 (low) to 10 (high).
-            workers: Number of parallel worker processes.
+            workers: Number of parallel worker threads.
 
         Returns:
             SimulationState tracking the started simulation.
@@ -99,19 +124,22 @@ class CpuStressService:
             },
         )
 
-        # Start worker processes
-        processes = []
-        for _ in range(workers):
-            process = multiprocessing.Process(
-                target=_cpu_worker,
-                args=(duration_seconds, intensity),
-                daemon=True,
-            )
-            process.start()
-            processes.append(process)
+        # Create worker state with stop event
+        worker_state = CpuWorkerState()
 
-        # Store processes for cleanup
-        self._processes[simulation.id] = processes
+        # Start worker threads
+        for i in range(workers):
+            thread = threading.Thread(
+                target=_cpu_worker,
+                args=(worker_state.stop_event, duration_seconds, intensity),
+                daemon=True,
+                name=f"cpu-stress-{simulation.id}-{i}",
+            )
+            thread.start()
+            worker_state.threads.append(thread)
+
+        # Store worker state for cleanup
+        self._workers[simulation.id] = worker_state
 
         # Track the simulation
         simulation_tracker.add(simulation)
@@ -120,12 +148,12 @@ class CpuStressService:
         event_log_service.log_start(
             simulation_type="cpu_stress",
             simulation_id=simulation.id,
-            message=f"CPU stress started: {workers} workers at intensity {intensity}",
+            message=f"CPU stress started: {workers} in-process workers at intensity {intensity}",
             data={"duration": duration_seconds, "intensity": intensity, "workers": workers},
         )
 
         logger.info(
-            "Started CPU stress simulation %s with %d workers at intensity %d",
+            "Started CPU stress simulation %s with %d in-process workers at intensity %d",
             simulation.id,
             workers,
             intensity,
@@ -142,17 +170,16 @@ class CpuStressService:
         Returns:
             True if stopped successfully, False if not found.
         """
-        processes = self._processes.pop(simulation_id, None)
-        if processes is None:
+        worker_state = self._workers.pop(simulation_id, None)
+        if worker_state is None:
             return False
 
-        # Terminate all worker processes
-        for process in processes:
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=1.0)
-                if process.is_alive():
-                    process.kill()
+        # Signal all threads to stop
+        worker_state.stop_event.set()
+
+        # Wait for threads to finish
+        for thread in worker_state.threads:
+            thread.join(timeout=2.0)
 
         # Remove from tracker
         simulation_tracker.remove(simulation_id)
@@ -173,7 +200,7 @@ class CpuStressService:
         Returns:
             Number of simulations stopped.
         """
-        simulation_ids = list(self._processes.keys())
+        simulation_ids = list(self._workers.keys())
         stopped_count = 0
 
         for sim_id in simulation_ids:
@@ -196,31 +223,31 @@ class CpuStressService:
         Returns:
             Count of running simulations.
         """
-        return len(self._processes)
+        return len(self._workers)
 
     def cleanup_finished(self) -> int:
-        """Clean up any CPU stress simulations whose processes have naturally finished.
+        """Clean up any CPU stress simulations whose threads have naturally finished.
 
         This is called periodically to remove simulations from the tracker
-        when their worker processes have completed their duration.
+        when their worker threads have completed their duration.
 
         Returns:
             Number of simulations cleaned up.
         """
         finished_ids: list[UUID] = []
 
-        for sim_id, processes in self._processes.items():
-            # Check if all processes for this simulation have finished
-            all_finished = all(not p.is_alive() for p in processes)
+        for sim_id, worker_state in self._workers.items():
+            # Check if all threads for this simulation have finished
+            all_finished = all(not t.is_alive() for t in worker_state.threads)
             if all_finished:
                 finished_ids.append(sim_id)
 
         cleaned_count = 0
         for sim_id in finished_ids:
-            # Remove the processes
-            processes = self._processes.pop(sim_id, [])
-            for p in processes:
-                p.join(timeout=0.1)  # Brief join to clean up zombies
+            # Remove the worker state
+            worker_state = self._workers.pop(sim_id)
+            for t in worker_state.threads:
+                t.join(timeout=0.1)  # Brief join to clean up
 
             # Remove from the simulation tracker
             simulation_tracker.remove(sim_id)
@@ -236,7 +263,7 @@ class CpuStressService:
         Returns:
             List of simulation UUIDs currently running.
         """
-        return list(self._processes.keys())
+        return list(self._workers.keys())
 
     def cleanup_completed(self) -> int:
         """Clean up any completed simulations.
@@ -245,13 +272,13 @@ class CpuStressService:
             Number of simulations cleaned up.
         """
         completed = []
-        for sim_id, processes in self._processes.items():
-            # Check if all processes have finished
-            if all(not p.is_alive() for p in processes):
+        for sim_id, worker_state in self._workers.items():
+            # Check if all threads have finished
+            if all(not t.is_alive() for t in worker_state.threads):
                 completed.append(sim_id)
 
         for sim_id in completed:
-            self._processes.pop(sim_id, None)
+            self._workers.pop(sim_id, None)
             simulation_tracker.remove(sim_id)
 
         return len(completed)

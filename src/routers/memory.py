@@ -10,7 +10,6 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.services.event_log_service import event_log_service
 from src.services.memory_pressure_service import memory_pressure_service
 
 logger = logging.getLogger(__name__)
@@ -110,12 +109,6 @@ async def allocate_memory(
     try:
         block = memory_pressure_service.allocate_memory(actual_size)
 
-        event_log_service.log_event(
-            event_type="memory_allocated",
-            message=f"Allocated {actual_size} MB memory block",
-            metadata={"block_id": str(block.id), "size_mb": actual_size},
-        )
-
         return MemoryAllocateResponse(
             block_id=block.id,
             size_mb=block.size_mb,
@@ -151,12 +144,6 @@ async def release_memory(request: MemoryReleaseRequest) -> MemoryReleaseResponse
             detail=f"Memory block {request.block_id} not found",
         )
 
-    event_log_service.log_event(
-        event_type="memory_released",
-        message="Released memory block",
-        metadata={"block_id": str(request.block_id)},
-    )
-
     return MemoryReleaseResponse(
         released=True,
         block_id=request.block_id,
@@ -176,13 +163,6 @@ async def release_all_memory() -> MemoryReleaseAllResponse:
         Response with count of released blocks.
     """
     count = memory_pressure_service.release_all()
-
-    if count > 0:
-        event_log_service.log_event(
-            event_type="memory_released_all",
-            message=f"Released all {count} memory blocks",
-            metadata={"count": count},
-        )
 
     return MemoryReleaseAllResponse(
         released_count=count,
