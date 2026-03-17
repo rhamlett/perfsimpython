@@ -1135,7 +1135,7 @@ async function startSlowRequests() {
         });
         
         if (response.ok) {
-            logEvent('slowrequest', 'Slow request generator started');
+            // Server broadcasts the "started" event via WebSocket
         } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);

@@ -351,6 +351,9 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
 
     async def run_blocking_operations() -> None:
         """Run blocking operations and log completion when done."""
+        # Allow HTTP response to be sent before we start blocking the event loop
+        await asyncio.sleep(0.1)
+
         try:
             if request.type == "async":
                 # Run async blocking (blocks event loop - demonstrating anti-pattern)
@@ -376,9 +379,6 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
 
     # Start blocking operations in the background so we can return immediately
     asyncio.create_task(run_blocking_operations())
-
-    # Yield to event loop to allow background task to start
-    await asyncio.sleep(0)
 
     return BlockingStartResponse(
         started=True,
