@@ -377,8 +377,8 @@ function handleMetricsUpdate(message) {
             }
         }
         
-        // Map server event_type to dashboard log type
-        const logType = event.event_type || 'system';
+        // Use simulation_type for icon/color (e.g., 'cpu_stress'), fall back to event_type
+        const logType = event.simulation_type || event.event_type || 'system';
         const message = event.message || '';
         
         // Log the event using the server's timestamp
@@ -1023,7 +1023,7 @@ async function triggerCpuStress() {
     const level = document.getElementById('cpuLevel').value || 'high';
     
     try {
-        logEvent('cpu', `Triggering CPU stress for ${duration} seconds (${level})...`);
+        // Server broadcasts detailed event via WebSocket with proper formatting
         const response = await fetch(`${CONFIG.apiBaseUrl}/cpu/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

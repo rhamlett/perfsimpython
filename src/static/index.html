@@ -98,8 +98,8 @@
         </div>
         <div class="side-panel-content">
             <div class="control-group cpu-group">
-                <h3>🔥 CPU Stress <span class="control-tooltip" data-tooltip="Spawns worker processes running intensive operations to stress CPU cores">ⓘ</span></h3>
-                <p>Spawns worker processes running intensive cryptographic operations to stress CPU cores. Higher intensity uses more parallel workers.</p>
+                <h3>🔥 CPU Stress <span class="control-tooltip" data-tooltip="Due to Python's GIL, worker threads share a single CPU core. Expect ~50-60% total CPU usage. The primary effect is increased request latency from GIL contention.">ⓘ</span></h3>
+                <p>Spawns worker threads that compete with the event loop for CPU time. Due to Python's GIL, total CPU usage maxes out around 50-60%, but request latency increases significantly.</p>
                 <div class="control-inputs">
                     <label>Duration (s):
                         <input type="number" id="cpuDuration" value="30" min="1" title="Duration in seconds (minimum 1 second)">
