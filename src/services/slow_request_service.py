@@ -232,6 +232,13 @@ class SlowRequestService:
             self._generated_count,
         )
 
+        # Log the stop event
+        event_log_service.log_event(
+            event_type="slow_generator_stopped",
+            message=f"Slow request generator stopped after {self._generated_count} requests",
+            metadata={"generated_count": self._generated_count},
+        )
+
         return True
 
     @property

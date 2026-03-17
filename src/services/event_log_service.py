@@ -165,10 +165,11 @@ class EventLogService:
         """Convenience method to log a simple event without simulation context.
 
         This is a simpler API for logging events that don't need full
-        simulation tracking. The simulation_type defaults to "system".
+        simulation tracking. Uses event_type as simulation_type for
+        proper icon/color display in the dashboard.
 
         Args:
-            event_type: Type of event (e.g., "memory_allocated", "blocking_started").
+            event_type: Type of event (e.g., "memory_pressure", "blocking").
             message: Human-readable event description.
             metadata: Additional event data (optional).
 
@@ -177,7 +178,7 @@ class EventLogService:
         """
         return self.log(
             event_type=event_type,
-            simulation_type="system",
+            simulation_type=event_type,
             message=message,
             simulation_id=None,
             data=metadata,
