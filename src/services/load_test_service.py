@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# EXCEPTION POOL - Random exceptions to simulate realistic failures
+# EXCEPTION POOL - Python exceptions to simulate realistic failures
 # =============================================================================
 
 EXCEPTION_FACTORIES: list[Callable[[], Exception]] = [

@@ -313,9 +313,18 @@ class FailedRequestService:
                 simulation_tracker.remove(self._simulation_id)
                 self._simulation_id = None
 
+            # Log completion messages matching .NET version format
             event_log_service.log_event(
-                event_type="failed_requests_completed",
-                message=f"Failed request generation complete: {self._requests_completed} requests",
+                event_type="failedrequests",
+                message=f"Completed: Generated {self._requests_completed} HTTP 500 errors",
+                metadata={
+                    "requests_completed": self._requests_completed,
+                    "target_count": self._target_count,
+                },
+            )
+            event_log_service.log_event(
+                event_type="failedrequests",
+                message="FailedRequest simulation completed",
                 metadata={
                     "requests_completed": self._requests_completed,
                     "target_count": self._target_count,
