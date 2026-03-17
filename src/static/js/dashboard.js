@@ -1082,7 +1082,7 @@ async function triggerThreadBlock() {
     const count = parseInt(document.getElementById('threadConcurrent').value) || 10;
     
     try {
-        logEvent('threads', `Starting ${count} async blocking operations (${delay}s each)...`);
+        // Server logs start event via WebSocket; no client-side duplicate needed
         const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1093,9 +1093,7 @@ async function triggerThreadBlock() {
             })
         });
         
-        if (response.ok) {
-            logEvent('threads', 'Blocking operations started');
-        } else if (response.status !== 405) {
+        if (!response.ok && response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
         }
@@ -1106,11 +1104,12 @@ async function triggerThreadBlock() {
 
 async function stopThreadBlock() {
     try {
-        logEvent('threads', 'Stopping blocking operations...');
+        // Server logs stop event via WebSocket; no client-side duplicate needed
         const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/stop`, { method: 'POST' });
         
-        if (response.ok) {
-            logEvent('threads', 'Blocking operations stopped');
+        if (!response.ok && response.status !== 405) {
+            const error = await response.json();
+            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
         }
     } catch (err) {
         logEvent('error', `Stop request failed: ${err.message}`);
@@ -1242,6 +1241,8 @@ function setupEventHandlers() {
 let latencyProbeInterval = null;
 let latencyChartUpdateInterval = null;
 let lastProbeResult = null; // Store the last probe result for interpolation
+let probeInFlight = false; // Prevent overlapping probes during event loop blocking
+let currentProbeAbortController = null; // AbortController for current probe
 
 async function fetchConfig() {
     try {
@@ -1331,11 +1332,27 @@ async function startLatencyProbe() {
             return;
         }
         
+        // Skip if a probe is already in-flight (prevents pile-up during event loop blocking)
+        if (probeInFlight) {
+            return;
+        }
+        
         const startTime = performance.now();
+        probeInFlight = true;
+        
+        // Create AbortController with timeout (slightly longer than threshold)
+        currentProbeAbortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            if (currentProbeAbortController) {
+                currentProbeAbortController.abort();
+            }
+        }, CONFIG.latencyTimeoutMs + 5000); // 35s timeout
+        
         try {
             const response = await fetch('/api/health/ping', { 
                 method: 'GET',
-                cache: 'no-store'
+                cache: 'no-store',
+                signal: currentProbeAbortController.signal
             });
             const endTime = performance.now();
             const latencyMs = endTime - startTime;
@@ -1354,14 +1371,22 @@ async function startLatencyProbe() {
         } catch (err) {
             const endTime = performance.now();
             const latencyMs = endTime - startTime;
+            
+            // Check if this was an intentional abort (timeout)
+            const isAbort = err.name === 'AbortError';
+            
             lastProbeResult = {
                 timestamp: new Date(),
                 latencyMs: latencyMs,
-                isTimeout: false,
-                isError: true
+                isTimeout: isAbort || latencyMs >= CONFIG.latencyTimeoutMs,
+                isError: !isAbort // Only count as error if not a timeout abort
             };
-            updateLatencyDisplay(latencyMs, false, true);
+            updateLatencyDisplay(latencyMs, lastProbeResult.isTimeout, lastProbeResult.isError);
             updateProbeVisualization(latencyMs);
+        } finally {
+            clearTimeout(timeoutId);
+            currentProbeAbortController = null;
+            probeInFlight = false;
         }
     }, CONFIG.latencyProbeIntervalMs);
     
@@ -1389,6 +1414,12 @@ function stopLatencyProbe() {
         clearInterval(latencyChartUpdateInterval);
         latencyChartUpdateInterval = null;
     }
+    // Abort any in-flight probe
+    if (currentProbeAbortController) {
+        currentProbeAbortController.abort();
+        currentProbeAbortController = null;
+    }
+    probeInFlight = false;
 }
 
 // ==========================================================================
