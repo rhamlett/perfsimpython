@@ -1,448 +1,386 @@
-# Azure Diagnostics Guide
+# Azure Deployment Guide
 
-This guide covers using Azure diagnostic tools to identify and troubleshoot the performance problems created by this simulator.
+Deploy Performance Problem Simulator to Azure App Service using GitHub Actions with OIDC authentication.
 
-## Problem Identification Matrix
+## Overview
 
-| Symptom | Likely Cause | First Azure Tool to Check |
-|---------|--------------|---------------------------|
-| High response times, all requests | Event loop blocking | App Service Diagnostics > CPU Analysis |
-| High response times, some requests | Slow requests or sync blocking | Application Insights > Performance |
-| Gradual slowdown | Memory pressure | App Service Diagnostics > Memory Analysis |
-| Sudden unresponsiveness | CPU stress | Azure Monitor Metrics > CPU Percentage |
-| Random 500 errors | Crashes | Application Insights > Failures |
-| Periodic issues | Resource exhaustion | Log Analytics > Custom queries |
+This guide walks you through deploying the Performance Problem Simulator to Azure App Service using GitHub Actions with OpenID Connect (OIDC) authentication. OIDC eliminates the need to store credentials as secrets.
 
-## Azure App Service Diagnostics
+### Prerequisites
 
-### Accessing Diagnostics
+- Azure subscription with permissions to create resources
+- Azure AD/Entra ID permissions to create App Registrations
+- GitHub account
+- Azure CLI installed (optional, for CLI method)
 
-1. Navigate to your App Service in Azure Portal
-2. Select **Diagnose and solve problems** from the left menu
-3. Choose a diagnostic category:
-   - **Availability and Performance** - For response time issues
-   - **High CPU Usage** - For CPU-bound problems
-   - **High Memory Usage** - For memory pressure
+### What You'll Create
 
-### CPU Analysis
+| Resource | Purpose |
+|----------|---------|
+| Azure App Service | Hosts the Performance Problem Simulator application |
+| Azure AD App Registration | Identity for GitHub Actions OIDC |
+| Federated Credential | Links GitHub repo to Azure AD |
+| Role Assignment | Grants deployment permissions |
 
-When you suspect CPU issues:
+## Step 1: Create Azure App Service
 
-1. Go to **Diagnose and solve problems** > **High CPU Usage**
-2. Select a time range when problems occurred
-3. Review the **CPU Overview** for:
-   - Overall CPU percentage
-   - Per-instance breakdown
-   - Correlation with deployments
+### Option A: Azure Portal
 
-### Memory Analysis
+1. **Navigate to App Services**
+   - Go to [Azure Portal](https://portal.azure.com)
+   - Search for "App Services" and select it
+   - Click **+ Create**
 
-For memory pressure:
+2. **Configure Basics**
 
-1. Go to **Diagnose and solve problems** > **High Memory Usage**
-2. Review:
-   - Memory usage percentage over time
-   - Memory by process
-   - Potential memory leaks
+   | Setting | Value |
+   |---------|-------|
+   | Subscription | Your subscription |
+   | Resource Group | Create new or use existing |
+   | Name | `your-app-name` (must be globally unique) |
+   | Publish | Code |
+   | Runtime stack | Select your application's runtime |
+   | Operating System | Windows or Linux (as appropriate for your runtime) |
+   | Region | Your preferred region |
 
-## Application Insights
+3. **Configure App Service Plan**
 
-### Enabling Application Insights
+   | Setting | Recommendation |
+   |---------|---------------|
+   | SKU | **Basic B1** or higher |
 
-If not already configured:
+   > ⚠️ **Important:** The Free (F1) tier does not support WebSockets which are required for real-time SignalR dashboard updates.
 
-```bash
-# Via Azure CLI
-az monitor app-insights component create \
-  --app perf-simulator-insights \
-  --location eastus \
-  --resource-group perf-simulator-rg \
-  --kind web
+4. **Review and Create** - Click through to create the resource
 
-# Get the instrumentation key
-az monitor app-insights component show \
-  --app perf-simulator-insights \
-  --resource-group perf-simulator-rg \
-  --query instrumentationKey
-```
-
-### Performance Blade
-
-1. Navigate to your Application Insights resource
-2. Select **Performance** from the left menu
-3. Review:
-   - **Operations** - Overall request performance
-   - **Dependencies** - External call latency
-   - **Roles** - Multi-instance breakdown
-
-### Investigating Slow Requests
-
-1. In the Performance blade, click on a slow operation
-2. Review the **Drill into samples** section
-3. Click on a specific request to see:
-   - Full request timeline
-   - Dependencies called
-   - Custom events logged
-   - Exception details (if any)
-
-### Live Metrics
-
-For real-time monitoring:
-
-1. Go to **Live Metrics** in Application Insights
-2. This shows:
-   - Request rate
-   - Response times
-   - Failure rates
-   - Server health
-
-Use this while triggering simulations to see immediate impact.
-
-### Failures Blade
-
-For crash investigation:
-
-1. Navigate to **Failures** in Application Insights
-2. Filter by:
-   - Time range
-   - Exception type
-   - Operation name
-3. Click through to see full stack traces
-
-## Log Analytics Queries (KQL)
-
-### Connecting to Log Analytics
-
-1. Open your Application Insights resource
-2. Select **Logs** from the left menu
-3. Run Kusto Query Language (KQL) queries
-
-### Useful Queries
-
-#### High Latency Requests
-
-```kql
-requests
-| where timestamp > ago(1h)
-| where duration > 5000  // Over 5 seconds
-| summarize count() by name, bin(timestamp, 5m)
-| render timechart
-```
-
-#### CPU Correlation
-
-```kql
-performanceCounters
-| where name == "% Processor Time"
-| summarize avg(value) by bin(timestamp, 1m)
-| join kind=inner (
-    requests
-    | where timestamp > ago(1h)
-    | summarize avgDuration = avg(duration) by bin(timestamp, 1m)
-) on timestamp
-| render timechart
-```
-
-#### Exception Patterns
-
-```kql
-exceptions
-| where timestamp > ago(1h)
-| summarize count() by type, outerMessage
-| order by count_ desc
-```
-
-#### Memory Growth
-
-```kql
-performanceCounters
-| where name == "Available Bytes" or name == "Private Bytes"
-| summarize avg(value) by name, bin(timestamp, 5m)
-| render timechart
-```
-
-## Kudu Console (Advanced)
-
-### Accessing Kudu
-
-1. Navigate to: `https://<your-app>.scm.azurewebsites.net`
-2. Or: Azure Portal > App Service > **Advanced Tools** > Go
-
-### Process Explorer
-
-1. In Kudu, go to **Process Explorer**
-2. Find the Python process (usually `python` or `gunicorn`/`uvicorn`)
-3. View:
-   - CPU usage
-   - Memory consumption
-   - Thread count
-   - Handle count
-
-### SSH Console
-
-1. Go to **SSH** in Kudu (for Linux containers)
-2. Run diagnostic commands:
+### Option B: Azure CLI
 
 ```bash
-# Process status
-ps aux | grep python
+# Login to Azure
+az login
 
-# Real-time CPU/Memory
-top -b -n 1
+# Set variables
+RESOURCE_GROUP="your-resource-group"
+APP_NAME="your-app-name"
+LOCATION="eastus"
+APP_SERVICE_PLAN="your-app-plan"
+RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
 
-# Memory details
-free -h
+# Create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
 
-# Open file descriptors
-ls -l /proc/$(pgrep -f uvicorn)/fd | wc -l
+# Create App Service Plan (B1 for WebSocket support)
+az appservice plan create \
+  --name $APP_SERVICE_PLAN \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku B1
+
+# Create Web App with your runtime
+az webapp create \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --plan $APP_SERVICE_PLAN \
+  --runtime $RUNTIME
 ```
 
-## Profiling Python Applications
+### Enable WebSockets
 
-### Using py-spy (In Container)
+After creation, enable WebSockets for SignalR real-time communication:
+
+1. Go to your App Service → **Configuration** → **General settings**
+2. Set **Web sockets** to **On**
+3. Click **Save**
+
+Or via CLI:
 
 ```bash
-# Install py-spy
-pip install py-spy
-
-# Sample the running process
-py-spy top --pid <python_pid>
-
-# Generate a flame graph
-py-spy record -o profile.svg --pid <python_pid> -- sleep 30
+az webapp config set \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --web-sockets-enabled true
 ```
 
-### Using cProfile
+## Step 2: Create Azure AD App Registration
 
-Add temporary profiling to code:
+GitHub Actions uses OpenID Connect (OIDC) to authenticate with Azure without storing credentials.
 
-```python
-import cProfile
-import pstats
-from io import StringIO
+### Create the App Registration
 
-pr = cProfile.Profile()
-pr.enable()
+1. **Navigate to App Registrations**
+   - Go to [Azure Portal](https://portal.azure.com)
+   - Search for "App registrations" and select it
+   - Click **+ New registration**
 
-# ... code to profile ...
+2. **Configure Registration**
 
-pr.disable()
-s = StringIO()
-ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
-ps.print_stats(20)
-print(s.getvalue())
+   | Setting | Value |
+   |---------|-------|
+   | Name | `github-your-app-deploy` (descriptive name for your deployment identity) |
+   | Supported account types | Accounts in this organizational directory only |
+   | Redirect URI | Leave empty |
+
+3. **Click Register**
+
+### Record the IDs
+
+From the **Overview** page, copy these values (you'll need them for GitHub secrets):
+
+| Value | GitHub Secret Name |
+|-------|-------------------|
+| Application (client) ID | `AZURE_CLIENT_ID` |
+| Directory (tenant) ID | `AZURE_TENANT_ID` |
+
+### Get Subscription ID
+
+1. Go to **Subscriptions** in the Azure Portal
+2. Select your subscription
+3. Copy the **Subscription ID** → This is `AZURE_SUBSCRIPTION_ID`
+
+## Step 3: Configure Federated Credentials
+
+Federated credentials allow GitHub Actions to authenticate without storing secrets.
+
+1. **Navigate to your App Registration**
+   - Go to **Certificates & secrets**
+   - Select **Federated credentials** tab
+   - Click **+ Add credential**
+
+2. **Configure the Credential**
+
+   | Setting | Value |
+   |---------|-------|
+   | Federated credential scenario | **GitHub Actions deploying Azure resources** |
+   | Organization | Your GitHub username or organization |
+   | Repository | Your repository name |
+   | Entity type | **Branch** |
+   | GitHub branch name | `main` |
+   | Name | `github-main-branch` |
+
+3. **Click Add**
+
+> 💡 **Note:** If you also want to deploy from pull requests or other branches, add additional federated credentials with the appropriate entity type.
+
+## Step 4: Grant Azure Permissions
+
+The App Registration needs permission to deploy to your App Service.
+
+### Assign Contributor Role
+
+1. **Navigate to your App Service**
+   - Go to **Access control (IAM)**
+   - Click **+ Add** → **Add role assignment**
+
+2. **Configure Role Assignment**
+
+   | Setting | Value |
+   |---------|-------|
+   | Role | **Contributor** |
+   | Assign access to | User, group, or service principal |
+   | Members | Search for your App Registration name |
+
+3. **Click Review + assign**
+
+## Step 5: Configure GitHub Secrets
+
+### Fork or Clone the Repository
+
+1. **Fork the Repository**
+   - Go to the Performance Problem Simulator repository for your stack
+   - Click **Fork** to create your own copy
+
+### Add GitHub Secrets
+
+1. **Navigate to Repository Settings**
+   - Go to your repository on GitHub
+   - Click **Settings** → **Secrets and variables** → **Actions**
+   - Click **New repository secret**
+
+2. **Add the Following Secrets**
+
+   | Secret Name | Value | Description |
+   |-------------|-------|-------------|
+   | AZURE_CLIENT_ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | App Registration Client ID |
+   | AZURE_TENANT_ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Azure AD Directory/Tenant ID |
+   | AZURE_SUBSCRIPTION_ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Azure Subscription ID |
+
+> 💡 **No Client Secret Needed:** OIDC federated credentials eliminate the need to store a client secret. The three IDs above are sufficient.
+
+### Update Workflow (if needed)
+
+Update `.github/workflows/deploy.yml` with your App Service name and runtime version:
+
+```yaml
+env:
+  AZURE_WEBAPP_NAME: your-app-service-name  # Your App Service name
+  # Add any runtime-specific version variables as needed
 ```
 
-### Memory Profiling with tracemalloc
+## Step 6: Deploy
 
-```python
-import tracemalloc
+### Automatic Deployment
 
-tracemalloc.start()
+Deployment triggers automatically when you push to the `main` branch:
 
-# ... code that might leak memory ...
-
-snapshot = tracemalloc.take_snapshot()
-top_stats = snapshot.statistics('lineno')
-
-print("[ Top 10 memory consumers ]")
-for stat in top_stats[:10]:
-    print(stat)
+```bash
+git add .
+git commit -m "Your changes"
+git push origin main
 ```
 
-## Diagnostic Scenarios
+### Manual Deployment
 
-### Scenario 1: High CPU
+1. Go to your repository on GitHub
+2. Click **Actions** tab
+3. Select **Deploy to Azure App Service**
+4. Click **Run workflow** → **Run workflow**
 
-**Simulation:** `POST /api/cpu/start`
+### Verify Deployment
 
-**Detection Path:**
-1. Azure Monitor shows CPU > 80%
-2. App Service Diagnostics > High CPU Usage
-3. Application Insights > Performance shows all operations slow
-4. Kudu Process Explorer shows Python process at high CPU
-5. py-spy shows CPU-bound functions in `_do_work()`
+1. **Open the App URL**: `https://<your-app-name>.azurewebsites.net`
+2. **Verify Dashboard**: Real-time metrics should update via SignalR, status should show "Connected"
+3. **Test Health Endpoint**:
+   ```bash
+   curl https://<your-app-name>.azurewebsites.net/api/health
+   ```
 
-**Resolution:** `POST /api/cpu/stop`
+## Optional Configuration
 
-### Scenario 2: Memory Pressure
+You can customize the application behavior using Azure App Service environment variables.
 
-**Simulation:** `POST /api/memory/allocate` (multiple times)
+### Health Probe Rate
 
-**Detection Path:**
-1. Azure Monitor shows memory growing
-2. App Service Diagnostics > High Memory Usage
-3. Application Insights may show OOM exceptions
-4. Kudu shows increasing private bytes
-5. tracemalloc shows large allocations
+Control how often the server sends health probes to measure request latency. All probes are routed through the Azure frontend to capture realistic end-to-end latency.
 
-**Resolution:** `POST /api/memory/release-all` or app restart
+| Variable Name | Description | Default |
+|---------------|-------------|---------|
+| `HEALTH_PROBE_RATE` | Probe interval in milliseconds. Minimum 100ms. | `200` |
 
-### Scenario 3: Thread Blocking
-
-**Simulation:** `POST /api/blocking/sync`
-
-**Detection Path:**
-1. Application Insights > Performance shows high latency
-2. Some requests succeed quickly, others are very slow
-3. Thread pool exhaustion visible
-4. Live Metrics shows request queue building
-
-**Resolution:** Wait for blocking to complete
-
-### Scenario 4: Event Loop Blocking
-
-**Simulation:** `POST /api/blocking/async`
-
-**Detection Path:**
-1. ALL requests become slow simultaneously
-2. Application Insights shows uniform latency spike
-3. WebSocket connections may timeout
-4. Dashboard stops updating
-
-**Explanation:** This is an anti-pattern. The async endpoint uses `time.sleep()` which blocks the event loop, affecting all concurrent requests.
-
-### Scenario 5: Application Crash
-
-**Simulation:** `POST /api/crash`
-
-**Detection Path:**
-1. Application Insights > Failures shows sudden spike
-2. App Service automatically restarts
-3. Logs show the crash type
-4. Exit code varies by crash type
-
-## Azure Load Testing
-
-The Performance Problem Simulator includes a dedicated load testing endpoint designed for use with Azure Load Testing. This endpoint simulates realistic application behavior that degrades gracefully under load.
-
-### Load Test Endpoint
-
-The `/api/loadtest` endpoint is designed to:
-
-- Perform sustained CPU work (interleaved SHA256 cycles at ~50% CPU per thread)
-- Hold memory buffers for entire request duration (creates visible memory pressure)
-- Degrade gracefully as concurrent requests increase (soft limit pattern)
-- Throw random exceptions after configurable threshold (default: 120 seconds at 20% probability)
-- Eventually trigger Azure's 230-second timeout under extreme load
-
-### Setting Up Azure Load Testing
-
-1. In the Azure Portal, create an Azure Load Testing resource
-2. Create a new test and configure the target URL using one of these options:
-
-#### GET with Query Parameters
-
-Use the target URL directly — no JMeter script required:
-
-```
-# With defaults (tuned for Premium0V3)
-https://your-app.azurewebsites.net/api/loadtest
-
-# Custom parameters
-https://your-app.azurewebsites.net/api/loadtest?workIterations=500&bufferSizeKb=10000
-
-# Thread pool only (no CPU work)
-https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=100
+```bash
+# Slow down probes if CLR profiler shows overlapping requests
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings HEALTH_PROBE_RATE=400
 ```
 
-Query Parameters:
+### Idle Timeout
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `workIterations` | 200 | SHA256 iterations per CPU work cycle |
-| `bufferSizeKb` | 20000 | Memory buffer held for request duration in KB |
-| `baselineDelayMs` | 500 | Minimum request duration in ms |
-| `softLimit` | 25 | Concurrent requests before degradation |
-| `degradationFactor` | 500 | Delay ms per request over limit |
-| `errorAfter` | 120 | Seconds before random errors may be thrown (0 disables) |
-| `errorPercent` | 20 | Percentage chance (0-100) of random error after threshold |
+When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend and Application Insights telemetry.
 
-3. Configure load pattern (ramp up, steady state, ramp down)
-4. Set up Azure Monitor integration to correlate metrics
+| Variable Name | Description | Default |
+|---------------|-------------|---------|
+| `IDLE_TIMEOUT_MINUTES` | Minutes of inactivity before suspending health probes. Activity resumes automatically when the dashboard is opened or any request is received. | `20` |
 
-### Understanding the Soft Limit
-
-The soft limit creates a degradation curve where response times increase as concurrent requests exceed the threshold. The degradation formula is:
-
-```
-additionalDelay = max(0, concurrent - softLimit) × degradationFactor
+```bash
+# Extend idle timeout to 30 minutes
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings IDLE_TIMEOUT_MINUTES=30
 ```
 
-> **Note:** Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment. These example scenarios, and the defaults, are for a Premium0V3 worker. Any other SKU or worker size will need individual tuning.
+### Custom Page Footer
 
-### Diagnosing Load Test Results
+Set a custom footer message that appears on all pages. The footer supports HTML, allowing you to include links.
 
-#### 1. Application Insights Integration
+| Variable Name | Description |
+|---------------|-------------|
+| `PAGE_FOOTER` | HTML content for the footer's second line. If not set, only the app description and build info are shown. |
 
-- Go to Application Insights > Performance
-- Filter by operation name `GET /api/loadtest`
-- Observe response time percentiles (p50, p95, p99)
-- Check failure rates for the configurable random error threshold (default: 120s)
-
-#### 2. Azure Monitor Metrics
-
-- **Requests** - Total request count and rate
-- **Response Time** - Average and percentile latencies
-- **Http Server Errors** - 5xx errors from random exceptions
-- **CPU Percentage** - Should increase with load
-
-#### 3. Load Testing Statistics
-
-Query the stats endpoint during the test:
-
+**Example Value:**
 ```
-GET /api/loadtest/stats
-
-{
-  "currentConcurrentRequests": 127,
-  "totalRequestsProcessed": 45230,
-  "totalExceptionsThrown": 23,
-  "averageResponseTimeMs": 847.5
-}
+Created by <a href="https://yoursite.com">Your Team</a> for training purposes
 ```
 
-### Request Body Parameters Reference
+**Setting via Azure CLI:**
+```bash
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings 'PAGE_FOOTER=Created by <a href="https://yoursite.com">Your Team</a> for training purposes'
+```
 
-For POST requests, each parameter controls a specific resource independently:
+**Setting via Azure Portal:**
+1. Navigate to your App Service in the Azure Portal
+2. Go to **Settings** → **Environment variables**
+3. Click **+ Add**
+4. Set Name: `PAGE_FOOTER`
+5. Set Value: Your HTML footer content
+6. Click **Apply**, then **Confirm**
 
-| Parameter | Default | Target | Description |
-|-----------|---------|--------|-------------|
-| workIterations | 200 | CPU | SHA256 hash iterations per CPU work cycle. Controls sustained CPU usage (~50% per thread). |
-| bufferSizeKb | 20000 | Memory | Memory held for entire request duration. Creates sustained memory pressure. |
-| baselineDelayMs | 500 | Thread Pool | Minimum request duration (ms). CPU work and sleep interleaved throughout. |
-| softLimit | 25 | Thread Pool | Concurrent requests before degradation. Lower = faster exhaustion. |
-| degradationFactor | 500 | Thread Pool | Additional delay (ms) per request over softLimit. |
-| errorAfter | 120 | Chaos | Seconds before random errors may be thrown. Set to 0 to disable. |
-| errorPercent | 20 | Chaos | Percentage chance (0-100) of throwing a random error per check interval after threshold. |
+## Troubleshooting
 
-### Tuning Parameters for Different Scenarios
+### SignalR Connection Fails
 
-Complete request parameter examples for various test scenarios:
+**Symptoms:** Dashboard shows "Disconnected", charts don't update in real-time
 
-> **Note:** Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment. These example scenarios, and the defaults, are for a Premium0V3 worker. Any other SKU or worker size will need individual tuning.
+**Solutions:**
+- Ensure WebSockets are enabled in App Service Configuration
+- Upgrade from Free tier to Basic or higher
+- Check if ARR Affinity is enabled (Settings → Configuration → General settings)
 
-| Scenario | workIterations | bufferSizeKb | baselineDelayMs | softLimit | degradationFactor | Purpose |
-|----------|----------------|--------------|-----------------|-----------|-------------------|---------|
-| Thread pool only | 0 | 2000 | 500 | 25 | 500 | Thread pool exhaustion, minimal CPU |
-| CPU intensive | 10000 | 2000 | 0 | 500 | 25 | High CPU, minimal thread blocking |
-| Memory pressure | 20 | 100000 | 100 | 100 | 125 | High memory allocation (100MB/request) |
-| Balanced (default) | 200 | 20000 | 500 | 25 | 500 | Tuned for Premium0V3 worker |
-| High concurrency | 100 | 10000 | 200 | 250 | 50 | Gradual degradation under high load |
+### OIDC Authentication Fails
 
-## Best Practices
+**Symptoms:** GitHub Actions fails at "Login to Azure" step
 
-1. **Always set up Application Insights** before deploying diagnostic workloads
-2. **Use resource tags** to organize diagnostic resources
-3. **Create alerts** for key metrics before testing
-4. **Save diagnostic queries** in Log Analytics for reuse
-5. **Document baseline metrics** for comparison
-6. **Use deployment slots** for safer testing
-7. **Clean up test resources** after sessions
+**Check:**
+- Verify all three secrets are set correctly
+- Confirm federated credential subject matches your repo/branch: `repo:USERNAME/REPO:ref:refs/heads/main`
+- Ensure App Registration has Contributor role on the App Service
 
-## Related Resources
+### Application Crashes on Startup
 
-- [Azure App Service Diagnostics Documentation](https://learn.microsoft.com/en-us/azure/app-service/overview-diagnostics)
-- [Application Insights for Python](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opencensus-python)
-- [KQL Quick Reference](https://learn.microsoft.com/en-us/azure/data-explorer/kql-quick-reference)
-- [Kudu Wiki](https://github.com/projectkudu/kudu/wiki)
+**Symptoms:** App shows "Application Error" or doesn't respond
+
+**Check:**
+- View Log stream in Azure Portal (App Service → Log stream)
+- Enable Application Logging under App Service → App Service Logs
+- Verify runtime version matches your application's requirements
+- Check for missing configuration or environment variables
+
+### View Logs
+
+```bash
+# Stream live logs
+az webapp log tail --name $APP_NAME --resource-group $RESOURCE_GROUP
+
+# View deployment logs
+az webapp log deployment show --name $APP_NAME --resource-group $RESOURCE_GROUP
+```
+
+## Quick Reference - CLI One-Liner
+
+Complete setup script (customize variables at top):
+
+```bash
+# Full setup (customize variables at top)
+RESOURCE_GROUP="your-resource-group"
+APP_NAME="your-app-name"
+LOCATION="eastus"
+RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
+GITHUB_REPO="YOUR_USERNAME/YOUR_REPO"
+
+# Create resources
+az group create -n $RESOURCE_GROUP -l $LOCATION
+az appservice plan create -n "${APP_NAME}-plan" -g $RESOURCE_GROUP -l $LOCATION --sku B1
+az webapp create -n $APP_NAME -g $RESOURCE_GROUP -p "${APP_NAME}-plan" --runtime $RUNTIME
+az webapp config set -n $APP_NAME -g $RESOURCE_GROUP --web-sockets-enabled true
+
+# Create App Registration and get IDs
+APP_ID=$(az ad app create --display-name "github-${APP_NAME}-deploy" --query appId -o tsv)
+az ad sp create --id $APP_ID
+TENANT_ID=$(az account show --query tenantId -o tsv)
+SUB_ID=$(az account show --query id -o tsv)
+
+# Create federated credential
+az ad app federated-credential create --id $APP_ID --parameters "{
+  \"name\": \"github-main-branch\",
+  \"issuer\": \"https://token.actions.githubusercontent.com\",
+  \"subject\": \"repo:${GITHUB_REPO}:ref:refs/heads/main\",
+  \"audiences\": [\"api://AzureADTokenExchange\"]
+}"
+
+# Assign permissions
+APP_SERVICE_ID=$(az webapp show -n $APP_NAME -g $RESOURCE_GROUP --query id -o tsv)
+az role assignment create --assignee $APP_ID --role Contributor --scope $APP_SERVICE_ID
+
+# Output secrets for GitHub
+echo "AZURE_CLIENT_ID=$APP_ID"
+echo "AZURE_TENANT_ID=$TENANT_ID"
+echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"
+```

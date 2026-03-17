@@ -1,172 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azure Diagnostics Guide - Performance Problem Simulator - Python 3.12</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/css/styles.css">
-  <style>
-    /* Documentation layout styles */
-    .doc-layout {
-      display: flex;
-      gap: 2rem;
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-    .doc-main {
-      flex: 1;
-      min-width: 0;
-    }
-    .doc-container {
-      max-width: 900px;
-    }
-    .doc-toc {
-      width: 280px;
-      flex-shrink: 0;
-    }
-    .doc-toc-sticky {
-      position: sticky;
-      top: 80px;
-      max-height: calc(100vh - 100px);
-      overflow-y: auto;
-    }
-    .doc-toc-card {
-      background: var(--surface-color);
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 1.25rem;
-    }
-    .doc-toc-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-secondary);
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--bg-color);
-    }
-    .doc-toc ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-    .doc-toc-item {
-      margin-bottom: 0.25rem;
-    }
-    .doc-toc-item a {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 4px;
-      text-decoration: none;
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-      transition: all 0.15s ease;
-      border-left: 2px solid transparent;
-    }
-    .doc-toc-item a:hover {
-      background: rgba(56, 139, 253, 0.08);
-      color: var(--primary-color);
-      border-left-color: var(--primary-color);
-    }
-    .toc-icon {
-      font-size: 1rem;
-      width: 1.25rem;
-      text-align: center;
-      flex-shrink: 0;
-    }
-    .doc-section {
-      scroll-margin-top: 80px;
-    }
-    .deploy-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .deploy-header h1 {
-      color: var(--primary-color);
-      margin-bottom: 0.5rem;
-      font-size: 2rem;
-    }
-    .deploy-header p {
-      color: var(--text-secondary);
-      font-size: 1.1rem;
-    }
-    /* Page-specific styles */
-    .doc-container h2 { 
-      margin-top: 2.5rem; 
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .doc-container h3 { margin-top: 1.5rem; color: var(--primary-color); }
-    .tool-card {
-      background: var(--surface-color);
-      padding: 1.5rem;
-      border-radius: 8px;
-      margin: 1rem 0;
-    }
-    .tool-card h3 { margin-top: 0; }
-    .steps {
-      counter-reset: step;
-      list-style: none;
-      padding-left: 0;
-    }
-    .steps li {
-      counter-increment: step;
-      padding: 0.75rem 0 0.75rem 3rem;
-      position: relative;
-    }
-    .steps li::before {
-      content: counter(step);
-      position: absolute;
-      left: 0;
-      top: 0.75rem;
-      width: 2rem;
-      height: 2rem;
-      background: var(--primary-color);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-    }
-    pre {
-      background: var(--surface-color);
-      padding: 1rem;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-    code {
-      background: var(--surface-color);
-      padding: 0.125rem 0.375rem;
-      border-radius: 4px;
-    }
-    .tip-box {
-      background: rgba(33, 150, 243, 0.1);
-      border: 1px solid #2196f3;
-      padding: 1rem;
-      border-radius: 8px;
-      margin: 1rem 0;
-    }
-    .problem-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1rem 0;
-    }
-    .problem-table th, .problem-table td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .problem-table th {
-      background: var(--surface-color);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Deployment Guide - Performance Problem Simulator</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        /* Azure Deployment Page Styles */
+        .doc-layout {
+            display: flex;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .doc-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .deploy-container {
+            max-width: 900px;
+        }
+
+        .doc-toc {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-sticky {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        .doc-toc-card {
+            background: var(--surface-color);
+            border-radius: var(--radius-md, 8px);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+            padding: 1.25rem;
+        }
+
+        .doc-toc-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .doc-toc ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .doc-toc-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .doc-toc-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm, 4px);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all var(--transition-fast, 0.15s ease);
+            border-left: 2px solid transparent;
+        }
+
+        .doc-toc-item a:hover {
+            background: rgba(0, 120, 212, 0.08);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .doc-toc-item a.active {
+            background: rgba(0, 120, 212, 0.12);
+            color: var(--primary-color);
+            font-weight: 500;
+            border-left-color: var(--primary-color);
+        }
+
+        .toc-icon {
+            font-size: 1rem;
+            width: 1.25rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-divider {
+            height: 1px;
+            background: var(--bg-color);
+            margin: 0.75rem 0;
+        }
+
+        .doc-toc-section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem 0.25rem;
+            opacity: 0.7;
+        }
+
+        .deploy-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .deploy-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        .deploy-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: var(--surface-color);
+            border-radius: var(--radius-md, 8px);
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+            scroll-margin-top: 80px;
+        }
+
+        .card h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h3 {
+            color: var(--color-text);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .card h4 {
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p, .card li {
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .card ul, .card ol {
+            margin: 0.5rem 0 1rem 1.5rem;
+        }
+
+        .card li {
+            margin-bottom: 0.25rem;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: var(--radius-md, 8px);
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        code {
+            background: rgba(0,0,0,0.05);
+            padding: 0.2rem 0.4rem;
+            border-radius: var(--radius-sm, 4px);
+            font-size: 0.9em;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            color: var(--color-danger);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid var(--bg-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .info-box {
+            background: rgba(0, 120, 212, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: var(--color-text);
+        }
+
+        .warning-box {
+            background: rgba(255, 185, 0, 0.15);
+            border-left: 4px solid var(--color-warning);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: var(--color-text);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .secrets-table td:first-child {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .doc-layout {
+                flex-direction: column;
+            }
+
+            .doc-toc {
+                width: 100%;
+                order: -1;
+            }
+
+            .doc-toc-sticky {
+                position: relative;
+                top: 0;
+                max-height: none;
+            }
+
+            .doc-toc ul {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .doc-toc-item {
+                margin-bottom: 0;
+            }
+
+            .doc-toc-item a {
+                padding: 0.375rem 0.625rem;
+                border-left: none;
+                border-radius: var(--radius-md, 8px);
+                background: var(--bg-color);
+            }
+
+            .doc-toc-divider,
+            .doc-toc-section-label {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .doc-layout {
+                padding: 1rem;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
 </head>
 <body class="page-doc">
     <header class="header">
@@ -190,7 +336,7 @@
                 <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
                 <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
             </svg>
-            <h1 class="header-title">Performance Problem Simulator - Python 3.12</h1>
+            <h1 class="header-title">Performance Problem Simulator</h1>
         </div>
         <div id="skuDisplay" class="sku-display">SKU: Loading...</div>
         <div class="header-right">
@@ -218,16 +364,16 @@
                 <span class="nav-label">Documentation<span class="nav-desc">API reference & guides</span></span>
             </a>
             <a href="/azure-diagnostics.html" class="sidebar-nav-item active">
-                <span class="nav-icon">☁️</span>
-                <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
-            </a>
-            <a href="/azure-deployment.html" class="sidebar-nav-item">
                 <span class="nav-icon">🚀</span>
                 <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
             </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
+            </a>
             <div class="sidebar-divider"></div>
             <div class="sidebar-section-label">External</div>
-            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
             </a>
@@ -237,379 +383,553 @@
         </div>
     </aside>
 
-  <!-- Main Content -->
     <div class="doc-layout">
         <div class="doc-main">
-            <div class="doc-container">
-                <div class="deploy-header">
-                    <h1>☁️ Azure Diagnostics Guide</h1>
-                    <p>Diagnostic tools and techniques for identifying and resolving performance issues in Python applications</p>
-                </div>
-
-      <section id="quick-reference" class="doc-section">
-      <h2>Quick Reference: Problem to Tool</h2>
-      <table class="problem-table">
-        <thead>
-          <tr>
-            <th>Symptom</th>
-            <th>Primary Tool</th>
-            <th>Secondary Tools</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>High CPU usage</td>
-            <td>App Service Diagnostics → CPU Analysis</td>
-            <td>py-spy, cProfile</td>
-          </tr>
-          <tr>
-            <td>Memory growth</td>
-            <td>Diagnose and Solve → Memory Analysis</td>
-            <td>tracemalloc, memory_profiler</td>
-          </tr>
-          <tr>
-            <td>Slow responses</td>
-            <td>Application Insights → Performance</td>
-            <td>Request logs, dependency tracking</td>
-          </tr>
-          <tr>
-            <td>Application crashes</td>
-            <td>Diagnose and Solve → Container Crash</td>
-            <td>Application logs, stderr logs</td>
-          </tr>
-          <tr>
-            <td>HTTP 500 errors</td>
-            <td>Application Insights → Failures</td>
-            <td>Log Analytics, App Service logs</td>
-          </tr>
-        </tbody>
-      </table>
-      </section>
-
-      <section id="diagnose-solve" class="doc-section">
-      <h2>Azure Portal: Diagnose and Solve Problems</h2>
-      <div class="tool-card">
-        <h3>Accessing the Tool</h3>
-        <ol class="steps">
-          <li>Open your App Service in Azure Portal</li>
-          <li>Click <strong>"Diagnose and solve problems"</strong> in the left menu</li>
-          <li>Select a detector category or use the search</li>
-        </ol>
-        
-        <h4>Key Detectors for Performance</h4>
-        <ul>
-          <li><strong>CPU Analysis</strong> - Identifies high CPU processes and patterns</li>
-          <li><strong>Memory Analysis</strong> - Tracks memory usage and potential leaks</li>
-          <li><strong>Container Crash</strong> - Investigates why containers are restarting</li>
-          <li><strong>HTTP Server Errors</strong> - Analyzes 5xx error patterns</li>
-          <li><strong>Web App Slow</strong> - Identifies latency causes</li>
-        </ul>
-      </div>
-      </section>
-
-      <section id="app-insights" class="doc-section">
-      <h2>Application Insights</h2>
-      <div class="tool-card">
-        <h3>Setting Up Application Insights</h3>
-        <p>Add the OpenCensus Azure Monitor exporter to your application:</p>
-        <pre>pip install opencensus-ext-azure</pre>
-        
-        <p>Configure in your FastAPI application:</p>
-        <pre>from opencensus.ext.azure.trace_exporter import AzureExporter
-from opencensus.trace.samplers import AlwaysOnSampler
-
-# Configure tracing
-tracer = Tracer(
-    exporter=AzureExporter(
-        connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-    ),
-    sampler=AlwaysOnSampler()
-)</pre>
-
-        <h4>Key Features</h4>
-        <ul>
-          <li><strong>Performance</strong> - Request duration, dependency calls, response times</li>
-          <li><strong>Failures</strong> - Exception tracking, failed requests, error rates</li>
-          <li><strong>Live Metrics</strong> - Real-time performance monitoring</li>
-          <li><strong>Application Map</strong> - Visual dependency graph</li>
-        </ul>
-      </div>
-
-      <div class="tip-box">
-        <strong>💡 Tip:</strong> Use the Transaction Search feature in Application Insights to trace 
-        specific requests end-to-end, including all dependency calls and their timing.
-      </div>
-      </section>
-
-      <section id="kudu" class="doc-section">
-      <h2>Kudu Console (Advanced Diagnostics)</h2>
-      <div class="tool-card">
-        <h3>Accessing Kudu</h3>
-        <ol class="steps">
-          <li>Go to your App Service</li>
-          <li>Click <strong>Advanced Tools</strong> → <strong>Go</strong></li>
-          <li>Or navigate to <code>https://&lt;app-name&gt;.scm.azurewebsites.net</code></li>
-        </ol>
-
-        <h4>SSH Access</h4>
-        <p>For Linux App Service, use SSH to access the container:</p>
-        <pre># From Kudu: Debug console → SSH
-# Or use Azure CLI:
-az webapp ssh --name &lt;app-name&gt; --resource-group &lt;rg&gt;</pre>
-
-        <h4>Useful SSH Commands</h4>
-        <pre># View running processes
-top -bn1
-
-# Memory usage
-free -m
-
-# List Python processes
-ps aux | grep python
-
-# View application logs
-tail -f /home/LogFiles/docker/*.log</pre>
-      </div>
-      </section>
-
-      <section id="profiling" class="doc-section">
-      <h2>Python Profiling Tools</h2>
-      
-      <div class="tool-card">
-        <h3>py-spy (Sampling Profiler)</h3>
-        <p>Best for CPU profiling in production without modifying code:</p>
-        <pre># Install in SSH session
-pip install py-spy
-
-# Profile running process
-py-spy top --pid &lt;python-pid&gt;
-
-# Record flame graph
-py-spy record -o profile.svg --pid &lt;python-pid&gt;</pre>
-      </div>
-
-      <div class="tool-card">
-        <h3>cProfile (Built-in Profiler)</h3>
-        <p>Add profiling to specific endpoints:</p>
-        <pre>import cProfile
-import pstats
-import io
-
-@app.get("/api/debug/profile")
-async def profile_endpoint():
-    pr = cProfile.Profile()
-    pr.enable()
-    
-    # Your code here
-    
-    pr.disable()
-    s = io.StringIO()
-    pstats.Stats(pr, stream=s).sort_stats('cumulative')
-    return {"profile": s.getvalue()}</pre>
-      </div>
-
-      <div class="tool-card">
-        <h3>tracemalloc (Memory Tracing)</h3>
-        <p>Track memory allocations:</p>
-        <pre>import tracemalloc
-
-tracemalloc.start()
-
-# Your code here
-
-snapshot = tracemalloc.take_snapshot()
-top_stats = snapshot.statistics('lineno')
-
-for stat in top_stats[:10]:
-    print(stat)</pre>
-      </div>
-      </section>
-
-      <section id="kql" class="doc-section">
-      <h2>Log Analytics Queries (KQL)</h2>
-      <div class="tool-card">
-        <h3>Common Queries</h3>
-        
-        <p><strong>Find slow requests:</strong></p>
-        <pre>requests
-| where duration > 5000
-| project timestamp, name, duration, resultCode
-| order by duration desc</pre>
-
-        <p><strong>Error rate by endpoint:</strong></p>
-        <pre>requests
-| where success == false
-| summarize count() by name
-| order by count_ desc</pre>
-
-        <p><strong>Container restarts:</strong></p>
-        <pre>ContainerAppSystemLogs_CL
-| where Log_s contains "exited"
-| project TimeGenerated, Log_s</pre>
-      </div>
-      </section>
-
-      <section id="simulation-diagnostics" class="doc-section">
-      <h2>Simulation-Specific Diagnostics</h2>
-      
-      <h3>CPU Stress</h3>
-      <p>When CPU stress is active, observe:</p>
-      <ul>
-        <li>Metrics → CPU percentage spike</li>
-        <li>Diagnose → CPU Analysis shows worker processes</li>
-        <li>py-spy shows tight loops in calculation functions</li>
-      </ul>
-
-      <h3>Memory Pressure</h3>
-      <p>When memory is allocated:</p>
-      <ul>
-        <li>Metrics → Memory percentage increase</li>
-        <li>Diagnose → Memory Analysis shows process growth</li>
-        <li>tracemalloc shows large bytearray allocations</li>
-      </ul>
-
-      <h3>Blocking Operations</h3>
-      <p>When blocking is active:</p>
-      <ul>
-        <li>App Insights → Performance shows increased response times</li>
-        <li>Live Metrics shows requests queuing</li>
-        <li>Thread pool exhaustion visible in process stats</li>
-      </ul>
-
-      <h3>Application Crashes</h3>
-      <p>After triggering a crash:</p>
-      <ul>
-        <li>Container logs show exit code (137=OOM, 134=SIGABRT)</li>
-        <li>App Insights → Failures shows unhandled exceptions</li>
-        <li>Activity Log shows container restart events</li>
-      </ul>
-      </section>
-
-      <section id="load-testing" class="doc-section">
-      <h2>Azure Load Testing</h2>
-      <p>The Performance Problem Simulator includes a dedicated load testing endpoint designed for use with Azure Load Testing. This endpoint simulates realistic application behavior that degrades gracefully under load.</p>
-
-      <h3>Load Test Endpoint</h3>
-      <p>The <code>/api/loadtest</code> endpoint is designed to:</p>
-      <ul>
-        <li>Perform sustained CPU work (interleaved SHA256 cycles at ~50% CPU per thread)</li>
-        <li>Hold memory buffers for entire request duration (creates visible memory pressure)</li>
-        <li>Degrade gracefully as concurrent requests increase (soft limit pattern)</li>
-        <li>Throw random exceptions after configurable threshold (default: 120 seconds at 20% probability)</li>
-        <li>Eventually trigger Azure's 230-second timeout under extreme load</li>
-      </ul>
-
-      <h3>Setting Up Azure Load Testing</h3>
-      <ol>
-        <li>In the Azure Portal, create an Azure Load Testing resource</li>
-        <li>Create a new test and configure the target URL</li>
-        <li>Configure load pattern (ramp up, steady state, ramp down)</li>
-        <li>Set up Azure Monitor integration to correlate metrics</li>
-      </ol>
-
-      <h4>GET with Query Parameters</h4>
-      <p>Use the target URL directly — no JMeter script required:</p>
-      <pre># With defaults (tuned for Premium0V3)
-https://your-app.azurewebsites.net/api/loadtest
-
-# Custom parameters
-https://your-app.azurewebsites.net/api/loadtest?workIterations=500&bufferSizeKb=10000
-
-# Thread pool only (no CPU work)
-https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=100</pre>
-
-      <h4>Query Parameters Reference</h4>
-      <table>
-        <thead>
-          <tr><th>Parameter</th><th>Default</th><th>Description</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>workIterations</code></td><td>200</td><td>SHA256 iterations per CPU work cycle</td></tr>
-          <tr><td><code>bufferSizeKb</code></td><td>20000</td><td>Memory buffer held for request duration in KB</td></tr>
-          <tr><td><code>baselineDelayMs</code></td><td>500</td><td>Minimum request duration in ms</td></tr>
-          <tr><td><code>softLimit</code></td><td>25</td><td>Concurrent requests before degradation</td></tr>
-          <tr><td><code>degradationFactor</code></td><td>500</td><td>Delay ms per request over limit</td></tr>
-          <tr><td><code>errorAfter</code></td><td>120</td><td>Seconds before random errors may be thrown (0 disables)</td></tr>
-          <tr><td><code>errorPercent</code></td><td>20</td><td>Percentage chance (0-100) of random error after threshold</td></tr>
-        </tbody>
-      </table>
-
-      <h3>Understanding the Soft Limit</h3>
-      <p>The soft limit creates a degradation curve where response times increase as concurrent requests exceed the threshold:</p>
-      <pre>additionalDelay = max(0, concurrent - softLimit) × degradationFactor</pre>
-      <p><strong>Note:</strong> Actual response times will vary based on your Azure App Service tier, current load, and other factors. Use Azure Load Testing to establish baseline performance for your specific environment.</p>
-
-      <h3>Diagnosing Load Test Results</h3>
-      <h4>1. Application Insights Integration</h4>
-      <ul>
-        <li>Go to Application Insights → Performance</li>
-        <li>Filter by operation name <code>GET /api/loadtest</code></li>
-        <li>Observe response time percentiles (p50, p95, p99)</li>
-        <li>Check failure rates for the configurable random error threshold</li>
-      </ul>
-
-      <h4>2. Azure Monitor Metrics</h4>
-      <ul>
-        <li><strong>Requests</strong> - Total request count and rate</li>
-        <li><strong>Response Time</strong> - Average and percentile latencies</li>
-        <li><strong>Http Server Errors</strong> - 5xx errors from random exceptions</li>
-        <li><strong>CPU Percentage</strong> - Should increase with load</li>
-      </ul>
-
-      <h4>3. Load Testing Statistics</h4>
-      <p>Query the stats endpoint during the test:</p>
-      <pre>GET /api/loadtest/stats
-
-{
-  "currentConcurrentRequests": 127,
-  "totalRequestsProcessed": 45230,
-  "totalExceptionsThrown": 23,
-  "averageResponseTimeMs": 847.5
-}</pre>
-
-      <h3>Tuning Parameters for Different Scenarios</h3>
-      <table>
-        <thead>
-          <tr><th>Scenario</th><th>workIterations</th><th>bufferSizeKb</th><th>baselineDelayMs</th><th>softLimit</th><th>degradationFactor</th><th>Purpose</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Thread pool only</td><td>0</td><td>2000</td><td>500</td><td>25</td><td>500</td><td>Thread pool exhaustion, minimal CPU</td></tr>
-          <tr><td>CPU intensive</td><td>10000</td><td>2000</td><td>0</td><td>500</td><td>25</td><td>High CPU, minimal thread blocking</td></tr>
-          <tr><td>Memory pressure</td><td>20</td><td>100000</td><td>100</td><td>100</td><td>125</td><td>High memory allocation (100MB/request)</td></tr>
-          <tr><td>Balanced (default)</td><td>200</td><td>20000</td><td>500</td><td>25</td><td>500</td><td>Tuned for Premium0V3 worker</td></tr>
-          <tr><td>High concurrency</td><td>100</td><td>10000</td><td>200</td><td>250</td><td>50</td><td>Gradual degradation under high load</td></tr>
-        </tbody>
-      </table>
-      </section>
-
-            </div>
+        <main class="deploy-container">
+        <div class="deploy-header">
+            <h1>🚀 Azure Deployment Guide</h1>
+            <p>Deploy Performance Problem Simulator to Azure App Service using GitHub Actions with OIDC authentication</p>
         </div>
 
-        <!-- Table of Contents -->
+        <section id="overview" class="card">
+            <h2>Overview</h2>
+            <p>This guide walks you through deploying the Performance Problem Simulator to Azure App Service using GitHub Actions with OpenID Connect (OIDC) authentication. OIDC eliminates the need to store credentials as secrets.</p>
+            
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>Azure subscription with permissions to create resources</li>
+                <li>Azure AD/Entra ID permissions to create App Registrations</li>
+                <li>GitHub account</li>
+                <li>Azure CLI installed (optional, for CLI method)</li>
+            </ul>
+
+            <h3>What You'll Create</h3>
+            <table>
+                <tr><th>Resource</th><th>Purpose</th></tr>
+                <tr><td>Azure App Service</td><td>Hosts the Performance Problem Simulator application</td></tr>
+                <tr><td>Azure AD App Registration</td><td>Identity for GitHub Actions OIDC</td></tr>
+                <tr><td>Federated Credential</td><td>Links GitHub repo to Azure AD</td></tr>
+                <tr><td>Role Assignment</td><td>Grants deployment permissions</td></tr>
+            </table>
+        </section>
+
+        <section id="app-service" class="card">
+            <h2><span class="step-number">1</span> Create Azure App Service</h2>
+            
+            <h3>Option A: Azure Portal</h3>
+            <ol>
+                <li><strong>Navigate to App Services</strong>
+                    <ul>
+                        <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a></li>
+                        <li>Search for "App Services" and select it</li>
+                        <li>Click <strong>+ Create</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Configure Basics</strong>
+                    <table>
+                        <tr><th>Setting</th><th>Value</th></tr>
+                        <tr><td>Subscription</td><td>Your subscription</td></tr>
+                        <tr><td>Resource Group</td><td>Create new or use existing</td></tr>
+                        <tr><td>Name</td><td><code>your-app-name</code> (must be globally unique)</td></tr>
+                        <tr><td>Publish</td><td>Code</td></tr>
+                        <tr><td>Runtime stack</td><td>Select your application's runtime</td></tr>
+                        <tr><td>Operating System</td><td>Windows or Linux (as appropriate for your runtime)</td></tr>
+                        <tr><td>Region</td><td>Your preferred region</td></tr>
+                    </table>
+                </li>
+                <li><strong>Configure App Service Plan</strong>
+                    <table>
+                        <tr><th>Setting</th><th>Recommendation</th></tr>
+                        <tr><td>SKU</td><td><strong>Basic B1</strong> or higher</td></tr>
+                    </table>
+                    <div class="warning-box">
+                        <p><strong>⚠️ Important:</strong> The Free (F1) tier does not support WebSockets which are required for real-time SignalR dashboard updates.</p>
+                    </div>
+                </li>
+                <li><strong>Review and Create</strong> - Click through to create the resource</li>
+            </ol>
+
+            <h3>Option B: Azure CLI</h3>
+            <pre><code># Login to Azure
+az login
+
+# Set variables
+RESOURCE_GROUP="your-resource-group"
+APP_NAME="your-app-name"
+LOCATION="eastus"
+APP_SERVICE_PLAN="your-app-plan"
+RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
+
+# Create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create App Service Plan (B1 for WebSocket support)
+az appservice plan create \
+  --name $APP_SERVICE_PLAN \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku B1
+
+# Create Web App with your runtime
+az webapp create \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --plan $APP_SERVICE_PLAN \
+  --runtime $RUNTIME</code></pre>
+
+            <h3>Enable WebSockets</h3>
+            <p>After creation, enable WebSockets for SignalR real-time communication:</p>
+            <ol>
+                <li>Go to your App Service → <strong>Configuration</strong> → <strong>General settings</strong></li>
+                <li>Set <strong>Web sockets</strong> to <strong>On</strong></li>
+                <li>Click <strong>Save</strong></li>
+            </ol>
+            <p>Or via CLI:</p>
+            <pre><code>az webapp config set \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --web-sockets-enabled true</code></pre>
+        </section>
+
+        <section id="app-registration" class="card">
+            <h2><span class="step-number">2</span> Create Azure AD App Registration</h2>
+            <p>GitHub Actions uses OpenID Connect (OIDC) to authenticate with Azure without storing credentials.</p>
+
+            <h3>Create the App Registration</h3>
+            <ol>
+                <li><strong>Navigate to App Registrations</strong>
+                    <ul>
+                        <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a></li>
+                        <li>Search for "App registrations" and select it</li>
+                        <li>Click <strong>+ New registration</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Configure Registration</strong>
+                    <table>
+                        <tr><th>Setting</th><th>Value</th></tr>
+                        <tr><td>Name</td><td><code>github-your-app-deploy</code> (descriptive name for your deployment identity)</td></tr>
+                        <tr><td>Supported account types</td><td>Accounts in this organizational directory only</td></tr>
+                        <tr><td>Redirect URI</td><td>Leave empty</td></tr>
+                    </table>
+                </li>
+                <li><strong>Click Register</strong></li>
+            </ol>
+
+            <h3>Record the IDs</h3>
+            <p>From the <strong>Overview</strong> page, copy these values (you'll need them for GitHub secrets):</p>
+            <table class="secrets-table">
+                <tr><th>Value</th><th>GitHub Secret Name</th></tr>
+                <tr><td>Application (client) ID</td><td><code>AZURE_CLIENT_ID</code></td></tr>
+                <tr><td>Directory (tenant) ID</td><td><code>AZURE_TENANT_ID</code></td></tr>
+            </table>
+
+            <h3>Get Subscription ID</h3>
+            <ol>
+                <li>Go to <strong>Subscriptions</strong> in the Azure Portal</li>
+                <li>Select your subscription</li>
+                <li>Copy the <strong>Subscription ID</strong> → This is <code>AZURE_SUBSCRIPTION_ID</code></li>
+            </ol>
+        </section>
+
+        <section id="federated-credentials" class="card">
+            <h2><span class="step-number">3</span> Configure Federated Credentials</h2>
+            <p>Federated credentials allow GitHub Actions to authenticate without storing secrets.</p>
+
+            <ol>
+                <li><strong>Navigate to your App Registration</strong>
+                    <ul>
+                        <li>Go to <strong>Certificates &amp; secrets</strong></li>
+                        <li>Select <strong>Federated credentials</strong> tab</li>
+                        <li>Click <strong>+ Add credential</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Configure the Credential</strong>
+                    <table>
+                        <tr><th>Setting</th><th>Value</th></tr>
+                        <tr><td>Federated credential scenario</td><td><strong>GitHub Actions deploying Azure resources</strong></td></tr>
+                        <tr><td>Organization</td><td>Your GitHub username or organization</td></tr>
+                        <tr><td>Repository</td><td>Your repository name</td></tr>
+                        <tr><td>Entity type</td><td><strong>Branch</strong></td></tr>
+                        <tr><td>GitHub branch name</td><td><code>main</code></td></tr>
+                        <tr><td>Name</td><td><code>github-main-branch</code></td></tr>
+                    </table>
+                </li>
+                <li><strong>Click Add</strong></li>
+            </ol>
+
+            <div class="info-box">
+                <p><strong>💡 Note:</strong> If you also want to deploy from pull requests or other branches, add additional federated credentials with the appropriate entity type.</p>
+            </div>
+        </section>
+
+        <section id="permissions" class="card">
+            <h2><span class="step-number">4</span> Grant Azure Permissions</h2>
+            <p>The App Registration needs permission to deploy to your App Service.</p>
+
+            <h3>Assign Contributor Role</h3>
+            <ol>
+                <li><strong>Navigate to your App Service</strong>
+                    <ul>
+                        <li>Go to <strong>Access control (IAM)</strong></li>
+                        <li>Click <strong>+ Add</strong> → <strong>Add role assignment</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Configure Role Assignment</strong>
+                    <table>
+                        <tr><th>Setting</th><th>Value</th></tr>
+                        <tr><td>Role</td><td><strong>Contributor</strong></td></tr>
+                        <tr><td>Assign access to</td><td>User, group, or service principal</td></tr>
+                        <tr><td>Members</td><td>Search for your App Registration name</td></tr>
+                    </table>
+                </li>
+                <li><strong>Click Review + assign</strong></li>
+            </ol>
+        </section>
+
+        <section id="github-secrets" class="card">
+            <h2><span class="step-number">5</span> Configure GitHub Secrets</h2>
+
+            <h3>Fork or Clone the Repository</h3>
+            <ol>
+                <li><strong>Fork the Repository</strong>
+                    <ul>
+                        <li>Go to the Performance Problem Simulator repository for your stack</li>
+                        <li>Click <strong>Fork</strong> to create your own copy</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>Add GitHub Secrets</h3>
+            <ol>
+                <li><strong>Navigate to Repository Settings</strong>
+                    <ul>
+                        <li>Go to your repository on GitHub</li>
+                        <li>Click <strong>Settings</strong> → <strong>Secrets and variables</strong> → <strong>Actions</strong></li>
+                        <li>Click <strong>New repository secret</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Add the Following Secrets</strong>
+                    <table class="secrets-table">
+                        <tr><th>Secret Name</th><th>Value</th><th>Description</th></tr>
+                        <tr><td>AZURE_CLIENT_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>App Registration Client ID</td></tr>
+                        <tr><td>AZURE_TENANT_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>Azure AD Directory/Tenant ID</td></tr>
+                        <tr><td>AZURE_SUBSCRIPTION_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>Azure Subscription ID</td></tr>
+                    </table>
+                </li>
+            </ol>
+
+            <div class="info-box">
+                <p><strong>💡 No Client Secret Needed:</strong> OIDC federated credentials eliminate the need to store a client secret. The three IDs above are sufficient.</p>
+            </div>
+
+            <h3>Update Workflow (if needed)</h3>
+            <p>Update <code>.github/workflows/deploy.yml</code> with your App Service name and runtime version:</p>
+            <pre><code>env:
+  AZURE_WEBAPP_NAME: your-app-service-name  # Your App Service name
+  # Add any runtime-specific version variables as needed</code></pre>
+        </section>
+
+        <section id="deploy" class="card">
+            <h2><span class="step-number">6</span> Deploy</h2>
+
+            <h3>Automatic Deployment</h3>
+            <p>Deployment triggers automatically when you push to the <code>main</code> branch:</p>
+            <pre><code>git add .
+git commit -m "Your changes"
+git push origin main</code></pre>
+
+            <h3>Manual Deployment</h3>
+            <ol>
+                <li>Go to your repository on GitHub</li>
+                <li>Click <strong>Actions</strong> tab</li>
+                <li>Select <strong>Deploy to Azure App Service</strong></li>
+                <li>Click <strong>Run workflow</strong> → <strong>Run workflow</strong></li>
+            </ol>
+
+            <h3>Verify Deployment</h3>
+            <ol>
+                <li><strong>Open the App URL</strong>: <code>https://&lt;your-app-name&gt;.azurewebsites.net</code></li>
+                <li><strong>Verify Dashboard</strong>: Real-time metrics should update via SignalR, status should show "Connected"</li>
+                <li><strong>Test Health Endpoint</strong>:
+                    <pre><code>curl https://&lt;your-app-name&gt;.azurewebsites.net/api/health</code></pre>
+                </li>
+            </ol>
+        </section>
+
+        <section id="optional-config" class="card">
+            <h2>Optional Configuration</h2>
+            <p>You can customize the application behavior using Azure App Service environment variables.</p>
+
+            <h3>Health Probe Rate</h3>
+            <p>Control how often the server sends health probes to measure request latency. All probes are routed through the Azure frontend to capture realistic end-to-end latency.</p>
+            
+            <h4>Environment Variable</h4>
+            <table class="env-table">
+                <thead>
+                    <tr>
+                        <th>Variable Name</th>
+                        <th>Description</th>
+                        <th>Default</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>HEALTH_PROBE_RATE</code></td>
+                        <td>Probe interval in milliseconds. Minimum 100ms.</td>
+                        <td><code>200</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Setting via Azure CLI</h4>
+            <pre><code># Slow down probes if CLR profiler shows overlapping requests
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings HEALTH_PROBE_RATE=400</code></pre>
+
+            <h3>Idle Timeout</h3>
+            <p>When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend and Application Insights telemetry.</p>
+            
+            <h4>Environment Variable</h4>
+            <table class="env-table">
+                <thead>
+                    <tr>
+                        <th>Variable Name</th>
+                        <th>Description</th>
+                        <th>Default</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>IDLE_TIMEOUT_MINUTES</code></td>
+                        <td>Minutes of inactivity before suspending health probes. Activity resumes automatically when the dashboard is opened or any request is received.</td>
+                        <td><code>20</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Setting via Azure CLI</h4>
+            <pre><code># Extend idle timeout to 30 minutes
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings IDLE_TIMEOUT_MINUTES=30</code></pre>
+
+            <h3>Custom Page Footer</h3>
+            <p>Set a custom footer message that appears on all pages. The footer supports HTML, allowing you to include links.</p>
+            
+            <h4>Environment Variable</h4>
+            <table class="env-table">
+                <thead>
+                    <tr>
+                        <th>Variable Name</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>PAGE_FOOTER</code></td>
+                        <td>HTML content for the footer's second line. If not set, only the app description and build info are shown.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Example Value</h4>
+            <pre><code>Created by &lt;a href="https://yoursite.com"&gt;Your Team&lt;/a&gt; for training purposes</code></pre>
+
+            <h4>Setting via Azure CLI</h4>
+            <pre><code># Set the footer via Azure CLI
+az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
+  --settings 'PAGE_FOOTER=Created by &lt;a href="https://yoursite.com"&gt;Your Team&lt;/a&gt; for training purposes'</code></pre>
+
+            <h4>Setting via Azure Portal</h4>
+            <ol>
+                <li>Navigate to your App Service in the Azure Portal</li>
+                <li>Go to <strong>Settings</strong> → <strong>Environment variables</strong></li>
+                <li>Click <strong>+ Add</strong></li>
+                <li>Set Name: <code>PAGE_FOOTER</code></li>
+                <li>Set Value: Your HTML footer content</li>
+                <li>Click <strong>Apply</strong>, then <strong>Confirm</strong></li>
+            </ol>
+
+        </section>
+
+        <section id="troubleshooting" class="card">
+            <h2>Troubleshooting</h2>
+
+            <h3>SignalR Connection Fails</h3>
+            <p><strong>Symptoms:</strong> Dashboard shows "Disconnected", charts don't update in real-time</p>
+            <p><strong>Solutions:</strong></p>
+            <ul>
+                <li>Ensure WebSockets are enabled in App Service Configuration</li>
+                <li>Upgrade from Free tier to Basic or higher</li>
+                <li>Check if ARR Affinity is enabled (Settings → Configuration → General settings)</li>
+            </ul>
+
+            <h3>OIDC Authentication Fails</h3>
+            <p><strong>Symptoms:</strong> GitHub Actions fails at "Login to Azure" step</p>
+            <p><strong>Check:</strong></p>
+            <ul>
+                <li>Verify all three secrets are set correctly</li>
+                <li>Confirm federated credential subject matches your repo/branch: <code>repo:USERNAME/REPO:ref:refs/heads/main</code></li>
+                <li>Ensure App Registration has Contributor role on the App Service</li>
+            </ul>
+
+            <h3>Application Crashes on Startup</h3>
+            <p><strong>Symptoms:</strong> App shows "Application Error" or doesn't respond</p>
+            <p><strong>Check:</strong></p>
+            <ul>
+                <li>View Log stream in Azure Portal (App Service → Log stream)</li>
+                <li>Enable Application Logging under App Service → App Service Logs</li>
+                <li>Verify runtime version matches your application's requirements</li>
+                <li>Check for missing configuration or environment variables</li>
+            </ul>
+
+            <h3>View Logs</h3>
+            <pre><code># Stream live logs
+az webapp log tail --name $APP_NAME --resource-group $RESOURCE_GROUP
+
+# View deployment logs
+az webapp log deployment show --name $APP_NAME --resource-group $RESOURCE_GROUP</code></pre>
+        </section>
+
+        <section class="card">
+            <h2>Quick Reference - CLI One-Liner</h2>
+            <p>Complete setup script (customize variables at top):</p>
+            <pre><code># Full setup (customize variables at top)
+RESOURCE_GROUP="your-resource-group"
+APP_NAME="your-app-name"
+LOCATION="eastus"
+RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
+GITHUB_REPO="YOUR_USERNAME/YOUR_REPO"
+
+# Create resources
+az group create -n $RESOURCE_GROUP -l $LOCATION
+az appservice plan create -n "${APP_NAME}-plan" -g $RESOURCE_GROUP -l $LOCATION --sku B1
+az webapp create -n $APP_NAME -g $RESOURCE_GROUP -p "${APP_NAME}-plan" --runtime $RUNTIME
+az webapp config set -n $APP_NAME -g $RESOURCE_GROUP --web-sockets-enabled true
+
+# Create App Registration and get IDs
+APP_ID=$(az ad app create --display-name "github-${APP_NAME}-deploy" --query appId -o tsv)
+az ad sp create --id $APP_ID
+TENANT_ID=$(az account show --query tenantId -o tsv)
+SUB_ID=$(az account show --query id -o tsv)
+
+# Create federated credential
+az ad app federated-credential create --id $APP_ID --parameters "{
+  \"name\": \"github-main-branch\",
+  \"issuer\": \"https://token.actions.githubusercontent.com\",
+  \"subject\": \"repo:${GITHUB_REPO}:ref:refs/heads/main\",
+  \"audiences\": [\"api://AzureADTokenExchange\"]
+}"
+
+# Assign permissions
+APP_SERVICE_ID=$(az webapp show -n $APP_NAME -g $RESOURCE_GROUP --query id -o tsv)
+az role assignment create --assignee $APP_ID --role Contributor --scope $APP_SERVICE_ID
+
+# Output secrets for GitHub
+echo "AZURE_CLIENT_ID=$APP_ID"
+echo "AZURE_TENANT_ID=$TENANT_ID"
+echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
+        </section>
+    </main>
+        </div><!-- /.doc-main -->
+
+        <!-- Right Sidebar Table of Contents -->
         <aside class="doc-toc">
             <div class="doc-toc-sticky">
-                <div class="doc-toc-card">
+                <nav class="doc-toc-card">
                     <div class="doc-toc-title">On This Page</div>
                     <ul>
-                        <li class="doc-toc-item"><a href="#quick-reference"><span class="toc-icon">📋</span>Quick Reference</a></li>
-                        <li class="doc-toc-item"><a href="#diagnose-solve"><span class="toc-icon">🔍</span>Diagnose & Solve</a></li>
-                        <li class="doc-toc-item"><a href="#app-insights"><span class="toc-icon">📊</span>Application Insights</a></li>
-                        <li class="doc-toc-item"><a href="#kudu"><span class="toc-icon">🖥️</span>Kudu Console</a></li>
-                        <li class="doc-toc-item"><a href="#profiling"><span class="toc-icon">⚡</span>Python Profiling</a></li>
-                        <li class="doc-toc-item"><a href="#kql"><span class="toc-icon">📝</span>KQL Queries</a></li>
-                        <li class="doc-toc-item"><a href="#simulation-diagnostics"><span class="toc-icon">🧪</span>Simulation Diagnostics</a></li>
-                        <li class="doc-toc-item"><a href="#load-testing"><span class="toc-icon">🔬</span>Azure Load Testing</a></li>
+                        <li class="doc-toc-item">
+                            <a href="#overview"><span class="toc-icon">📋</span>Overview</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">Setup Steps</li>
+                        <li class="doc-toc-item">
+                            <a href="#app-service"><span class="toc-icon">1️⃣</span>Create App Service</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#app-registration"><span class="toc-icon">2️⃣</span>App Registration</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#federated-credentials"><span class="toc-icon">3️⃣</span>Federated Creds</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#permissions"><span class="toc-icon">4️⃣</span>Permissions</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#github-secrets"><span class="toc-icon">5️⃣</span>GitHub Secrets</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#deploy"><span class="toc-icon">6️⃣</span>Deploy</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#optional-config"><span class="toc-icon">⚙️</span>Optional Config</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">Reference</li>
+                        <li class="doc-toc-item">
+                            <a href="#troubleshooting"><span class="toc-icon">🔧</span>Troubleshooting</a>
+                        </li>
                     </ul>
-                </div>
+                </nav>
             </div>
         </aside>
-    </div>
+    </div><!-- /.doc-layout -->
 
     <footer class="footer">
         <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
-        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
-        <p>Build: <span id="footerBuildTime">--</span></p>
+        <p id="pageFooterContent"></p>
+        <p>Build: <span id="buildTime">--</span></p>
     </footer>
+
+    <script>
+        // Fetch and display custom page footer and build info
+        (async function() {
+            // Fetch app config for footer and GitHub repo link
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    const footerEl = document.getElementById('pageFooterContent');
+                    if (footerEl) {
+                        if (config.pageFooter && config.pageFooter.trim()) {
+                            footerEl.innerHTML = config.pageFooter;
+                        } else {
+                            footerEl.style.display = 'none';
+                        }
+                    }
+                    // Update GitHub repo link if provided in config
+                    const githubLink = document.getElementById('githubRepoLink');
+                    if (githubLink) {
+                        if (config.githubRepoUrl && config.githubRepoUrl.trim()) {
+                            githubLink.href = config.githubRepoUrl;
+                        } else {
+                            // Hide link if no GitHub URL configured
+                            githubLink.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch config', e);
+                // Hide GitHub link on error
+                const githubLink = document.getElementById('githubRepoLink');
+                if (githubLink) githubLink.style.display = 'none';
+            }
+            // Fetch build info
+            try {
+                const response = await fetch('/api/health/build');
+                if (response.ok) {
+                    const data = await response.json();
+                    const buildTimeEl = document.getElementById('buildTime');
+                    if (buildTimeEl && data.buildTimestamp) {
+                        const buildDate = new Date(data.buildTimestamp);
+                        buildTimeEl.textContent = buildDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch build info', e);
+            }
+        })();
+    </script>
 
     <script>
         // Sidebar drawer toggle
@@ -619,6 +939,7 @@ https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=10
         const sidebarClose = document.getElementById('sidebar-close');
 
         function openSidebar() {
+            hamburgerBtn.classList.remove('attention');
             hamburgerBtn.classList.add('active');
             sidebarOverlay.classList.add('active');
             sidebarDrawer.classList.add('active');
@@ -634,60 +955,70 @@ https://your-app.azurewebsites.net/api/loadtest?workIterations=0&bufferSizeKb=10
         sidebarOverlay.addEventListener('click', closeSidebar);
         sidebarClose.addEventListener('click', closeSidebar);
 
-        // Fetch and display SKU
-        async function fetchAndDisplaySku() {
-            try {
-                const response = await fetch('/api/sku');
-                if (response.ok) {
-                    const data = await response.json();
-                    const skuDisplay = document.getElementById('skuDisplay');
-                    if (skuDisplay) {
-                        skuDisplay.textContent = `SKU: ${data.sku}`;
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch SKU:', error);
-            }
-        }
-        fetchAndDisplaySku();
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSidebar();
+        });
 
-        // Fetch and display build time
-        async function fetchAndDisplayBuildTime() {
-            try {
-                const response = await fetch('/api/config');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.buildTime) {
-                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
-                        const footerBuildTime = document.getElementById('footerBuildTime');
-                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
-                        if (footerBuildTime) footerBuildTime.textContent = data.buildTime;
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch build time:', error);
-            }
-        }
-        fetchAndDisplayBuildTime();
+        // Scroll spy for TOC highlighting
+        const tocLinks = document.querySelectorAll('.doc-toc-item a');
+        const sections = document.querySelectorAll('.card');
 
-        // Fetch and display custom footer (if configured)
-        async function fetchAndDisplayFooter() {
-            try {
-                const response = await fetch('/api/footer');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.has_custom_footer && data.footer) {
-                        const footerCredits = document.getElementById('footerCredits');
-                        if (footerCredits) {
-                            footerCredits.innerHTML = data.footer;
+        function updateActiveTocLink() {
+            const scrollPos = window.scrollY + 120;
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.offsetHeight;
+                const sectionId = section.getAttribute('id');
+                
+                if (sectionId && scrollPos >= sectionTop && scrollPos < sectionTop + sectionHeight) {
+                    tocLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + sectionId) {
+                            link.classList.add('active');
                         }
+                    });
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveTocLink);
+        updateActiveTocLink(); // Initial call
+
+        // Fetch and display SKU
+        async function fetchAzureSku() {
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+                const skuElement = document.getElementById('skuDisplay');
+                if (skuElement && data.processInfo && data.processInfo.azureSku) {
+                    skuElement.textContent = `SKU: ${data.processInfo.azureSku}`;
+                    skuElement.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to fetch Azure SKU', error);
+            }
+        }
+        fetchAzureSku();
+
+        // Fetch and display build info
+        async function fetchBuildInfo() {
+            try {
+                const response = await fetch('/api/health/build');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.buildTimestamp) {
+                        const buildDate = new Date(data.buildTimestamp);
+                        const formatted = buildDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = formatted;
                     }
                 }
             } catch (error) {
-                console.error('Failed to fetch footer:', error);
+                console.error('Failed to fetch build info', error);
             }
         }
-        fetchAndDisplayFooter();
+        fetchBuildInfo();
     </script>
 </body>
 </html>
