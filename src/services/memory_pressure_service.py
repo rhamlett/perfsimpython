@@ -4,6 +4,7 @@ Allocates and releases memory blocks on demand to simulate
 memory pressure scenarios for diagnostic practice.
 """
 
+import gc
 import logging
 from datetime import UTC, datetime
 from threading import Lock
@@ -128,6 +129,9 @@ class MemoryPressureService:
             if sim_id:
                 simulation_tracker.remove(sim_id)
 
+            # Force garbage collection to return memory to OS
+            gc.collect()
+
             logger.info(
                 "Released %d MB memory (block %s). Total: %d MB",
                 block.size_mb,
@@ -155,6 +159,9 @@ class MemoryPressureService:
                 for sim_id in self._simulations.values():
                     simulation_tracker.remove(sim_id)
                 self._simulations.clear()
+
+                # Force garbage collection to return memory to OS
+                gc.collect()
 
                 logger.info(
                     "Released all memory: %d blocks, %d MB total",

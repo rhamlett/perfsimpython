@@ -42,6 +42,7 @@ const state = {
     },
     activeSimulations: new Map(),
     lastProcessId: null,
+    checkProcessIdOnNextMessage: false,
     // Idle state tracking
     isIdle: false,
     idleTimeoutMinutes: 20,
@@ -216,6 +217,8 @@ function initializeWebSocket() {
             if (wsDisconnectTime) {
                 logEvent('ws-connect', 'Reconnected to server');
                 wsDisconnectTime = null;
+                // Mark that we need to check for process ID change on next metrics message
+                state.checkProcessIdOnNextMessage = true;
             }
         };
         
@@ -284,13 +287,30 @@ function handleMetricsUpdate(message) {
     
     // Check for process ID change (indicates app restart/crash)
     const currentProcessId = processData.pid;
-    if (currentProcessId && state.lastProcessId !== null && currentProcessId !== state.lastProcessId) {
-        // Process ID changed - app was restarted
-        logEvent('restart', `APPLICATION RESTARTED! Process ID changed from ${state.lastProcessId} to ${currentProcessId}. This may indicate an unexpected crash (OOM, StackOverflow, etc.).`, { icon: '🔄' });
+    
+    // Get the previous PID from state or sessionStorage (for persistence across reconnections)
+    let previousProcessId = state.lastProcessId;
+    if (previousProcessId === null) {
+        const storedPid = sessionStorage.getItem('lastProcessId');
+        if (storedPid) {
+            previousProcessId = parseInt(storedPid, 10);
+            state.lastProcessId = previousProcessId;
+        }
     }
-    // Update the stored process ID
+    
+    // Check for restart: either on reconnection flag or when PID changes
+    if (currentProcessId && previousProcessId !== null && currentProcessId !== previousProcessId) {
+        // Process ID changed - app was restarted
+        logEvent('restart', `APPLICATION RESTARTED! Process ID changed from ${previousProcessId} to ${currentProcessId}. This may indicate an unexpected crash (OOM, StackOverflow, etc.).`, { icon: '🔄' });
+    }
+    
+    // Clear the reconnection check flag
+    state.checkProcessIdOnNextMessage = false;
+    
+    // Update the stored process ID (both in state and sessionStorage)
     if (currentProcessId) {
         state.lastProcessId = currentProcessId;
+        sessionStorage.setItem('lastProcessId', currentProcessId.toString());
     }
     
     // Update metric cards
@@ -975,13 +995,14 @@ async function allocateMemory() {
         });
         
         if (response.ok) {
-            logEvent('memory', `Allocated ${sizeMb} MB`);
-        } else if (response.status !== 405) {
+            const result = await response.json();
+            logEvent('memory', `Allocated ${sizeMb} MB (block ${result.block_id.substring(0, 8)}...)`);
+        } else {
             const error = await response.json();
-            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', `Memory allocation failed: ${error.detail || 'Unknown error'}`);
         }
     } catch (err) {
-        logEvent('error', `Request failed: ${err.message}`);
+        logEvent('error', `Memory allocation request failed: ${err.message}`);
     }
 }
 
@@ -992,10 +1013,17 @@ async function releaseMemory() {
         
         if (response.ok) {
             const data = await response.json();
-            logEvent('memory', `Released ${data.released_count} memory block(s)`);
+            if (data.released_count > 0) {
+                logEvent('memory', `Released ${data.released_count} memory block(s). Memory will be reclaimed by GC.`);
+            } else {
+                logEvent('memory', 'No memory blocks to release');
+            }
+        } else {
+            const error = await response.json();
+            logEvent('error', `Memory release failed: ${error.detail || 'Unknown error'}`);
         }
     } catch (err) {
-        logEvent('error', `Release request failed: ${err.message}`);
+        logEvent('error', `Memory release request failed: ${err.message}`);
     }
 }
 
@@ -1084,6 +1112,7 @@ async function generateFailedRequests() {
     const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
     
     try {
+        logEvent('failedrequests', `Generating ${count} failed requests...`);
         const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1091,7 +1120,8 @@ async function generateFailedRequests() {
         });
         
         if (response.ok) {
-            // Server logs detailed message via event_log_service, no need to duplicate
+            const result = await response.json();
+            logEvent('failedrequests', `Started generating ${count} HTTP 500 errors`);
         } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
