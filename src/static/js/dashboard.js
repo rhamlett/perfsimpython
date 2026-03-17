@@ -1270,7 +1270,7 @@ function setupEventHandlers() {
 async function copyEventLogToClipboard() {
     const container = document.getElementById('eventLog');
     const btn = document.getElementById('btnCopyEventLog');
-    if (!container) return;
+    if (!container || !btn) return;
     
     // Extract text content from all log entries
     const entries = container.querySelectorAll('.log-entry');
@@ -1279,14 +1279,14 @@ async function copyEventLogToClipboard() {
     
     try {
         await navigator.clipboard.writeText(logText);
-        // Visual feedback
-        const originalText = btn.textContent;
-        btn.textContent = '✅';
+        // Visual feedback - save original HTML and show "✓ Copied!"
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="copy-text">✓ Copied!</span>';
         btn.classList.add('copied');
         setTimeout(() => {
-            btn.textContent = originalText;
+            btn.innerHTML = originalHTML;
             btn.classList.remove('copied');
-        }, 1500);
+        }, 2000);
     } catch (err) {
         console.error('Failed to copy event log:', err);
         logEvent('error', 'Failed to copy event log to clipboard');
