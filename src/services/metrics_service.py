@@ -159,8 +159,10 @@ class MetricsService:
             mem_info = proc.memory_info()
             memory_mb = mem_info.rss / (1024 * 1024)
 
-            # Get CPU percent (process-specific)
-            cpu_percent = proc.cpu_percent(interval=None)
+            # Get CPU percent (process-specific), normalized to 0-100% of total CPU
+            # psutil returns cumulative % across cores (e.g., 400% on 4 cores)
+            cpu_count = psutil.cpu_count() or 1
+            cpu_percent = proc.cpu_percent(interval=None) / cpu_count
 
             # Get thread count
             threads = proc.num_threads()
@@ -225,7 +227,9 @@ class MetricsService:
         proc = self.process
         try:
             mem_info = proc.memory_info()
-            cpu = proc.cpu_percent(interval=None)
+            # Normalize CPU to 0-100% of total capacity
+            cpu_count = psutil.cpu_count() or 1
+            cpu = proc.cpu_percent(interval=None) / cpu_count
             threads = proc.num_threads()
             return BroadcastProcessMetrics(
                 cpu_percent=cpu,
