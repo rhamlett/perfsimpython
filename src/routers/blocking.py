@@ -67,6 +67,12 @@ class BlockingStartRequest(BaseModel):
         ge=1,
         description="Number of blocking operations to perform",
     )
+    chunk_ms: int = Field(
+        default=150,
+        ge=50,
+        le=1000,
+        description="For async blocking: chunk size in ms (allows metrics to update between chunks)",
+    )
 
 
 class BlockingStartResponse(BaseModel):
@@ -335,6 +341,7 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
             "duration_seconds": request.duration_seconds,
             "count": request.count,
             "type": request.type,
+            "chunk_ms": request.chunk_ms if request.type == "async" else None,
         },
     )
     simulation_tracker.add(simulation)
@@ -346,6 +353,7 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
             "type": request.type,
             "duration": request.duration_seconds,
             "count": request.count,
+            "chunk_ms": request.chunk_ms if request.type == "async" else None,
         },
     )
 
@@ -356,9 +364,13 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
 
         try:
             if request.type == "async":
-                # Run async blocking (blocks event loop - demonstrating anti-pattern)
+                # Use chunked blocking so metrics/probes can update between chunks
+                # This shows the latency impact on the dashboard in real-time
                 for _ in range(request.count):
-                    await blocking_service.async_block(request.duration_seconds)
+                    await blocking_service.chunked_block(
+                        request.duration_seconds,
+                        chunk_ms=request.chunk_ms,
+                    )
             else:
                 # Run sync blocking in thread pool (proper async handling)
                 for _ in range(request.count):
