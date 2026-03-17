@@ -356,6 +356,17 @@ function handleMetricsUpdate(message) {
         }
     }
 
+    // Process server-side events broadcast via WebSocket
+    const serverEvents = data.events || [];
+    for (const event of serverEvents) {
+        // Map server event_type to dashboard log type
+        const logType = event.event_type || 'system';
+        const message = event.message || '';
+        
+        // Log the event using the server's timestamp
+        logEvent(logType, message, { serverTimestamp: event.timestamp, icon: getServerEventIcon(logType) });
+    }
+
     // Update history for charts
     const timestamp = new Date();
     addToHistory(timestamp, cpuPercent, memoryMb, threadCount, eventLoopLagMs);
@@ -905,7 +916,15 @@ function logEvent(type, message, options = {}) {
     const container = document.getElementById('eventLog');
     if (!container) return;
     
-    const timestamp = getCurrentUtcTime() + ' UTC';
+    // Use server timestamp if provided, otherwise current time
+    let timestamp;
+    if (options.serverTimestamp) {
+        const date = new Date(options.serverTimestamp);
+        timestamp = formatUtcTime(date) + ' UTC';
+    } else {
+        timestamp = getCurrentUtcTime() + ' UTC';
+    }
+    
     const icon = options.icon || getEventIcon(type);
     
     const entry = document.createElement('div');
@@ -936,6 +955,36 @@ function getEventIcon(type) {
         'error': '🚨'
     };
     return icons[type] || '';
+}
+
+/**
+ * Get icon for server-side events.
+ * Maps server event_type to appropriate emoji icon.
+ */
+function getServerEventIcon(eventType) {
+    const icons = {
+        'system': '',
+        'cpu': '🔥',
+        'cpu_stress': '🔥',
+        'memory': '📊',
+        'memory_pressure': '📊',
+        'threads': '🧵',
+        'blocking': '🧵',
+        'async_blocking': '🧵',
+        'slowrequest': '🐌',
+        'slow_request': '🐌',
+        'failedrequests': '❌',
+        'failed_requests': '❌',
+        'failed_requests_stopped': '❌',
+        'crash': '💥',
+        'restart': '🔄',
+        'loadtest': '📈',
+        'load_test': '📈',
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '🚨'
+    };
+    return icons[eventType] || '';
 }
 
 // ==========================================================================

@@ -52,10 +52,16 @@ async def _broadcast_metrics() -> None:
     """Background task that broadcasts metrics to connected WebSocket clients.
 
     Runs every 250ms while the application is running (240 points = 60 seconds).
+    Also broadcasts new event log entries since the last broadcast.
     """
+    from datetime import UTC, datetime
+
     from src.services.idle_service import idle_service
 
     metrics_service = MetricsService()
+
+    # Track the last time we broadcast events to avoid sending duplicates
+    last_event_broadcast = datetime.now(UTC)
 
     while True:
         try:
@@ -81,6 +87,10 @@ async def _broadcast_metrics() -> None:
                 # Build message payload
                 # Get recent request latencies (last 2 seconds for smooth updates)
                 recent_latencies = request_latency_service.get_recent_latencies(max_age_seconds=2.0)
+
+                # Get new events since last broadcast
+                new_events = event_log_service.get_events_since(last_event_broadcast)
+                last_event_broadcast = datetime.now(UTC)
 
                 message = {
                     "type": "metrics",
@@ -124,6 +134,7 @@ async def _broadcast_metrics() -> None:
                             "seconds_until_idle": idle_service.get_seconds_until_idle(),
                         },
                         "requestLatencies": recent_latencies,
+                        "events": [event.to_dict() for event in new_events],
                     },
                 }
 

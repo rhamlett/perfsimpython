@@ -221,6 +221,19 @@ class EventLogService:
             self._events.clear()
             return count
 
+    def get_events_since(self, since: datetime) -> list[SimulationEvent]:
+        """Get all events since a given timestamp.
+
+        Args:
+            since: Timestamp to filter from (exclusive).
+
+        Returns:
+            List of events newer than the given timestamp, oldest first.
+        """
+        with self._lock:
+            events = [e for e in self._events if e.timestamp > since]
+        return events
+
 
 # Global singleton instance
 event_log_service = EventLogService()
