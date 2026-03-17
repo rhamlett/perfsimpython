@@ -118,7 +118,7 @@
             </div>
 
             <div class="control-group memory-group">
-                <h3>📊 Memory Pressure <span class="control-tooltip" data-tooltip="Allocates memory blocks to increase working set">ⓘ</span></h3>
+                <h3>📊 Memory Pressure <span class="control-tooltip" data-tooltip="Allocates heap memory that won't be garbage collected. Watch memory grow in metrics until you click Release.">ⓘ</span></h3>
                 <p>Allocates memory blocks filled with random data. Multiple allocations stack - mimics gradual memory leak.</p>
                 <div class="control-inputs">
                     <label>Size (MB):
@@ -132,7 +132,7 @@
             </div>
 
             <div class="control-group thread-group">
-                <h3>🧵 Async Blocking <span class="control-tooltip" data-tooltip="Blocks the async event loop to simulate starvation">ⓘ</span></h3>
+                <h3>🧵 Async Blocking <span class="control-tooltip" data-tooltip="Runs blocking sync code on the event loop thread, starving all other requests. Observe latency spike to match delay time.">ⓘ</span></h3>
                 <p>Blocks async operations using sync-over-async anti-pattern to simulate event loop starvation. Server becomes unresponsive to new requests.</p>
                 <p class="info-note">⏱️ <strong>Duration Note:</strong> Python's asyncio runs on a single thread by default. Even a few blocking operations can cause significant impact.</p>
                 <div class="control-inputs">
@@ -150,7 +150,7 @@
             </div>
 
             <div class="control-group slowrequest-group">
-                <h3>🐌 Slow Requests <span class="control-tooltip" data-tooltip="Generates slow requests ideal for profiler diagnosis">ⓘ</span></h3>
+                <h3>🐌 Slow Requests <span class="control-tooltip" data-tooltip="Generates long-running requests that appear in Azure profiler traces. Use to practice diagnosing slow endpoints.">ⓘ</span></h3>
                 <p>Generates requests that intentionally take a long time. Ideal for profiler diagnosis in Azure.</p>
                 <p class="timeout-warning">⚠️ Note: Requests exceeding 30 seconds total time are flagged as critical</p>
                 <div class="control-inputs">
@@ -171,7 +171,7 @@
             </div>
 
             <div class="control-group failedrequest-group">
-                <h3>❌ Failed Requests <span class="control-tooltip" data-tooltip="Generates HTTP 500 errors visible in monitoring">ⓘ</span></h3>
+                <h3>❌ Failed Requests <span class="control-tooltip" data-tooltip="Creates HTTP 500 errors that populate the Failures blade in Application Insights. Practice failure analysis.">ⓘ</span></h3>
                 <p>Generates HTTP 5xx errors for testing error monitoring. Creates authentic server errors.</p>
                 <p class="info-note">📊 <strong>Where to see:</strong> Azure Portal → App Insights → Failures blade</p>
                 <div class="control-inputs">
@@ -185,7 +185,7 @@
             </div>
 
             <div class="control-group crash-group">
-                <h3>💥 Application Crash <span class="control-tooltip" data-tooltip="Triggers various types of fatal crashes for testing crash monitoring">ⓘ</span></h3>
+                <h3>💥 Application Crash <span class="control-tooltip" data-tooltip="Terminates the process immediately. Use to test container restart behavior and crash diagnostics in Azure.">ⓘ</span></h3>
                 <p>Triggers a fatal crash to test crash monitoring and diagnostics. Choose from various crash types.</p>
                 <div class="control-inputs">
                     <label>Type:

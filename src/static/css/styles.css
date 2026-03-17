@@ -1090,6 +1090,34 @@ body.page-doc {
     cursor: help;
 }
 
+.control-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 125%;
+    background: var(--color-text);
+    color: var(--color-bg);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    white-space: normal;
+    width: max-content;
+    max-width: 250px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 1000;
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+.control-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* --------------------------------------------------------------------------
    Active Simulations
    -------------------------------------------------------------------------- */
