@@ -305,8 +305,7 @@ function handleMetricsUpdate(message) {
     // Check for restart: instance_id change is the reliable indicator
     if (currentInstanceId && previousInstanceId !== null && currentInstanceId !== previousInstanceId) {
         // Server instance changed - app was restarted
-        const startedAt = processData.started_at ? new Date(processData.started_at).toLocaleTimeString() : 'unknown';
-        logEvent('restart', `APPLICATION RESTARTED! Server instance changed (${previousInstanceId} → ${currentInstanceId}). New instance started at ${startedAt}. This may indicate an unexpected crash (OOM, StackOverflow, FailFast, etc.).`, { icon: '🔄' });
+        logEvent('restart', `APPLICATION RESTARTED! Server instance changed (${previousInstanceId} → ${currentInstanceId}). This may indicate an unexpected crash (OOM, StackOverflow, FailFast, etc.).`, { icon: '🔄' });
     }
     
     // Clear the reconnection check flag
