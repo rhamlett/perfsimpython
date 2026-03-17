@@ -45,7 +45,9 @@ const state = {
     // Idle state tracking
     isIdle: false,
     idleTimeoutMinutes: 20,
-    secondsUntilIdle: -1
+    secondsUntilIdle: -1,
+    // Track processed latency timestamps to avoid duplicates
+    processedLatencyTimestamps: new Set()
 };
 
 // ==========================================================================
@@ -210,17 +212,10 @@ function initializeWebSocket() {
             
             updateConnectionStatus('connected', 'Connected');
             
-            // Calculate disconnect duration if we're reconnecting
+            // Log reconnection if we were previously connected
             if (wsDisconnectTime) {
-                const duration = Math.round((Date.now() - wsDisconnectTime) / 1000);
-                if (duration >= 10) {
-                    logEvent('ws-connect', `Reconnected to metrics hub (was disconnected for ${formatDuration(duration)})`);
-                } else {
-                    logEvent('ws-connect', 'Connected to metrics hub');
-                }
+                logEvent('ws-connect', 'Reconnected to server');
                 wsDisconnectTime = null;
-            } else {
-                logEvent('ws-connect', 'Connected to metrics hub');
             }
         };
         
@@ -287,6 +282,17 @@ function handleMetricsUpdate(message) {
     const asyncioData = data.asyncio || {};
     const simulationsData = data.simulations || {};
     
+    // Check for process ID change (indicates app restart/crash)
+    const currentProcessId = processData.pid;
+    if (currentProcessId && state.lastProcessId !== null && currentProcessId !== state.lastProcessId) {
+        // Process ID changed - app was restarted
+        logEvent('restart', `APPLICATION RESTARTED! Process ID changed from ${state.lastProcessId} to ${currentProcessId}. This may indicate an unexpected crash (OOM, StackOverflow, etc.).`, { icon: '🔄' });
+    }
+    // Update the stored process ID
+    if (currentProcessId) {
+        state.lastProcessId = currentProcessId;
+    }
+    
     // Update metric cards
     const cpuPercent = processData.cpu_percent || systemData.cpu_percent || 0;
     const memoryMb = processData.memory_mb || 0;
@@ -352,7 +358,21 @@ function handleMetricsUpdate(message) {
     if (requestLatencies.length > 0) {
         // Process each latency record - these are actual API request latencies
         for (const record of requestLatencies) {
-            // Skip if we've already processed this timestamp (dedup)
+            // Create unique key from timestamp + path to dedupe
+            const recordKey = `${record.timestamp}-${record.path}`;
+            if (state.processedLatencyTimestamps.has(recordKey)) {
+                continue; // Already processed this record
+            }
+            state.processedLatencyTimestamps.add(recordKey);
+            
+            // Keep set size bounded (remove old entries)
+            if (state.processedLatencyTimestamps.size > 1000) {
+                const iterator = state.processedLatencyTimestamps.values();
+                for (let i = 0; i < 500; i++) {
+                    state.processedLatencyTimestamps.delete(iterator.next().value);
+                }
+            }
+            
             const recordTime = new Date(record.timestamp * 1000); // Convert unix timestamp
             handleLatencyUpdate({
                 timestamp: recordTime,
@@ -1064,7 +1084,6 @@ async function generateFailedRequests() {
     const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
     
     try {
-        logEvent('failedrequests', `Starting generation of ${count} HTTP 500 errors...`);
         const response = await fetch(`${CONFIG.apiBaseUrl}/failed-requests/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1072,8 +1091,7 @@ async function generateFailedRequests() {
         });
         
         if (response.ok) {
-            const data = await response.json();
-            logEvent('failedrequests', data.message || `Started generating ${count} failed requests`);
+            // Server logs detailed message via event_log_service, no need to duplicate
         } else if (response.status !== 405) {
             const error = await response.json();
             logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
@@ -1085,24 +1103,27 @@ async function generateFailedRequests() {
 
 async function triggerCrash() {
     const crashType = document.getElementById('crashType').value;
+    const crashTypeDisplay = crashType.charAt(0).toUpperCase() + crashType.slice(1);
     
-    if (!confirm(`This will CRASH the application using ${crashType}. Are you sure?`)) {
+    if (!confirm(`This will CRASH the application using ${crashTypeDisplay}. Are you sure?`)) {
         return;
     }
     
     try {
-        logEvent('crash', `Triggering ${crashType} crash...`);
+        logEvent('crash', `CRASH: ${crashTypeDisplay} - Connection will be lost!`);
         const response = await fetch(`${CONFIG.apiBaseUrl}/crash`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ crash_type: crashType, confirmed: true })
         });
         
-        // If we get here, the crash didn't happen
+        // If we get here, the crash didn't happen (exception type returns error response)
         const result = await response.json();
-        logEvent('crash', result.message || 'Crash triggered');
+        if (!response.ok) {
+            logEvent('error', `An unexpected error occurred`);
+        }
     } catch (err) {
-        logEvent('crash', 'Application crashed (connection lost)');
+        // Connection lost is expected for successful crash
     }
 }
 

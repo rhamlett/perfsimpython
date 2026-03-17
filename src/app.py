@@ -7,6 +7,7 @@ all middleware, routers, and static file serving.
 import asyncio
 import contextlib
 import logging
+import os
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -95,6 +96,7 @@ async def _broadcast_metrics() -> None:
                             ),
                         },
                         "process": {
+                            "pid": os.getpid(),
                             "cpu_percent": process_metrics.cpu_percent,
                             "memory_mb": round(process_metrics.memory_rss_bytes / (1024 * 1024), 2),
                             "threads": process_metrics.threads,

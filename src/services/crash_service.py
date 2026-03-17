@@ -25,6 +25,7 @@ class CrashType(StrEnum):
     STACKOVERFLOW = "stackoverflow"  # Stack overflow - appears as RecursionError
     OOM = "oom"  # Out of memory - process killed by OS
     SIGABRT = "sigabrt"  # SIGABRT signal - immediate process termination
+    FAILFAST = "failfast"  # Immediate process exit with os._exit(1)
 
 
 class CrashService:
@@ -108,6 +109,24 @@ class CrashService:
                     "Container logs for exit codes",
                 ],
             },
+            CrashType.FAILFAST: {
+                "type": "failfast",
+                "description": (
+                    "Immediately terminates the process using os._exit(1). "
+                    "This bypasses all cleanup, exception handlers, and finally blocks. "
+                    "Equivalent to .NET Environment.FailFast()."
+                ),
+                "diagnostic_signature": (
+                    "Immediate process termination with exit code 1, no exception logged, "
+                    "no cleanup performed, connection lost without warning."
+                ),
+                "azure_tools": [
+                    "Diagnose and solve problems > Application Crashes",
+                    "Activity log for restart events",
+                    "Container logs for exit codes",
+                    "Application Insights > Availability",
+                ],
+            },
         }
 
     def get_crash_info(self, crash_type: CrashType) -> dict[str, Any]:
@@ -168,6 +187,8 @@ class CrashService:
             self._trigger_oom()
         elif crash_type == CrashType.SIGABRT:
             self._trigger_sigabrt()
+        elif crash_type == CrashType.FAILFAST:
+            self._trigger_failfast()
 
     def _trigger_exception(self) -> None:
         """Trigger an unhandled exception.
@@ -215,6 +236,21 @@ class CrashService:
         causing immediate termination without cleanup.
         """
         os.abort()
+
+    def _trigger_failfast(self) -> None:
+        """Trigger immediate process termination using os._exit.
+
+        This is equivalent to .NET's Environment.FailFast().
+        The process exits immediately with code 1, bypassing all
+        exception handlers, finally blocks, and cleanup routines.
+        """
+        # Flush stdout/stderr to ensure any pending output is written
+        import sys
+
+        sys.stdout.flush()
+        sys.stderr.flush()
+        # Exit immediately without cleanup
+        os._exit(1)
 
 
 # Global singleton instance

@@ -146,11 +146,7 @@ class FailedRequestService:
         return FailedRequestResult(
             simulation_id=self._simulation_id,
             status="Started",
-            message=(
-                f"Generating {self._target_count} failed requests. "
-                "These will appear in AppLens and Application Insights. "
-                "Each request takes ~1.5 seconds before failing with a random error."
-            ),
+            message=f"Started generating {self._target_count} failures",
         )
 
     def stop(self) -> FailedRequestResult:

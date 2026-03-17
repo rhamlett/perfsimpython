@@ -19,7 +19,7 @@ class TestCrashService:
 
     def test_crash_types_defined(self) -> None:
         """Test that all expected crash types are defined."""
-        expected_types = {"exception", "stackoverflow", "oom", "sigabrt"}
+        expected_types = {"exception", "stackoverflow", "oom", "sigabrt", "failfast"}
         actual_types = {ct.value for ct in CrashType}
 
         assert expected_types == actual_types
@@ -57,11 +57,19 @@ class TestCrashService:
         assert "description" in info
         assert "signal" in info["description"].lower() or "abort" in info["description"].lower()
 
+    def test_get_crash_info_failfast(self, service: CrashService) -> None:
+        """Test crash info for FailFast type."""
+        info = service.get_crash_info(CrashType.FAILFAST)
+
+        assert info["type"] == "failfast"
+        assert "description" in info
+        assert "_exit" in info["description"] or "immediately" in info["description"].lower()
+
     def test_get_all_crash_types(self, service: CrashService) -> None:
         """Test getting info for all crash types."""
         all_info = service.get_all_crash_types()
 
-        assert len(all_info) == 4
+        assert len(all_info) == 5
         assert all("type" in info for info in all_info)
         assert all("description" in info for info in all_info)
 
