@@ -1195,6 +1195,7 @@ body.page-doc {
 .log-entry.async_blocking { color: var(--color-threads); }
 .log-entry.slowrequest { color: #ff8c00; }
 .log-entry.slow_request { color: #ff8c00; }
+.log-entry.slow_generator_stopped { color: #ff8c00; }
 .log-entry.failedrequests { color: #8B4513; }
 .log-entry.failed_requests { color: #8B4513; }
 .log-entry.failed_requests_stopped { color: #8B4513; }

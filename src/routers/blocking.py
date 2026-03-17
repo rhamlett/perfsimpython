@@ -4,6 +4,7 @@ Provides endpoints for simulating synchronous and asynchronous blocking
 to demonstrate thread pool starvation and event loop blocking patterns.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter
@@ -128,7 +129,7 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
     simulation_tracker.add(simulation)
 
     event_log_service.log_event(
-        event_type="blocking_started",
+        event_type="blocking",
         message=f"Starting sync blocking for {request.duration_seconds}s x{request.count}",
         metadata={
             "type": "sync",
@@ -146,7 +147,7 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
             logger.debug("Sync blocking iteration %d/%d complete", i + 1, request.count)
 
         event_log_service.log_event(
-            event_type="blocking_completed",
+            event_type="blocking",
             message=f"Sync blocking completed: {total_blocked:.2f}s total",
             metadata={
                 "type": "sync",
@@ -204,7 +205,7 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
     simulation_tracker.add(simulation)
 
     event_log_service.log_event(
-        event_type="blocking_started",
+        event_type="blocking",
         message=f"Starting async blocking for {request.duration_seconds}s",
         metadata={
             "type": "async",
@@ -226,7 +227,7 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
             blocked = await blocking_service.async_block(request.duration_seconds)
 
         event_log_service.log_event(
-            event_type="blocking_completed",
+            event_type="blocking",
             message=f"Async blocking completed: {blocked:.2f}s",
             metadata={
                 "type": "async",
@@ -270,7 +271,7 @@ async def demo_proper_blocking(request: SyncBlockRequest) -> BlockingResponse:
         Response with actual blocked duration.
     """
     event_log_service.log_event(
-        event_type="blocking_started",
+        event_type="blocking",
         message=f"Starting proper blocking demo for {request.duration_seconds}s",
         metadata={
             "type": "proper",
@@ -284,7 +285,7 @@ async def demo_proper_blocking(request: SyncBlockRequest) -> BlockingResponse:
         total_blocked += blocked
 
     event_log_service.log_event(
-        event_type="blocking_completed",
+        event_type="blocking",
         message=f"Proper blocking demo completed: {total_blocked:.2f}s",
         metadata={
             "type": "proper",
@@ -312,6 +313,10 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
     This endpoint provides a unified interface for starting blocking operations,
     dispatching to either sync or async blocking based on the type parameter.
 
+    For async blocking, operations run in the background so the response returns
+    immediately. The blocking then affects concurrent requests, demonstrating
+    how event loop blocking degrades latency for all async operations.
+
     Args:
         request: Request with type, duration, and count.
 
@@ -335,8 +340,8 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
     simulation_tracker.add(simulation)
 
     event_log_service.log_event(
-        event_type="blocking_started",
-        message=f"Starting {request.count} blocking operations ({request.duration_seconds}s each)",
+        event_type="blocking",
+        message=f"Starting {request.count} {request.type} blocking operations ({request.duration_seconds}s each)",
         metadata={
             "type": request.type,
             "duration": request.duration_seconds,
@@ -344,39 +349,46 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
         },
     )
 
-    try:
-        # Fire off the blocking operations (they'll run in background for sync)
-        if request.type == "async":
-            # Run async blocking
-            for _ in range(request.count):
-                await blocking_service.async_block(request.duration_seconds)
-        else:
-            # Run sync blocking in thread pool (default)
-            for _ in range(request.count):
-                await blocking_service.run_sync_in_thread(request.duration_seconds)
+    async def run_blocking_operations() -> None:
+        """Run blocking operations and log completion when done."""
+        try:
+            if request.type == "async":
+                # Run async blocking (blocks event loop - demonstrating anti-pattern)
+                for _ in range(request.count):
+                    await blocking_service.async_block(request.duration_seconds)
+            else:
+                # Run sync blocking in thread pool (proper async handling)
+                for _ in range(request.count):
+                    await blocking_service.run_sync_in_thread(request.duration_seconds)
 
-        event_log_service.log_event(
-            event_type="blocking_completed",
-            message="Blocking operations completed",
-            metadata={
-                "type": request.type,
-                "duration": request.duration_seconds,
-                "count": request.count,
-            },
-        )
+            event_log_service.log_event(
+                event_type="blocking",
+                message="Blocking operations completed",
+                metadata={
+                    "type": request.type,
+                    "duration": request.duration_seconds,
+                    "count": request.count,
+                },
+            )
+        finally:
+            # Always remove simulation when done
+            simulation_tracker.remove(simulation.id)
 
-        return BlockingStartResponse(
-            started=True,
-            message=f"Started {request.count} {request.type} blocking operations",
-            config={
-                "type": request.type,
-                "duration_seconds": request.duration_seconds,
-                "count": request.count,
-            },
-        )
-    finally:
-        # Always remove simulation when done
-        simulation_tracker.remove(simulation.id)
+    # Start blocking operations in the background so we can return immediately
+    asyncio.create_task(run_blocking_operations())
+
+    # Yield to event loop to allow background task to start
+    await asyncio.sleep(0)
+
+    return BlockingStartResponse(
+        started=True,
+        message=f"Started {request.count} {request.type} blocking operations",
+        config={
+            "type": request.type,
+            "duration_seconds": request.duration_seconds,
+            "count": request.count,
+        },
+    )
 
 
 @router.post(
@@ -395,7 +407,7 @@ async def stop_blocking() -> BlockingStopResponse:
         Response acknowledging stop request.
     """
     event_log_service.log_event(
-        event_type="blocking_stopped",
+        event_type="blocking",
         message="Blocking stop requested (operations complete on their own)",
         metadata={},
     )

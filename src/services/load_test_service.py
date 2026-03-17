@@ -13,8 +13,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from src.services.event_log_service import event_log_service
-
 logger = logging.getLogger(__name__)
 
 
@@ -280,17 +278,6 @@ class LoadTestService:
                     error_after,
                     error_percent,
                     type(exception).__name__,
-                )
-
-                # Log to event log for dashboard visibility
-                event_log_service.log_event(
-                    event_type="load_test_error",
-                    message=f"Injected error: {type(exception).__name__}: {exception}",
-                    metadata={
-                        "exception_type": type(exception).__name__,
-                        "exception_message": str(exception),
-                        "elapsed_seconds": round(elapsed_seconds, 2),
-                    },
                 )
 
                 raise exception

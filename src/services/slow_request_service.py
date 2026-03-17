@@ -186,16 +186,6 @@ class SlowRequestService:
                             response.status_code,
                         )
 
-                        event_log_service.log_event(
-                            event_type="slow_request_generated",
-                            message=f"Slow request {self._generated_count}/{max_requests} completed ({delay_seconds}s delay)",
-                            metadata={
-                                "request_num": self._generated_count,
-                                "max_requests": max_requests,
-                                "delay_seconds": delay_seconds,
-                            },
-                        )
-
                     except httpx.RequestError as e:
                         logger.warning("Slow request failed: %s", e)
                         self._generated_count += 1  # Count failed requests too

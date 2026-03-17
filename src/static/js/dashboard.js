@@ -973,6 +973,7 @@ function getServerEventIcon(eventType) {
         'async_blocking': '🧵',
         'slowrequest': '🐌',
         'slow_request': '🐌',
+        'slow_generator_stopped': '🐌',
         'failedrequests': '❌',
         'failed_requests': '❌',
         'failed_requests_stopped': '❌',
