@@ -385,6 +385,17 @@ body.page-doc {
     text-align: center;
 }
 
+.sidebar-nav-item .nav-icon.swagger-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-nav-item .nav-icon.swagger-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
 .sidebar-nav-item .nav-label {
     flex: 1;
 }
