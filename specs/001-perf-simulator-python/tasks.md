@@ -30,7 +30,7 @@
 - [X] T002 Create pyproject.toml with project metadata, dependencies (fastapi, uvicorn, pydantic, pydantic-settings, psutil, websockets, python-multipart), and tool configurations (black, ruff, mypy, pytest)
 - [X] T003 [P] Create requirements.txt with production dependencies
 - [X] T004 [P] Create requirements-dev.txt with development dependencies (pytest, pytest-asyncio, pytest-cov, httpx, black, ruff, mypy)
-- [X] T005 [P] Create .env.example with environment variable template (APP_ENV, LOG_LEVEL)
+- [X] T005 [P] Create .env.example with environment variable template (LOG_LEVEL)
 - [X] T006 [P] Create Dockerfile for containerized deployment with Python 3.11 base image
 - [X] T007 [P] Create .github/workflows/ci.yml for lint, type check, format check, and test on PR
 - [X] T008 [P] Create .github/workflows/deploy.yml for Azure deployment via OIDC
@@ -45,7 +45,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T011 Create src/config/__init__.py and src/config/settings.py with Pydantic Settings class (LOG_LEVEL, APP_ENV)
+- [X] T011 Create src/config/__init__.py and src/config/settings.py with Pydantic Settings class (LOG_LEVEL)
 - [X] T012 Create src/models/__init__.py package marker
 - [X] T013 [P] Create src/models/entities.py with SimulationType enum, SimulationState dataclass, AllocatedMemoryBlock dataclass
 - [X] T014 [P] Create src/models/requests.py with Pydantic request models (CpuStressRequest, MemoryAllocateRequest, BlockingRequest, SlowRequest, CrashRequest, FailedRequestsRequest)

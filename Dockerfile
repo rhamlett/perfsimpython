@@ -21,7 +21,6 @@ COPY docs/ ./docs/
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV APP_ENV=production
 ENV PORT=8000
 
 # Configure Oryx to run our app directly (bypasses nginx)

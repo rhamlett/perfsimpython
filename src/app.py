@@ -223,7 +223,7 @@ def create_app() -> FastAPI:
         title="Performance Problem Simulator",
         description="Educational tool for simulating performance problems to practice Azure diagnostics",
         version="1.0.0",
-        docs_url="/api/docs",
+        docs_url="/swagger",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
