@@ -108,6 +108,13 @@ body.page-doc {
 }
 
 /* --------------------------------------------------------------------------
+   Utility Classes
+   -------------------------------------------------------------------------- */
+.hidden-until-loaded {
+    display: none;
+}
+
+/* --------------------------------------------------------------------------
    Header - Python themed
    -------------------------------------------------------------------------- */
 .header {
@@ -745,6 +752,39 @@ body.page-doc {
 .latency-chart-container canvas {
     max-height: 100%;
     flex: 1;
+}
+
+/* Slow Request Overlay */
+.slow-request-overlay {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--color-warning);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    z-index: 10;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 90%;
+}
+
+.slow-request-message {
+    color: var(--color-warning);
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.slow-request-status {
+    color: var(--color-text);
+    margin: 0;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 185, 0, 0.15);
+    border-radius: 4px;
+    display: inline-block;
 }
 
 /* Probe Visualization (24-dot history) */

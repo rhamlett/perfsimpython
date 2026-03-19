@@ -128,6 +128,30 @@ async def get_footer() -> FooterResponse:
     )
 
 
+class GitHubConfigResponse(BaseModel):
+    """Response model for GitHub configuration endpoint."""
+
+    github_url: str | None
+    is_configured: bool
+
+
+@router.get("/github-config", response_model=GitHubConfigResponse, tags=["health"])
+async def get_github_config() -> GitHubConfigResponse:
+    """Get the GitHub repository URL if configured.
+
+    Returns the GitHub URL constructed from GITHUB_USER_NAME and GITHUB_REPO_NAME
+    environment variables if both are set.
+
+    Returns:
+        GitHubConfigResponse with the GitHub URL and whether it's configured.
+    """
+    from src.config.settings import get_settings
+
+    settings = get_settings()
+    github_url = settings.github_url
+    return GitHubConfigResponse(github_url=github_url, is_configured=github_url is not None)
+
+
 @router.get("/sku", response_model=SkuResponse, tags=["health"])
 async def get_sku() -> SkuResponse:
     """Get the Azure App Service SKU or 'Local' if not on Azure.

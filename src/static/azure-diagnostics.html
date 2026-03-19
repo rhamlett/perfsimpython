@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure Deployment Guide - Performance Problem Simulator</title>
+    <title>Azure Diagnostics Guide - Performance Problem Simulator</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/styles.css">
     <style>
@@ -364,16 +364,16 @@
                 <span class="nav-label">Documentation<span class="nav-desc">API reference & guides</span></span>
             </a>
             <a href="/azure-diagnostics.html" class="sidebar-nav-item active">
-                <span class="nav-icon">🚀</span>
-                <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
-            </a>
-            <a href="/azure-deployment.html" class="sidebar-nav-item">
                 <span class="nav-icon">☁️</span>
                 <span class="nav-label">Azure Diagnostics<span class="nav-desc">Diagnose issues in App Service</span></span>
             </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
+            </a>
             <div class="sidebar-divider"></div>
-            <div class="sidebar-section-label">External</div>
-            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item">
+            <div id="githubSectionLabel" class="sidebar-section-label hidden-until-loaded">External</div>
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item hidden-until-loaded">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
             </a>
@@ -396,447 +396,231 @@
         <div class="doc-main">
         <main class="deploy-container">
         <div class="deploy-header">
-            <h1>🚀 Azure Deployment Guide</h1>
-            <p>Deploy Performance Problem Simulator to Azure App Service using GitHub Actions with OIDC authentication</p>
+            <h1>☁️ Azure Diagnostics Guide</h1>
+            <p>Diagnose performance problems in Azure App Service using built-in tools and Python profilers</p>
         </div>
 
-        <section id="overview" class="card">
-            <h2>Overview</h2>
-            <p>This guide walks you through deploying the Performance Problem Simulator to Azure App Service using GitHub Actions with OpenID Connect (OIDC) authentication. OIDC eliminates the need to store credentials as secrets.</p>
-            
-            <h3>Prerequisites</h3>
-            <ul>
-                <li>Azure subscription with permissions to create resources</li>
-                <li>Azure AD/Entra ID permissions to create App Registrations</li>
-                <li>GitHub account</li>
-                <li>Azure CLI installed (optional, for CLI method)</li>
-            </ul>
-
-            <h3>What You'll Create</h3>
+        <section id="quick-reference" class="card">
+            <h2>Quick Reference: Problem to Tool</h2>
             <table>
-                <tr><th>Resource</th><th>Purpose</th></tr>
-                <tr><td>Azure App Service</td><td>Hosts the Performance Problem Simulator application</td></tr>
-                <tr><td>Azure AD App Registration</td><td>Identity for GitHub Actions OIDC</td></tr>
-                <tr><td>Federated Credential</td><td>Links GitHub repo to Azure AD</td></tr>
-                <tr><td>Role Assignment</td><td>Grants deployment permissions</td></tr>
+                <thead>
+                    <tr>
+                        <th>Symptom</th>
+                        <th>Primary Tool</th>
+                        <th>Secondary Tools</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>High CPU usage</td>
+                        <td>App Service Diagnostics → CPU Analysis</td>
+                        <td>py-spy, cProfile</td>
+                    </tr>
+                    <tr>
+                        <td>Memory growth</td>
+                        <td>Diagnose and Solve → Memory Analysis</td>
+                        <td>tracemalloc, memory_profiler</td>
+                    </tr>
+                    <tr>
+                        <td>Slow responses</td>
+                        <td>Application Insights → Performance</td>
+                        <td>Request logs, dependency tracking</td>
+                    </tr>
+                    <tr>
+                        <td>Application crashes</td>
+                        <td>Diagnose and Solve → Container Crash</td>
+                        <td>Application logs, stderr logs</td>
+                    </tr>
+                    <tr>
+                        <td>HTTP 500 errors</td>
+                        <td>Application Insights → Failures</td>
+                        <td>Log Analytics, App Service logs</td>
+                    </tr>
+                </tbody>
             </table>
         </section>
 
-        <section id="app-service" class="card">
-            <h2><span class="step-number">1</span> Create Azure App Service</h2>
+        <section id="diagnose-and-solve" class="card">
+            <h2>Azure Portal: Diagnose and Solve Problems</h2>
             
-            <h3>Option A: Azure Portal</h3>
+            <h3>Accessing the Tool</h3>
             <ol>
-                <li><strong>Navigate to App Services</strong>
-                    <ul>
-                        <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a></li>
-                        <li>Search for "App Services" and select it</li>
-                        <li>Click <strong>+ Create</strong></li>
-                    </ul>
-                </li>
-                <li><strong>Configure Basics</strong>
-                    <table>
-                        <tr><th>Setting</th><th>Value</th></tr>
-                        <tr><td>Subscription</td><td>Your subscription</td></tr>
-                        <tr><td>Resource Group</td><td>Create new or use existing</td></tr>
-                        <tr><td>Name</td><td><code>your-app-name</code> (must be globally unique)</td></tr>
-                        <tr><td>Publish</td><td>Code</td></tr>
-                        <tr><td>Runtime stack</td><td>Select your application's runtime</td></tr>
-                        <tr><td>Operating System</td><td>Windows or Linux (as appropriate for your runtime)</td></tr>
-                        <tr><td>Region</td><td>Your preferred region</td></tr>
-                    </table>
-                </li>
-                <li><strong>Configure App Service Plan</strong>
-                    <table>
-                        <tr><th>Setting</th><th>Recommendation</th></tr>
-                        <tr><td>SKU</td><td><strong>Basic B1</strong> or higher</td></tr>
-                    </table>
-                    <div class="warning-box">
-                        <p><strong>⚠️ Important:</strong> The Free (F1) tier does not support WebSockets which are required for real-time SignalR dashboard updates.</p>
-                    </div>
-                </li>
-                <li><strong>Review and Create</strong> - Click through to create the resource</li>
+                <li>Open your App Service in Azure Portal</li>
+                <li>Click <strong>"Diagnose and solve problems"</strong> in the left menu</li>
+                <li>Select a detector category or use the search</li>
             </ol>
-
-            <h3>Option B: Azure CLI</h3>
-            <pre><code># Login to Azure
-az login
-
-# Set variables
-RESOURCE_GROUP="your-resource-group"
-APP_NAME="your-app-name"
-LOCATION="eastus"
-APP_SERVICE_PLAN="your-app-plan"
-RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
-
-# Create resource group
-az group create --name $RESOURCE_GROUP --location $LOCATION
-
-# Create App Service Plan (B1 for WebSocket support)
-az appservice plan create \
-  --name $APP_SERVICE_PLAN \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION \
-  --sku B1
-
-# Create Web App with your runtime
-az webapp create \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --plan $APP_SERVICE_PLAN \
-  --runtime $RUNTIME</code></pre>
-
-            <h3>Enable WebSockets</h3>
-            <p>After creation, enable WebSockets for SignalR real-time communication:</p>
-            <ol>
-                <li>Go to your App Service → <strong>Configuration</strong> → <strong>General settings</strong></li>
-                <li>Set <strong>Web sockets</strong> to <strong>On</strong></li>
-                <li>Click <strong>Save</strong></li>
-            </ol>
-            <p>Or via CLI:</p>
-            <pre><code>az webapp config set \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --web-sockets-enabled true</code></pre>
+            
+            <h3>Key Detectors for Performance</h3>
+            <ul>
+                <li><strong>CPU Analysis</strong> - Identifies high CPU processes and patterns</li>
+                <li><strong>Memory Analysis</strong> - Tracks memory usage and potential leaks</li>
+                <li><strong>Container Crash</strong> - Investigates why containers are restarting</li>
+                <li><strong>HTTP Server Errors</strong> - Analyzes 5xx error patterns</li>
+                <li><strong>Web App Slow</strong> - Identifies latency causes</li>
+            </ul>
         </section>
 
-        <section id="app-registration" class="card">
-            <h2><span class="step-number">2</span> Create Azure AD App Registration</h2>
-            <p>GitHub Actions uses OpenID Connect (OIDC) to authenticate with Azure without storing credentials.</p>
+        <section id="application-insights" class="card">
+            <h2>Application Insights</h2>
+            
+            <h3>Setting Up Application Insights</h3>
+            <p>Add the OpenTelemetry Azure Monitor exporter to your application:</p>
+            <pre><code>pip install azure-monitor-opentelemetry</code></pre>
+            
+            <p>Configure in your FastAPI application:</p>
+            <pre><code>from azure.monitor.opentelemetry import configure_azure_monitor
 
-            <h3>Create the App Registration</h3>
-            <ol>
-                <li><strong>Navigate to App Registrations</strong>
-                    <ul>
-                        <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a></li>
-                        <li>Search for "App registrations" and select it</li>
-                        <li>Click <strong>+ New registration</strong></li>
-                    </ul>
-                </li>
-                <li><strong>Configure Registration</strong>
-                    <table>
-                        <tr><th>Setting</th><th>Value</th></tr>
-                        <tr><td>Name</td><td><code>github-your-app-deploy</code> (descriptive name for your deployment identity)</td></tr>
-                        <tr><td>Supported account types</td><td>Accounts in this organizational directory only</td></tr>
-                        <tr><td>Redirect URI</td><td>Leave empty</td></tr>
-                    </table>
-                </li>
-                <li><strong>Click Register</strong></li>
-            </ol>
+configure_azure_monitor(
+    connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+)</code></pre>
 
-            <h3>Record the IDs</h3>
-            <p>From the <strong>Overview</strong> page, copy these values (you'll need them for GitHub secrets):</p>
-            <table class="secrets-table">
-                <tr><th>Value</th><th>GitHub Secret Name</th></tr>
-                <tr><td>Application (client) ID</td><td><code>AZURE_CLIENT_ID</code></td></tr>
-                <tr><td>Directory (tenant) ID</td><td><code>AZURE_TENANT_ID</code></td></tr>
-            </table>
-
-            <h3>Get Subscription ID</h3>
-            <ol>
-                <li>Go to <strong>Subscriptions</strong> in the Azure Portal</li>
-                <li>Select your subscription</li>
-                <li>Copy the <strong>Subscription ID</strong> → This is <code>AZURE_SUBSCRIPTION_ID</code></li>
-            </ol>
-        </section>
-
-        <section id="federated-credentials" class="card">
-            <h2><span class="step-number">3</span> Configure Federated Credentials</h2>
-            <p>Federated credentials allow GitHub Actions to authenticate without storing secrets.</p>
-
-            <ol>
-                <li><strong>Navigate to your App Registration</strong>
-                    <ul>
-                        <li>Go to <strong>Certificates &amp; secrets</strong></li>
-                        <li>Select <strong>Federated credentials</strong> tab</li>
-                        <li>Click <strong>+ Add credential</strong></li>
-                    </ul>
-                </li>
-                <li><strong>Configure the Credential</strong>
-                    <table>
-                        <tr><th>Setting</th><th>Value</th></tr>
-                        <tr><td>Federated credential scenario</td><td><strong>GitHub Actions deploying Azure resources</strong></td></tr>
-                        <tr><td>Organization</td><td>Your GitHub username or organization</td></tr>
-                        <tr><td>Repository</td><td>Your repository name</td></tr>
-                        <tr><td>Entity type</td><td><strong>Branch</strong></td></tr>
-                        <tr><td>GitHub branch name</td><td><code>main</code></td></tr>
-                        <tr><td>Name</td><td><code>github-main-branch</code></td></tr>
-                    </table>
-                </li>
-                <li><strong>Click Add</strong></li>
-            </ol>
+            <h3>Key Features</h3>
+            <ul>
+                <li><strong>Performance</strong> - Request duration, dependency calls, response times</li>
+                <li><strong>Failures</strong> - Exception tracking, failed requests, error rates</li>
+                <li><strong>Live Metrics</strong> - Real-time performance monitoring</li>
+                <li><strong>Application Map</strong> - Visual dependency graph</li>
+            </ul>
 
             <div class="info-box">
-                <p><strong>💡 Note:</strong> If you also want to deploy from pull requests or other branches, add additional federated credentials with the appropriate entity type.</p>
+                <p><strong>💡 Tip:</strong> Use the Transaction Search feature in Application Insights to trace specific requests end-to-end, including all dependency calls and their timing.</p>
             </div>
         </section>
 
-        <section id="permissions" class="card">
-            <h2><span class="step-number">4</span> Grant Azure Permissions</h2>
-            <p>The App Registration needs permission to deploy to your App Service.</p>
-
-            <h3>Assign Contributor Role</h3>
-            <ol>
-                <li><strong>Navigate to your App Service</strong>
-                    <ul>
-                        <li>Go to <strong>Access control (IAM)</strong></li>
-                        <li>Click <strong>+ Add</strong> → <strong>Add role assignment</strong></li>
-                    </ul>
-                </li>
-                <li><strong>Configure Role Assignment</strong>
-                    <table>
-                        <tr><th>Setting</th><th>Value</th></tr>
-                        <tr><td>Role</td><td><strong>Contributor</strong></td></tr>
-                        <tr><td>Assign access to</td><td>User, group, or service principal</td></tr>
-                        <tr><td>Members</td><td>Search for your App Registration name</td></tr>
-                    </table>
-                </li>
-                <li><strong>Click Review + assign</strong></li>
-            </ol>
-        </section>
-
-        <section id="github-secrets" class="card">
-            <h2><span class="step-number">5</span> Configure GitHub Secrets</h2>
-
-            <h3>Fork or Clone the Repository</h3>
-            <ol>
-                <li><strong>Fork the Repository</strong>
-                    <ul>
-                        <li>Go to the Performance Problem Simulator repository for your stack</li>
-                        <li>Click <strong>Fork</strong> to create your own copy</li>
-                    </ul>
-                </li>
-            </ol>
-
-            <h3>Add GitHub Secrets</h3>
-            <ol>
-                <li><strong>Navigate to Repository Settings</strong>
-                    <ul>
-                        <li>Go to your repository on GitHub</li>
-                        <li>Click <strong>Settings</strong> → <strong>Secrets and variables</strong> → <strong>Actions</strong></li>
-                        <li>Click <strong>New repository secret</strong></li>
-                    </ul>
-                </li>
-                <li><strong>Add the Following Secrets</strong>
-                    <table class="secrets-table">
-                        <tr><th>Secret Name</th><th>Value</th><th>Description</th></tr>
-                        <tr><td>AZURE_CLIENT_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>App Registration Client ID</td></tr>
-                        <tr><td>AZURE_TENANT_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>Azure AD Directory/Tenant ID</td></tr>
-                        <tr><td>AZURE_SUBSCRIPTION_ID</td><td><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td><td>Azure Subscription ID</td></tr>
-                    </table>
-                </li>
-            </ol>
-
-            <div class="info-box">
-                <p><strong>💡 No Client Secret Needed:</strong> OIDC federated credentials eliminate the need to store a client secret. The three IDs above are sufficient.</p>
-            </div>
-
-            <h3>Update Workflow (if needed)</h3>
-            <p>Update <code>.github/workflows/deploy.yml</code> with your App Service name and runtime version:</p>
-            <pre><code>env:
-  AZURE_WEBAPP_NAME: your-app-service-name  # Your App Service name
-  # Add any runtime-specific version variables as needed</code></pre>
-        </section>
-
-        <section id="deploy" class="card">
-            <h2><span class="step-number">6</span> Deploy</h2>
-
-            <h3>Automatic Deployment</h3>
-            <p>Deployment triggers automatically when you push to the <code>main</code> branch:</p>
-            <pre><code>git add .
-git commit -m "Your changes"
-git push origin main</code></pre>
-
-            <h3>Manual Deployment</h3>
-            <ol>
-                <li>Go to your repository on GitHub</li>
-                <li>Click <strong>Actions</strong> tab</li>
-                <li>Select <strong>Deploy to Azure App Service</strong></li>
-                <li>Click <strong>Run workflow</strong> → <strong>Run workflow</strong></li>
-            </ol>
-
-            <h3>Verify Deployment</h3>
-            <ol>
-                <li><strong>Open the App URL</strong>: <code>https://&lt;your-app-name&gt;.azurewebsites.net</code></li>
-                <li><strong>Verify Dashboard</strong>: Real-time metrics should update via SignalR, status should show "Connected"</li>
-                <li><strong>Test Health Endpoint</strong>:
-                    <pre><code>curl https://&lt;your-app-name&gt;.azurewebsites.net/api/health</code></pre>
-                </li>
-            </ol>
-        </section>
-
-        <section id="optional-config" class="card">
-            <h2>Optional Configuration</h2>
-            <p>You can customize the application behavior using Azure App Service environment variables.</p>
-
-            <h3>Health Probe Rate</h3>
-            <p>Control how often the server sends health probes to measure request latency. All probes are routed through the Azure frontend to capture realistic end-to-end latency.</p>
+        <section id="kudu-console" class="card">
+            <h2>Kudu Console (Advanced Diagnostics)</h2>
             
-            <h4>Environment Variable</h4>
-            <table class="env-table">
-                <thead>
-                    <tr>
-                        <th>Variable Name</th>
-                        <th>Description</th>
-                        <th>Default</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><code>HEALTH_PROBE_RATE</code></td>
-                        <td>Probe interval in milliseconds. Minimum 100ms.</td>
-                        <td><code>200</code></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h4>Setting via Azure CLI</h4>
-            <pre><code># Slow down probes if CLR profiler shows overlapping requests
-az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
-  --settings HEALTH_PROBE_RATE=400</code></pre>
-
-            <h3>Idle Timeout</h3>
-            <p>When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend and Application Insights telemetry.</p>
-            
-            <h4>Environment Variable</h4>
-            <table class="env-table">
-                <thead>
-                    <tr>
-                        <th>Variable Name</th>
-                        <th>Description</th>
-                        <th>Default</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><code>IDLE_TIMEOUT_MINUTES</code></td>
-                        <td>Minutes of inactivity before suspending health probes. Activity resumes automatically when the dashboard is opened or any request is received.</td>
-                        <td><code>20</code></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h4>Setting via Azure CLI</h4>
-            <pre><code># Extend idle timeout to 30 minutes
-az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
-  --settings IDLE_TIMEOUT_MINUTES=30</code></pre>
-
-            <h3>Custom Page Footer</h3>
-            <p>Set a custom footer message that appears on all pages. The footer supports HTML, allowing you to include links.</p>
-            
-            <h4>Environment Variable</h4>
-            <table class="env-table">
-                <thead>
-                    <tr>
-                        <th>Variable Name</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><code>PAGE_FOOTER</code></td>
-                        <td>HTML content for the footer's second line. If not set, only the app description and build info are shown.</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h4>Example Value</h4>
-            <pre><code>Created by &lt;a href="https://yoursite.com"&gt;Your Team&lt;/a&gt; for training purposes</code></pre>
-
-            <h4>Setting via Azure CLI</h4>
-            <pre><code># Set the footer via Azure CLI
-az webapp config appsettings set --name $APP_NAME --resource-group $RESOURCE_GROUP \
-  --settings 'PAGE_FOOTER=Created by &lt;a href="https://yoursite.com"&gt;Your Team&lt;/a&gt; for training purposes'</code></pre>
-
-            <h4>Setting via Azure Portal</h4>
+            <h3>Accessing Kudu</h3>
             <ol>
-                <li>Navigate to your App Service in the Azure Portal</li>
-                <li>Go to <strong>Settings</strong> → <strong>Environment variables</strong></li>
-                <li>Click <strong>+ Add</strong></li>
-                <li>Set Name: <code>PAGE_FOOTER</code></li>
-                <li>Set Value: Your HTML footer content</li>
-                <li>Click <strong>Apply</strong>, then <strong>Confirm</strong></li>
+                <li>Go to your App Service</li>
+                <li>Click <strong>Advanced Tools</strong> → <strong>Go</strong></li>
+                <li>Or navigate to <code>https://&lt;app-name&gt;.scm.azurewebsites.net</code></li>
             </ol>
 
+            <h3>SSH Access</h3>
+            <p>For Linux App Service, use SSH to access the container:</p>
+            <pre><code># From Kudu: Debug console → SSH
+# Or use Azure CLI:
+az webapp ssh --name &lt;app-name&gt; --resource-group &lt;rg&gt;</code></pre>
+
+            <h3>Useful SSH Commands</h3>
+            <pre><code># View running processes
+top -bn1
+
+# Memory usage
+free -m
+
+# List Python processes
+ps aux | grep python
+
+# View application logs
+tail -f /home/LogFiles/docker/*.log</code></pre>
         </section>
 
-        <section id="troubleshooting" class="card">
-            <h2>Troubleshooting</h2>
+        <section id="python-profiling" class="card">
+            <h2>Python Profiling Tools</h2>
+            
+            <h3>py-spy (Sampling Profiler)</h3>
+            <p>Best for CPU profiling in production without modifying code:</p>
+            <pre><code># Install in SSH session
+pip install py-spy
 
-            <h3>SignalR Connection Fails</h3>
-            <p><strong>Symptoms:</strong> Dashboard shows "Disconnected", charts don't update in real-time</p>
-            <p><strong>Solutions:</strong></p>
+# Profile running process
+py-spy top --pid &lt;python-pid&gt;
+
+# Record flame graph
+py-spy record -o profile.svg --pid &lt;python-pid&gt;</code></pre>
+
+            <h3>cProfile (Built-in Profiler)</h3>
+            <p>Add profiling to specific endpoints:</p>
+            <pre><code>import cProfile
+import pstats
+import io
+
+@app.get("/api/debug/profile")
+async def profile_endpoint():
+    pr = cProfile.Profile()
+    pr.enable()
+    
+    # Your code here
+    
+    pr.disable()
+    s = io.StringIO()
+    pstats.Stats(pr, stream=s).sort_stats('cumulative')
+    return {"profile": s.getvalue()}</code></pre>
+
+            <h3>tracemalloc (Memory Tracing)</h3>
+            <p>Track memory allocations:</p>
+            <pre><code>import tracemalloc
+
+tracemalloc.start()
+
+# Your code here
+
+snapshot = tracemalloc.take_snapshot()
+top_stats = snapshot.statistics('lineno')
+
+for stat in top_stats[:10]:
+    print(stat)</code></pre>
+        </section>
+
+        <section id="log-analytics" class="card">
+            <h2>Log Analytics Queries (KQL)</h2>
+            
+            <h3>Common Queries</h3>
+            
+            <p><strong>Find slow requests:</strong></p>
+            <pre><code>requests
+| where duration > 5000
+| project timestamp, name, duration, resultCode
+| order by duration desc</code></pre>
+
+            <p><strong>Error rate by endpoint:</strong></p>
+            <pre><code>requests
+| where success == false
+| summarize count() by name
+| order by count_ desc</code></pre>
+
+            <p><strong>Container restarts:</strong></p>
+            <pre><code>ContainerAppSystemLogs_CL
+| where Log_s contains "exited"
+| project TimeGenerated, Log_s</code></pre>
+        </section>
+
+        <section id="simulation-diagnostics" class="card">
+            <h2>Simulation-Specific Diagnostics</h2>
+            
+            <h3>CPU Stress</h3>
+            <p>When CPU stress is active, observe:</p>
             <ul>
-                <li>Ensure WebSockets are enabled in App Service Configuration</li>
-                <li>Upgrade from Free tier to Basic or higher</li>
-                <li>Check if ARR Affinity is enabled (Settings → Configuration → General settings)</li>
+                <li>Metrics → CPU percentage spike</li>
+                <li>Diagnose → CPU Analysis shows worker processes</li>
+                <li>py-spy shows tight loops in calculation functions</li>
             </ul>
 
-            <h3>OIDC Authentication Fails</h3>
-            <p><strong>Symptoms:</strong> GitHub Actions fails at "Login to Azure" step</p>
-            <p><strong>Check:</strong></p>
+            <h3>Memory Pressure</h3>
+            <p>When memory is allocated:</p>
             <ul>
-                <li>Verify all three secrets are set correctly</li>
-                <li>Confirm federated credential subject matches your repo/branch: <code>repo:USERNAME/REPO:ref:refs/heads/main</code></li>
-                <li>Ensure App Registration has Contributor role on the App Service</li>
+                <li>Metrics → Memory percentage increase</li>
+                <li>Diagnose → Memory Analysis shows process growth</li>
+                <li>tracemalloc shows large bytearray allocations</li>
             </ul>
 
-            <h3>Application Crashes on Startup</h3>
-            <p><strong>Symptoms:</strong> App shows "Application Error" or doesn't respond</p>
-            <p><strong>Check:</strong></p>
+            <h3>Blocking Operations</h3>
+            <p>When blocking is active:</p>
             <ul>
-                <li>View Log stream in Azure Portal (App Service → Log stream)</li>
-                <li>Enable Application Logging under App Service → App Service Logs</li>
-                <li>Verify runtime version matches your application's requirements</li>
-                <li>Check for missing configuration or environment variables</li>
+                <li>App Insights → Performance shows increased response times</li>
+                <li>Live Metrics shows requests queuing</li>
+                <li>Thread pool exhaustion visible in process stats</li>
             </ul>
 
-            <h3>View Logs</h3>
-            <pre><code># Stream live logs
-az webapp log tail --name $APP_NAME --resource-group $RESOURCE_GROUP
-
-# View deployment logs
-az webapp log deployment show --name $APP_NAME --resource-group $RESOURCE_GROUP</code></pre>
-        </section>
-
-        <section class="card">
-            <h2>Quick Reference - CLI One-Liner</h2>
-            <p>Complete setup script (customize variables at top):</p>
-            <pre><code># Full setup (customize variables at top)
-RESOURCE_GROUP="your-resource-group"
-APP_NAME="your-app-name"
-LOCATION="eastus"
-RUNTIME="your-runtime"  # e.g., "dotnet:8", "node:20-lts", "python:3.11"
-GITHUB_REPO="YOUR_USERNAME/YOUR_REPO"
-
-# Create resources
-az group create -n $RESOURCE_GROUP -l $LOCATION
-az appservice plan create -n "${APP_NAME}-plan" -g $RESOURCE_GROUP -l $LOCATION --sku B1
-az webapp create -n $APP_NAME -g $RESOURCE_GROUP -p "${APP_NAME}-plan" --runtime $RUNTIME
-az webapp config set -n $APP_NAME -g $RESOURCE_GROUP --web-sockets-enabled true
-
-# Create App Registration and get IDs
-APP_ID=$(az ad app create --display-name "github-${APP_NAME}-deploy" --query appId -o tsv)
-az ad sp create --id $APP_ID
-TENANT_ID=$(az account show --query tenantId -o tsv)
-SUB_ID=$(az account show --query id -o tsv)
-
-# Create federated credential
-az ad app federated-credential create --id $APP_ID --parameters "{
-  \"name\": \"github-main-branch\",
-  \"issuer\": \"https://token.actions.githubusercontent.com\",
-  \"subject\": \"repo:${GITHUB_REPO}:ref:refs/heads/main\",
-  \"audiences\": [\"api://AzureADTokenExchange\"]
-}"
-
-# Assign permissions
-APP_SERVICE_ID=$(az webapp show -n $APP_NAME -g $RESOURCE_GROUP --query id -o tsv)
-az role assignment create --assignee $APP_ID --role Contributor --scope $APP_SERVICE_ID
-
-# Output secrets for GitHub
-echo "AZURE_CLIENT_ID=$APP_ID"
-echo "AZURE_TENANT_ID=$TENANT_ID"
-echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
+            <h3>Application Crashes</h3>
+            <p>After triggering a crash:</p>
+            <ul>
+                <li>Container logs show exit code (137=OOM, 134=SIGABRT)</li>
+                <li>App Insights → Failures shows unhandled exceptions</li>
+                <li>Activity Log shows container restart events</li>
+            </ul>
         </section>
     </main>
         </div><!-- /.doc-main -->
@@ -848,35 +632,31 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
                     <div class="doc-toc-title">On This Page</div>
                     <ul>
                         <li class="doc-toc-item">
-                            <a href="#overview"><span class="toc-icon">📋</span>Overview</a>
+                            <a href="#quick-reference"><span class="toc-icon">📋</span>Quick Reference</a>
                         </li>
                         <li class="doc-toc-divider-item" aria-hidden="true"></li>
-                        <li class="doc-toc-section-item">Setup Steps</li>
+                        <li class="doc-toc-section-item">Azure Tools</li>
                         <li class="doc-toc-item">
-                            <a href="#app-service"><span class="toc-icon">1️⃣</span>Create App Service</a>
+                            <a href="#diagnose-and-solve"><span class="toc-icon">🔍</span>Diagnose & Solve</a>
                         </li>
                         <li class="doc-toc-item">
-                            <a href="#app-registration"><span class="toc-icon">2️⃣</span>App Registration</a>
+                            <a href="#application-insights"><span class="toc-icon">📊</span>App Insights</a>
                         </li>
                         <li class="doc-toc-item">
-                            <a href="#federated-credentials"><span class="toc-icon">3️⃣</span>Federated Creds</a>
-                        </li>
-                        <li class="doc-toc-item">
-                            <a href="#permissions"><span class="toc-icon">4️⃣</span>Permissions</a>
-                        </li>
-                        <li class="doc-toc-item">
-                            <a href="#github-secrets"><span class="toc-icon">5️⃣</span>GitHub Secrets</a>
-                        </li>
-                        <li class="doc-toc-item">
-                            <a href="#deploy"><span class="toc-icon">6️⃣</span>Deploy</a>
-                        </li>
-                        <li class="doc-toc-item">
-                            <a href="#optional-config"><span class="toc-icon">⚙️</span>Optional Config</a>
+                            <a href="#kudu-console"><span class="toc-icon">🖥️</span>Kudu Console</a>
                         </li>
                         <li class="doc-toc-divider-item" aria-hidden="true"></li>
-                        <li class="doc-toc-section-item">Reference</li>
+                        <li class="doc-toc-section-item">Python Tools</li>
                         <li class="doc-toc-item">
-                            <a href="#troubleshooting"><span class="toc-icon">🔧</span>Troubleshooting</a>
+                            <a href="#python-profiling"><span class="toc-icon">🐍</span>Python Profiling</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#log-analytics"><span class="toc-icon">📝</span>Log Analytics</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">Simulations</li>
+                        <li class="doc-toc-item">
+                            <a href="#simulation-diagnostics"><span class="toc-icon">🎯</span>Simulation Tips</a>
                         </li>
                     </ul>
                 </nav>
@@ -893,7 +673,7 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
     <script>
         // Fetch and display custom page footer and build info
         (async function() {
-            // Fetch app config for footer and GitHub repo link
+            // Fetch app config for footer
             try {
                 const response = await fetch('/api/config');
                 if (response.ok) {
@@ -906,22 +686,9 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
                             footerEl.style.display = 'none';
                         }
                     }
-                    // Update GitHub repo link if provided in config
-                    const githubLink = document.getElementById('githubRepoLink');
-                    if (githubLink) {
-                        if (config.githubRepoUrl && config.githubRepoUrl.trim()) {
-                            githubLink.href = config.githubRepoUrl;
-                        } else {
-                            // Hide link if no GitHub URL configured
-                            githubLink.style.display = 'none';
-                        }
-                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch config', e);
-                // Hide GitHub link on error
-                const githubLink = document.getElementById('githubRepoLink');
-                if (githubLink) githubLink.style.display = 'none';
             }
             // Fetch build info
             try {
@@ -997,12 +764,13 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
         // Fetch and display SKU
         async function fetchAzureSku() {
             try {
-                const response = await fetch('/api/metrics');
-                const data = await response.json();
-                const skuElement = document.getElementById('skuDisplay');
-                if (skuElement && data.processInfo && data.processInfo.azureSku) {
-                    skuElement.textContent = `SKU: ${data.processInfo.azureSku}`;
-                    skuElement.style.display = 'block';
+                const response = await fetch('/api/sku');
+                if (response.ok) {
+                    const data = await response.json();
+                    const skuElement = document.getElementById('skuDisplay');
+                    if (skuElement) {
+                        skuElement.textContent = `SKU: ${data.sku}`;
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch Azure SKU', error);
@@ -1013,14 +781,12 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
         // Fetch and display build info
         async function fetchBuildInfo() {
             try {
-                const response = await fetch('/api/health/build');
+                const response = await fetch('/api/config');
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.buildTimestamp) {
-                        const buildDate = new Date(data.buildTimestamp);
-                        const formatted = buildDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                    if (data.buildTime) {
                         const sidebarBuildTime = document.getElementById('sidebarBuildTime');
-                        if (sidebarBuildTime) sidebarBuildTime.textContent = formatted;
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
                     }
                 }
             } catch (error) {
@@ -1028,6 +794,30 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
             }
         }
         fetchBuildInfo();
+
+        // Fetch and display GitHub link (if configured)
+        async function fetchAndDisplayGithubLink() {
+            try {
+                const response = await fetch('/api/github-config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_configured && data.github_url) {
+                        const githubLink = document.getElementById('githubRepoLink');
+                        const githubLabel = document.getElementById('githubSectionLabel');
+                        if (githubLink) {
+                            githubLink.href = data.github_url;
+                            githubLink.classList.remove('hidden-until-loaded');
+                        }
+                        if (githubLabel) {
+                            githubLabel.classList.remove('hidden-until-loaded');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch GitHub config:', error);
+            }
+        }
+        fetchAndDisplayGithubLink();
     </script>
 </body>
 </html>

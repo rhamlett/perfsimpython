@@ -84,10 +84,14 @@ async def _broadcast_metrics() -> None:
 
                 # Clean up expired simulations and their resources
                 from src.services.cpu_stress_service import cpu_stress_service
+                from src.services.slow_request_service import slow_request_service
 
                 cpu_stress_service.cleanup_finished()
                 simulation_tracker.cleanup_expired()
                 active_simulations = simulation_tracker.get_all_simulations()
+
+                # Get slow request generator stats
+                slow_request_stats = slow_request_service.get_stats()
 
                 # Build message payload
                 # Get recent request latencies (last 2 seconds for smooth updates)
@@ -135,6 +139,12 @@ async def _broadcast_metrics() -> None:
                                 }
                                 for sim in active_simulations
                             ],
+                        },
+                        "slowRequestGenerator": {
+                            "is_running": slow_request_stats["is_running"],
+                            "generated_count": slow_request_stats["generated_count"],
+                            "max_requests": slow_request_stats["max_requests"],
+                            "delay_seconds": slow_request_stats["delay_seconds"],
                         },
                         "idle": {
                             "is_idle": idle_service.check_idle_state(),

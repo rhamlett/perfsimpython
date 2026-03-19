@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # Page footer configuration (HTML allowed)
     page_footer: str | None = None  # Custom footer text for attribution
 
+    # GitHub repository configuration (optional - link hidden if not set)
+    github_repo_name: str | None = None  # Repository name (e.g., "perfsimpython")
+    github_user_name: str | None = None  # GitHub user or organization name
+
     @property
     def health_probe_rate_clamped(self) -> int:
         """Get health probe rate clamped to minimum 100ms."""
@@ -47,6 +51,13 @@ class Settings(BaseSettings):
     def idle_timeout_seconds(self) -> int:
         """Get idle timeout in seconds (0 = disabled)."""
         return self.idle_timeout_minutes * 60
+
+    @property
+    def github_url(self) -> str | None:
+        """Get constructed GitHub URL if both repo and user are configured."""
+        if self.github_repo_name and self.github_user_name:
+            return f"https://github.com/{self.github_user_name}/{self.github_repo_name}"
+        return None
 
 
 @lru_cache

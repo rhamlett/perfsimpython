@@ -233,8 +233,8 @@
                 <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
             </a>
             <div class="sidebar-divider"></div>
-            <div class="sidebar-section-label">External</div>
-            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+            <div id="githubSectionLabel" class="sidebar-section-label hidden-until-loaded">External</div>
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item hidden-until-loaded">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
             </a>
@@ -492,6 +492,16 @@ az webapp config appsettings set \
             <td>Custom HTML footer text displayed at the bottom of the dashboard. Supports HTML links.</td>
             <td><em>None</em></td>
           </tr>
+          <tr>
+            <td><code>GITHUB_USER_NAME</code></td>
+            <td>GitHub user or organization name. Used with GITHUB_REPO_NAME to construct GitHub link in navigation.</td>
+            <td><em>None</em></td>
+          </tr>
+          <tr>
+            <td><code>GITHUB_REPO_NAME</code></td>
+            <td>GitHub repository name. Used with GITHUB_USER_NAME to construct GitHub link in navigation.</td>
+            <td><em>None</em></td>
+          </tr>
         </tbody>
       </table>
 
@@ -515,6 +525,14 @@ az webapp config appsettings set \
   --resource-group rg-perf-simulator \
   --name app-perf-simulator-py \
   --settings PAGE_FOOTER='Created by &lt;a href="https://speckit.org/"&gt;SpecKit&lt;/a&gt;'</pre>
+
+      <h3>GITHUB_USER_NAME &amp; GITHUB_REPO_NAME</h3>
+      <p>Optional configuration to display a GitHub Repository link in the sidebar navigation. When both variables are set, a link is constructed and shown under the "External" section. The link opens in a new tab or window.</p>
+      <pre>az webapp config appsettings set \
+  --resource-group rg-perf-simulator \
+  --name app-perf-simulator-py \
+  --settings GITHUB_USER_NAME=myorg GITHUB_REPO_NAME=perfsimpython</pre>
+      <p>This would generate a link to: <code>https://github.com/myorg/perfsimpython</code></p>
       </section>
 
       <section id="verify" class="doc-section">
@@ -665,6 +683,30 @@ az webapp log download \
             }
         }
         fetchAndDisplayFooter();
+
+        // Fetch and display GitHub link (if configured)
+        async function fetchAndDisplayGithubLink() {
+            try {
+                const response = await fetch('/api/github-config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_configured && data.github_url) {
+                        const githubLink = document.getElementById('githubRepoLink');
+                        const githubLabel = document.getElementById('githubSectionLabel');
+                        if (githubLink) {
+                            githubLink.href = data.github_url;
+                            githubLink.classList.remove('hidden-until-loaded');
+                        }
+                        if (githubLabel) {
+                            githubLabel.classList.remove('hidden-until-loaded');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch GitHub config:', error);
+            }
+        }
+        fetchAndDisplayGithubLink();
     </script>
 </body>
 </html>

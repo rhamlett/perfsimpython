@@ -364,8 +364,8 @@
                 <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
             </a>
             <div class="sidebar-divider"></div>
-            <div class="sidebar-section-label">External</div>
-            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+            <div id="githubSectionLabel" class="sidebar-section-label hidden-until-loaded">External</div>
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item hidden-until-loaded">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
             </a>
@@ -1295,6 +1295,30 @@ async def fetch_data():
             }
         }
         fetchAndDisplayFooter();
+
+        // Fetch and display GitHub link (if configured)
+        async function fetchAndDisplayGithubLink() {
+            try {
+                const response = await fetch('/api/github-config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_configured && data.github_url) {
+                        const githubLink = document.getElementById('githubRepoLink');
+                        const githubLabel = document.getElementById('githubSectionLabel');
+                        if (githubLink) {
+                            githubLink.href = data.github_url;
+                            githubLink.classList.remove('hidden-until-loaded');
+                        }
+                        if (githubLabel) {
+                            githubLabel.classList.remove('hidden-until-loaded');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch GitHub config:', error);
+            }
+        }
+        fetchAndDisplayGithubLink();
     </script>
 </body>
 </html>

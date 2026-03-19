@@ -51,7 +51,12 @@ const state = {
     // Track processed latency timestamps to avoid duplicates
     processedLatencyTimestamps: new Set(),
     // Track processed event keys to avoid duplicate server event display
-    processedEventKeys: new Set()
+    processedEventKeys: new Set(),
+    // Slow request generator tracking
+    slowRequestGeneratorRunning: false,
+    slowRequestGeneratorCount: 0,
+    slowRequestGeneratorMax: 0,
+    normalProbeIntervalMs: 200  // Store normal probe interval to restore later
 };
 
 // ==========================================================================
@@ -360,6 +365,46 @@ function handleMetricsUpdate(message) {
         // Transition from idle
         else if (!idleData.is_idle && wasIdle) {
             updateIdleDisplay(false);
+            startLatencyProbe();
+        }
+    }
+
+    // Handle slow request generator state
+    const slowRequestData = data.slowRequestGenerator || {};
+    if (slowRequestData.is_running !== undefined) {
+        const wasRunning = state.slowRequestGeneratorRunning;
+        state.slowRequestGeneratorRunning = slowRequestData.is_running;
+        state.slowRequestGeneratorCount = slowRequestData.generated_count || 0;
+        state.slowRequestGeneratorMax = slowRequestData.max_requests || 0;
+        
+        // Calculate active requests (in-flight slow requests)
+        // Active = generated - completed (approximation based on timing)
+        const activeCount = Math.max(0, Math.min(
+            state.slowRequestGeneratorCount,
+            Math.ceil(slowRequestData.delay_seconds / (slowRequestData.interval_seconds || 1))
+        ));
+        
+        // Update overlay display
+        updateSlowRequestOverlay(
+            slowRequestData.is_running,
+            state.slowRequestGeneratorCount,
+            state.slowRequestGeneratorMax,
+            activeCount
+        );
+        
+        // Transition: slow request generator started
+        if (slowRequestData.is_running && !wasRunning && !state.isIdle) {
+            // Store current probe interval and switch to slower rate
+            state.normalProbeIntervalMs = CONFIG.latencyProbeIntervalMs;
+            CONFIG.latencyProbeIntervalMs = 5000; // 5 seconds
+            stopLatencyProbe();
+            startLatencyProbe();
+        }
+        // Transition: slow request generator stopped
+        else if (!slowRequestData.is_running && wasRunning && !state.isIdle) {
+            // Restore normal probe interval
+            CONFIG.latencyProbeIntervalMs = state.normalProbeIntervalMs;
+            stopLatencyProbe();
             startLatencyProbe();
         }
     }
@@ -881,6 +926,26 @@ function updateLatencyChart() {
 }
 
 // ==========================================================================
+// Slow Request Overlay
+// ==========================================================================
+
+function updateSlowRequestOverlay(isRunning, completedCount, maxRequests, activeCount) {
+    const overlay = document.getElementById('slowRequestOverlay');
+    const statusEl = document.getElementById('slowRequestStatus');
+    
+    if (!overlay) return;
+    
+    if (isRunning) {
+        overlay.classList.remove('hidden-until-loaded');
+        if (statusEl) {
+            statusEl.textContent = `Running: ${completedCount}/${maxRequests} completed, ${activeCount} active`;
+        }
+    } else {
+        overlay.classList.add('hidden-until-loaded');
+    }
+}
+
+// ==========================================================================
 // Simulations List
 // ==========================================================================
 
@@ -964,11 +1029,6 @@ function logEvent(type, message, options = {}) {
     entry.innerHTML = `<span class="log-time">${timestamp}</span> <span class="log-icon">${icon}</span> ${message}`;
     
     container.insertBefore(entry, container.firstChild);
-    
-    // Limit to 100 entries
-    while (container.children.length > 100) {
-        container.lastChild.remove();
-    }
 }
 
 function getEventIcon(type) {
@@ -1310,6 +1370,7 @@ async function fetchConfig() {
             const data = await response.json();
             if (data.latencyProbeIntervalMs && data.latencyProbeIntervalMs >= 100) {
                 CONFIG.latencyProbeIntervalMs = data.latencyProbeIntervalMs;
+                state.normalProbeIntervalMs = data.latencyProbeIntervalMs; // Store for slow request restoration
                 console.log(`Health probe interval set to ${CONFIG.latencyProbeIntervalMs}ms from server config`);
             }
             // Update build time displays
@@ -1508,6 +1569,33 @@ async function fetchAndDisplayFooter() {
 }
 
 // ==========================================================================
+// GitHub Link Display
+// ==========================================================================
+
+async function fetchAndDisplayGithubLink() {
+    try {
+        const response = await fetch(`${CONFIG.apiBaseUrl}/github-config`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.is_configured && data.github_url) {
+                const githubLink = document.getElementById('githubRepoLink');
+                const githubLabel = document.getElementById('githubSectionLabel');
+                if (githubLink) {
+                    githubLink.href = data.github_url;
+                    githubLink.classList.remove('hidden-until-loaded');
+                }
+                if (githubLabel) {
+                    githubLabel.classList.remove('hidden-until-loaded');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch GitHub config:', error);
+        // Keep link hidden on error
+    }
+}
+
+// ==========================================================================
 // SKU Display
 // ==========================================================================
 
@@ -1559,6 +1647,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Fetch and display custom footer (if configured)
     fetchAndDisplayFooter();
+
+    // Fetch and display GitHub link (if configured)
+    fetchAndDisplayGithubLink();
     
     // Log startup
     if (state.idleTimeoutMinutes > 0) {

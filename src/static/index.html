@@ -79,8 +79,8 @@
                 <span class="nav-label">Deploy to Azure<span class="nav-desc">GitHub Actions + OIDC setup</span></span>
             </a>
             <div class="sidebar-divider"></div>
-            <div class="sidebar-section-label">External</div>
-            <a href="https://github.com/rhamlett/perfsimpython" target="_blank" rel="noopener" class="sidebar-nav-item">
+            <div id="githubSectionLabel" class="sidebar-section-label hidden-until-loaded">External</div>
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item hidden-until-loaded">
                 <span class="nav-icon">🐙</span>
                 <span class="nav-label">GitHub Repository<span class="nav-desc">Source code & issues</span></span>
             </a>
@@ -322,6 +322,10 @@
 
             <div class="chart-container latency-chart-container">
                 <h3>📊 Response Latency Over Time</h3>
+                <div id="slowRequestOverlay" class="slow-request-overlay hidden-until-loaded">
+                    <p class="slow-request-message">Latency probes reduced during Slow Request testing to ensure clean py-spy and cProfile diagnostics.</p>
+                    <p class="slow-request-status" id="slowRequestStatus">Running: 0/0 completed, 0 active</p>
+                </div>
                 <canvas id="latencyChart"></canvas>
             </div>
         </section>
