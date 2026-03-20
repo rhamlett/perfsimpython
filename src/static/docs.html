@@ -340,7 +340,13 @@
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
     <aside id="sidebar-drawer" class="sidebar-drawer">
         <div class="sidebar-header">
-            <h2>🐍 PerfSim Python</h2>
+            <h2>
+                <svg class="python-logo-sm" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#5A9FD4" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                    <path fill="#FFD43B" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+                </svg>
+                PerfSim Python
+            </h2>
             <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">&times;</button>
         </div>
         <nav class="sidebar-nav">
@@ -446,107 +452,6 @@
                         </ul>
                         <p><strong>Only deploy this application in isolated, non-production environments.</strong></p>
                     </div>
-                </section>
-
-                <!-- Quick Start Section -->
-                <section id="quick-start" class="doc-section">
-                    <h2>🚀 Quick Start</h2>
-
-                    <h3>Run Locally</h3>
-                    <div class="code-block"><span class="comment"># Clone the repository</span>
-git clone https://github.com/rhamlett/perfsimpython.git
-cd perfsimpython
-
-<span class="comment"># Create virtual environment and install dependencies</span>
-python -m venv venv
-source venv/bin/activate  <span class="comment"># On Windows: venv\Scripts\activate</span>
-pip install -r requirements.txt
-
-<span class="comment"># Run the application</span>
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-
-<span class="comment"># Open in browser</span>
-<span class="comment"># Dashboard: http://localhost:8000</span></div>
-
-                    <h3>Run Tests</h3>
-                    <div class="code-block"><span class="comment"># Run all tests</span>
-pytest
-
-<span class="comment"># Run with coverage</span>
-pytest --cov=src --cov-report=html</div>
-                </section>
-
-                <!-- Environment Variables Section -->
-                <section id="environment-variables" class="doc-section">
-                    <h2>⚙️ Environment Variables</h2>
-                    <p>The following environment variables can be configured to customize application behavior. These are optional and primarily useful when deploying to Azure App Service.</p>
-
-                    <table class="api-table">
-                        <thead>
-                            <tr>
-                                <th>Variable</th>
-                                <th>Description</th>
-                                <th>Default</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>HEALTH_PROBE_RATE</code></td>
-                                <td>Health probe interval in milliseconds (default: 200, minimum: 100). Lower values provide more granular latency data but increase overhead during profiling.</td>
-                                <td>200</td>
-                            </tr>
-                            <tr>
-                                <td><code>IDLE_TIMEOUT_MINUTES</code></td>
-                                <td>Minutes of inactivity before suspending health probes (default: 20). Reduces network traffic and Application Insights telemetry when idle.</td>
-                                <td>20</td>
-                            </tr>
-                            <tr>
-                                <td><code>PAGE_FOOTER</code></td>
-                                <td>Custom HTML footer text displayed at the bottom of the dashboard. Supports HTML links for attribution.</td>
-                                <td><em>None</em></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3>HEALTH_PROBE_RATE</h3>
-                    <p>Controls how frequently the dashboard probes the application for latency measurement. Lower values provide more granular data but can cause probe overlaps during profiling.</p>
-                    <ul>
-                        <li><strong>Default:</strong> 200ms (5 probes/second)</li>
-                        <li><strong>Minimum:</strong> 100ms (values below this are clamped)</li>
-                        <li><strong>Chart updates:</strong> The latency chart always updates at 100ms using interpolation</li>
-                    </ul>
-                    <h4>Setting via Azure CLI:</h4>
-                    <div class="code-block">az webapp config appsettings set \
-    --resource-group rg-perfsimpython \
-    --name perfsimpython \
-    --settings HEALTH_PROBE_RATE=400</div>
-
-                    <h3>IDLE_TIMEOUT_MINUTES</h3>
-                    <p>When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend, AppLens, and Application Insights.</p>
-                    <ul>
-                        <li><strong>Default:</strong> 20 minutes</li>
-                        <li><strong>Wake-up:</strong> Simply reload the dashboard or send any API request</li>
-                        <li><strong>Activity sources:</strong> Dashboard page loads, API calls (load test traffic counts as activity)</li>
-                        <li><strong>Disable:</strong> Set to 0 to disable idle mode completely</li>
-                    </ul>
-                    <h4>Setting via Azure CLI:</h4>
-                    <div class="code-block">az webapp config appsettings set \
-    --resource-group rg-perfsimpython \
-    --name perfsimpython \
-    --settings IDLE_TIMEOUT_MINUTES=30</div>
-
-                    <h3>PAGE_FOOTER</h3>
-                    <p>The <code>PAGE_FOOTER</code> environment variable allows you to customize the footer credits displayed on the dashboard. This is useful for attributing tools, teams, or linking to relevant resources.</p>
-                    <h4>Example Value:</h4>
-                    <div class="code-block">Created by &lt;a href="https://speckit.org/" target="_blank"&gt;SpecKit&lt;/a&gt; and &lt;a href="https://github.com/copilot" target="_blank"&gt;Github Copilot&lt;/a&gt;</div>
-                    <h4>Setting via Azure CLI:</h4>
-                    <div class="code-block">az webapp config appsettings set \
-    --resource-group rg-perfsimpython \
-    --name perfsimpython \
-    --settings PAGE_FOOTER='Created by &lt;a href="https://speckit.org/" target="_blank"&gt;SpecKit&lt;/a&gt;'</div>
-                    <h4>Setting Locally:</h4>
-                    <div class="code-block">export PAGE_FOOTER='Created by &lt;a href="https://speckit.org/"&gt;SpecKit&lt;/a&gt;'</div>
-                    <p>The footer is retrieved via the <code>/api/footer</code> endpoint and rendered in the dashboard's footer section. If <code>PAGE_FOOTER</code> is not set, the default credits are shown.</p>
                 </section>
 
                 <!-- Dashboard Section -->
@@ -1048,118 +953,6 @@ async def fetch_data():
                     </ol>
                 </section>
 
-                <!-- API Reference Section -->
-                <section id="api" class="doc-section">
-                    <h2>🔌 API Reference</h2>
-                    <p>For automated testing and load testing scenarios, the following API endpoints are available. All endpoints are prefixed with <code>/api</code>.</p>
-
-                    <h3>Health & Monitoring</h3>
-                    <table class="api-table">
-                        <thead>
-                            <tr>
-                                <th>Endpoint</th>
-                                <th>Method</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>/api/health</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Basic health check</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/health/probe</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Lightweight probe for latency measurement</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/metrics</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Current metrics snapshot</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/admin/stats</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Simulation and resource statistics</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/config</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Frontend configuration including idle state</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/activity</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Record activity to wake from idle state</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/footer</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>Get custom footer text (PAGE_FOOTER env var)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3>Simulation Endpoints</h3>
-                    <table class="api-table">
-                        <thead>
-                            <tr>
-                                <th>Endpoint</th>
-                                <th>Method</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>/api/cpu/start</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Start CPU stress simulation</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/cpu/stop-all</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Stop all CPU simulations</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/memory/allocate</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Allocate memory block</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/memory/release-all</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Release all memory blocks</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/blocking/async</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Block the event loop</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/slow/start</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Start slow request simulation</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/slow/stop</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Stop slow request simulation</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/crash/types</code></td>
-                                <td><span class="method-badge method-get">GET</span></td>
-                                <td>List available crash types</td>
-                            </tr>
-                            <tr>
-                                <td><code>/api/crash</code></td>
-                                <td><span class="method-badge method-post">POST</span></td>
-                                <td>Trigger crash (requires confirmation)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </section>
-
             </div>
         </div>
 
@@ -1170,8 +963,6 @@ async def fetch_data():
                     <div class="doc-toc-title">On This Page</div>
                     <ul>
                         <li class="doc-toc-item"><a href="#overview"><span class="toc-icon">🎯</span> Overview</a></li>
-                        <li class="doc-toc-item"><a href="#quick-start"><span class="toc-icon">🚀</span> Quick Start</a></li>
-                        <li class="doc-toc-item"><a href="#environment-variables"><span class="toc-icon">⚙️</span> Environment Variables</a></li>
                         <li class="doc-toc-divider" aria-hidden="true"></li>
                         <li class="doc-toc-section-label">Dashboard</li>
                         <li class="doc-toc-item"><a href="#dashboard"><span class="toc-icon">📊</span> Dashboard</a></li>
@@ -1184,8 +975,6 @@ async def fetch_data():
                         <li class="doc-toc-item"><a href="#slowrequest"><span class="toc-icon">🐌</span> Slow Requests</a></li>
                         <li class="doc-toc-item"><a href="#failedrequests"><span class="toc-icon">❌</span> Failed Requests</a></li>
                         <li class="doc-toc-item"><a href="#crash"><span class="toc-icon">💥</span> Crash Simulation</a></li>
-                        <li class="doc-toc-divider" aria-hidden="true"></li>
-                        <li class="doc-toc-item"><a href="#api"><span class="toc-icon">🔌</span> API Reference</a></li>
                     </ul>
                 </div>
             </div>
