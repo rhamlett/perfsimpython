@@ -625,34 +625,42 @@ echo "AZURE_SUBSCRIPTION_ID=$SUB_ID"</code></pre>
     <script>
         // Fetch and display custom page footer and build info
         (async function() {
-            // Fetch app config for footer and GitHub repo link
+            // Fetch app config for footer
             try {
-                const response = await fetch('/api/config');
+                const response = await fetch('/api/footer');
                 if (response.ok) {
-                    const config = await response.json();
+                    const data = await response.json();
                     const footerEl = document.getElementById('pageFooterContent');
                     if (footerEl) {
-                        if (config.pageFooter && config.pageFooter.trim()) {
-                            footerEl.innerHTML = config.pageFooter;
+                        if (data.has_custom_footer && data.footer && data.footer.trim()) {
+                            footerEl.innerHTML = data.footer;
                         } else {
                             footerEl.style.display = 'none';
                         }
                     }
-                    // Update GitHub repo link if provided in config
-                    const githubLink = document.getElementById('githubRepoLink');
-                    const githubSectionLabel = document.getElementById('githubSectionLabel');
-                    if (githubLink) {
-                        if (config.gitHubRepoUrl && config.gitHubRepoUrl.trim()) {
-                            githubLink.href = config.gitHubRepoUrl;
+                }
+            } catch (e) {
+                console.error('Failed to fetch footer', e);
+            }
+            // Fetch GitHub config
+            try {
+                const response = await fetch('/api/github-config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_configured && data.github_url) {
+                        const githubLink = document.getElementById('githubRepoLink');
+                        const githubSectionLabel = document.getElementById('githubSectionLabel');
+                        if (githubLink) {
+                            githubLink.href = data.github_url;
                             githubLink.classList.remove('hidden-until-loaded');
-                            if (githubSectionLabel) {
-                                githubSectionLabel.classList.remove('hidden-until-loaded');
-                            }
+                        }
+                        if (githubSectionLabel) {
+                            githubSectionLabel.classList.remove('hidden-until-loaded');
                         }
                     }
                 }
             } catch (e) {
-                console.error('Failed to fetch config', e);
+                console.error('Failed to fetch GitHub config', e);
             }
             // Fetch build info
             try {
