@@ -66,7 +66,8 @@ async def _broadcast_metrics() -> None:
     metrics_service = MetricsService()
 
     # Track the last time we broadcast events to avoid sending duplicates
-    last_event_broadcast = datetime.now(UTC)
+    # Use SERVER_START_TIME so events logged during startup (like disclaimer) are included
+    last_event_broadcast = SERVER_START_TIME
 
     while True:
         try:

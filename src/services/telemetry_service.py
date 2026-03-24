@@ -125,7 +125,7 @@ def track_simulation_event(
         properties: Additional properties to include in the event.
     """
     if not _appinsights_available:
-        logger.debug("Telemetry event not sent (App Insights not available): %s", event_name)
+        logger.warning("Telemetry event NOT sent (App Insights not available): %s", event_name)
         return
 
     try:
@@ -140,6 +140,9 @@ def track_simulation_event(
         # This writes to AppEvents table in Log Analytics
         if _track_event_func:
             _track_event_func(event_name, event_properties)
+            logger.info("Telemetry event sent: %s (simulation_id=%s)", event_name, simulation_id)
+        else:
+            logger.warning("track_event function not available - event dropped: %s", event_name)
 
         # Also add to current span for trace correlation
         from opentelemetry import trace
@@ -148,13 +151,6 @@ def track_simulation_event(
         if current_span and current_span.is_recording():
             current_span.set_attribute("simulation.id", str(simulation_id))
             current_span.set_attribute("simulation.type", simulation_type)
-
-        logger.debug(
-            "Tracked telemetry event: %s (simulation_id=%s, type=%s)",
-            event_name,
-            simulation_id,
-            simulation_type,
-        )
     except Exception as e:
         logger.warning("Failed to track telemetry event: %s", e)
 
