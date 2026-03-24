@@ -194,6 +194,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         message=f"Application started on {hostname}",
     )
 
+    # Log liability disclaimer
+    event_log_service.log(
+        event_type="warning",
+        simulation_type="system",
+        message='⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse. Deploy only in isolated, non-production environments. Licensed under MIT License.',
+    )
+
     # Start background metrics broadcast task
     global _metrics_broadcast_task
     _metrics_broadcast_task = asyncio.create_task(_broadcast_metrics())
