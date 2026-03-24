@@ -7,10 +7,14 @@ allowing correlation of dashboard events with server-side logs.
 EDUCATIONAL NOTE: Application Insights is optional - the app runs without it,
 just doesn't send telemetry. Azure App Service sets APPLICATIONINSIGHTS_CONNECTION_STRING
 automatically when App Insights is enabled in the portal.
+
+Custom events are sent via azure-monitor-events-extension which exports to the
+AppEvents table in Log Analytics (customEvents in classic App Insights).
 """
 
 import logging
 import os
+from collections.abc import Callable
 from contextvars import ContextVar
 from uuid import UUID
 
@@ -22,11 +26,12 @@ _current_simulation_id: ContextVar[UUID | None] = ContextVar("current_simulation
 # Whether Application Insights is available
 _appinsights_available = False
 _tracer = None
+_track_event_func: Callable[..., None] | None = None
 
 
 def _check_appinsights() -> bool:
     """Check if Application Insights/OpenTelemetry is available."""
-    global _appinsights_available, _tracer
+    global _appinsights_available, _tracer, _track_event_func
 
     # Check for connection string
     conn_string = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
@@ -34,13 +39,26 @@ def _check_appinsights() -> bool:
         logger.debug("Application Insights not configured (no connection string)")
         return False
 
-    # Try to import OpenTelemetry
+    # Try to import OpenTelemetry and Azure Monitor events extension
     try:
         from opentelemetry.trace import get_tracer
 
         _tracer = get_tracer(__name__)
+
+        # Import track_event from azure-monitor-events-extension
+        # This is what sends events to AppEvents table in Log Analytics
+        try:
+            from azure.monitor.events.extension import track_event
+
+            _track_event_func = track_event
+            logger.info("Application Insights integration enabled with custom events support")
+        except ImportError:
+            logger.warning(
+                "azure-monitor-events-extension not installed - "
+                "custom events will not appear in AppEvents table"
+            )
+
         _appinsights_available = True
-        logger.info("Application Insights integration enabled")
         return True
     except ImportError:
         logger.debug("OpenTelemetry not installed - Application Insights correlation disabled")
@@ -79,6 +97,13 @@ def track_simulation_event(
     Sends a custom event to Application Insights with the simulation ID
     as a property for correlation in KQL queries.
 
+    Events appear in the AppEvents table (Log Analytics) or customEvents
+    (classic Application Insights) and can be queried with:
+
+        AppEvents
+        | where Name in ("SimulationStarted", "SimulationEnded")
+        | where Properties["SimulationId"] == "YOUR-SIMULATION-ID"
+
     Args:
         event_name: Name of the event (e.g., "SimulationStarted", "SimulationEnded").
         simulation_id: The unique simulation ID.
@@ -90,21 +115,25 @@ def track_simulation_event(
         return
 
     try:
+        # Build event properties
+        event_properties = {
+            "SimulationId": str(simulation_id),
+            "SimulationType": simulation_type,
+            **(properties or {}),
+        }
+
+        # Send custom event using azure-monitor-events-extension
+        # This writes to AppEvents table in Log Analytics
+        if _track_event_func:
+            _track_event_func(event_name, event_properties)
+
+        # Also add to current span for trace correlation
         from opentelemetry import trace
 
-        # Get current span and add simulation attributes
         current_span = trace.get_current_span()
         if current_span and current_span.is_recording():
             current_span.set_attribute("simulation.id", str(simulation_id))
             current_span.set_attribute("simulation.type", simulation_type)
-            current_span.add_event(
-                event_name,
-                attributes={
-                    "SimulationId": str(simulation_id),
-                    "SimulationType": simulation_type,
-                    **(properties or {}),
-                },
-            )
 
         logger.debug(
             "Tracked telemetry event: %s (simulation_id=%s, type=%s)",
