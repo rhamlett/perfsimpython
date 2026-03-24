@@ -10,7 +10,7 @@ websockets>=12.0
 python-multipart>=0.0.6
 httpx>=0.27.0
 
-# Azure Monitor / Application Insights (optional - for telemetry correlation)
-# These are automatically available in Azure App Service with App Insights enabled
-azure-monitor-opentelemetry>=1.0.0
+# Azure Monitor / Application Insights (optional - for custom events)
+# App Service auto-instrumentation handles the OpenTelemetry setup when enabled via portal.
+# Do NOT include azure-monitor-opentelemetry - it conflicts with auto-instrumentation.
 azure-monitor-events-extension>=0.1.0
