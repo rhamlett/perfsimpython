@@ -30,7 +30,12 @@ _track_event_func: Callable[..., None] | None = None
 
 
 def _check_appinsights() -> bool:
-    """Check if Application Insights/OpenTelemetry is available and configure it."""
+    """Check if Application Insights/OpenTelemetry is available.
+
+    NOTE: Do NOT call configure_azure_monitor() here. Azure App Service
+    auto-instrumentation (enabled via portal) already configures the
+    OpenTelemetry pipeline. Calling it again causes conflicts.
+    """
     global _appinsights_available, _tracer, _track_event_func
 
     # Check for connection string
@@ -39,17 +44,8 @@ def _check_appinsights() -> bool:
         logger.debug("Application Insights not configured (no connection string)")
         return False
 
-    # Try to configure Azure Monitor OpenTelemetry distro
+    # Try to import OpenTelemetry (should be available via App Service auto-instrumentation)
     try:
-        from azure.monitor.opentelemetry import configure_azure_monitor
-
-        # Configure the Azure Monitor exporter - this is REQUIRED before track_event works
-        configure_azure_monitor(
-            connection_string=conn_string,
-            enable_live_metrics=True,
-        )
-        logger.info("Azure Monitor OpenTelemetry configured successfully")
-
         from opentelemetry.trace import get_tracer
 
         _tracer = get_tracer(__name__)
@@ -70,12 +66,10 @@ def _check_appinsights() -> bool:
         _appinsights_available = True
         return True
     except ImportError as e:
-        logger.debug(
-            "OpenTelemetry/Azure Monitor not installed - Application Insights disabled: %s", e
-        )
+        logger.debug("OpenTelemetry not available - Application Insights disabled: %s", e)
         return False
     except Exception as e:
-        logger.warning("Failed to configure Azure Monitor: %s", e)
+        logger.warning("Failed to initialize Application Insights: %s", e)
         return False
 
 

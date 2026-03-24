@@ -1704,4 +1704,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     } else {
         logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: disabled)`);
     }
+
+    // Log liability disclaimer
+    logEvent('warning', '⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse. Deploy only in isolated, non-production environments. Licensed under MIT License.');
 });

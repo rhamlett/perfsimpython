@@ -66,8 +66,7 @@ async def _broadcast_metrics() -> None:
     metrics_service = MetricsService()
 
     # Track the last time we broadcast events to avoid sending duplicates
-    # Use SERVER_START_TIME so events logged during startup (like disclaimer) are included
-    last_event_broadcast = SERVER_START_TIME
+    last_event_broadcast = datetime.now(UTC)
 
     while True:
         try:
@@ -193,13 +192,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         event_type="info",
         simulation_type="system",
         message=f"Application started on {hostname}",
-    )
-
-    # Log liability disclaimer
-    event_log_service.log(
-        event_type="warning",
-        simulation_type="system",
-        message='⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse. Deploy only in isolated, non-production environments. Licensed under MIT License.',
     )
 
     # Start background metrics broadcast task
