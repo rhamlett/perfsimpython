@@ -103,11 +103,12 @@ class MemoryPressureService:
                     self.get_total_allocated_mb(),
                 )
 
-                # Log event for dashboard
-                event_log_service.log_event(
-                    event_type="memory_pressure",
+                # Log event for dashboard with simulation_id
+                event_log_service.log_start(
+                    simulation_type="memory_pressure",
+                    simulation_id=simulation.id,
                     message=f"Allocated {size_mb} MB (block {str(block_id)[:8]}...)",
-                    metadata={"size_mb": size_mb, "block_id": str(block_id)},
+                    data={"size_mb": size_mb, "block_id": str(block_id)},
                 )
 
                 return block
@@ -147,11 +148,12 @@ class MemoryPressureService:
                 self.get_total_allocated_mb(),
             )
 
-            # Log event for dashboard
-            event_log_service.log_event(
-                event_type="memory_pressure",
+            # Log event for dashboard with simulation_id
+            event_log_service.log_stop(
+                simulation_type="memory_pressure",
+                simulation_id=sim_id,
                 message=f"Released {block.size_mb} MB (block {str(block_id)[:8]}...)",
-                metadata={"size_mb": block.size_mb, "block_id": str(block_id)},
+                data={"size_mb": block.size_mb, "block_id": str(block_id)},
             )
 
             return True
@@ -203,6 +205,17 @@ class MemoryPressureService:
             The block metadata if found, None otherwise.
         """
         return self._blocks.get(block_id)
+
+    def get_simulation_id(self, block_id: UUID) -> UUID | None:
+        """Get the simulation ID for a specific block.
+
+        Args:
+            block_id: The ID of the memory block.
+
+        Returns:
+            The simulation ID if found, None otherwise.
+        """
+        return self._simulations.get(block_id)
 
     def get_allocated_blocks(self) -> list[AllocatedMemoryBlock]:
         """Get all currently allocated memory blocks.

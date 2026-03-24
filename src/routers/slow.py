@@ -50,6 +50,7 @@ class SlowGeneratorStartResponse(BaseModel):
 
     started: bool
     message: str
+    simulation_id: str | None = None
     config: dict
 
 
@@ -156,6 +157,9 @@ async def start_slow_generator(
     return SlowGeneratorStartResponse(
         started=True,
         message="Slow request generator started",
+        simulation_id=(
+            str(slow_request_service.simulation_id) if slow_request_service.simulation_id else None
+        ),
         config={
             "interval_seconds": request.interval_seconds,
             "max_requests": request.max_requests,

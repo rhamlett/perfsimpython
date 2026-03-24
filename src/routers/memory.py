@@ -33,6 +33,7 @@ class MemoryAllocateResponse(BaseModel):
     block_id: UUID
     size_mb: int
     message: str
+    simulation_id: str | None = None
 
 
 class MemoryReleaseRequest(BaseModel):
@@ -108,11 +109,13 @@ async def allocate_memory(
 
     try:
         block = memory_pressure_service.allocate_memory(actual_size)
+        simulation_id = memory_pressure_service.get_simulation_id(block.id)
 
         return MemoryAllocateResponse(
             block_id=block.id,
             size_mb=block.size_mb,
             message="Memory allocated",
+            simulation_id=str(simulation_id) if simulation_id else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -80,6 +80,7 @@ class BlockingStartResponse(BaseModel):
 
     started: bool
     message: str
+    simulation_id: str | None = None
     config: dict
 
 
@@ -134,10 +135,11 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
     )
     simulation_tracker.add(simulation)
 
-    event_log_service.log_event(
-        event_type="blocking",
+    event_log_service.log_start(
+        simulation_type="blocking",
+        simulation_id=simulation.id,
         message=f"Starting sync blocking for {request.duration_seconds}s x{request.count}",
-        metadata={
+        data={
             "type": "sync",
             "duration": request.duration_seconds,
             "count": request.count,
@@ -152,10 +154,11 @@ async def sync_blocking(request: SyncBlockRequest) -> BlockingResponse:
             total_blocked += blocked
             logger.debug("Sync blocking iteration %d/%d complete", i + 1, request.count)
 
-        event_log_service.log_event(
-            event_type="blocking",
+        event_log_service.log_stop(
+            simulation_type="blocking",
+            simulation_id=simulation.id,
             message=f"Sync blocking completed: {total_blocked:.2f}s total",
-            metadata={
+            data={
                 "type": "sync",
                 "total_blocked": total_blocked,
                 "count": request.count,
@@ -210,10 +213,11 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
     )
     simulation_tracker.add(simulation)
 
-    event_log_service.log_event(
-        event_type="blocking",
+    event_log_service.log_start(
+        simulation_type="blocking",
+        simulation_id=simulation.id,
         message=f"Starting async blocking for {request.duration_seconds}s",
-        metadata={
+        data={
             "type": "async",
             "duration": request.duration_seconds,
             "chunked": chunked,
@@ -232,10 +236,11 @@ async def async_blocking(request: AsyncBlockRequest) -> BlockingResponse:
             # Full event loop blocking (BAD!)
             blocked = await blocking_service.async_block(request.duration_seconds)
 
-        event_log_service.log_event(
-            event_type="blocking",
+        event_log_service.log_stop(
+            simulation_type="blocking",
+            simulation_id=simulation.id,
             message=f"Async blocking completed: {blocked:.2f}s",
-            metadata={
+            data={
                 "type": "async",
                 "blocked_duration": blocked,
                 "chunked": chunked,
@@ -346,10 +351,11 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
     )
     simulation_tracker.add(simulation)
 
-    event_log_service.log_event(
-        event_type="blocking",
+    event_log_service.log_start(
+        simulation_type="blocking",
+        simulation_id=simulation.id,
         message=f"Starting {request.count} {request.type} blocking operations ({request.duration_seconds}s each)",
-        metadata={
+        data={
             "type": request.type,
             "duration": request.duration_seconds,
             "count": request.count,
@@ -376,10 +382,11 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
                 for _ in range(request.count):
                     await blocking_service.run_sync_in_thread(request.duration_seconds)
 
-            event_log_service.log_event(
-                event_type="blocking",
+            event_log_service.log_stop(
+                simulation_type="blocking",
+                simulation_id=simulation.id,
                 message="Blocking operations completed",
-                metadata={
+                data={
                     "type": request.type,
                     "duration": request.duration_seconds,
                     "count": request.count,
@@ -395,6 +402,7 @@ async def start_blocking(request: BlockingStartRequest) -> BlockingStartResponse
     return BlockingStartResponse(
         started=True,
         message=f"Started {request.count} {request.type} blocking operations",
+        simulation_id=str(simulation.id),
         config={
             "type": request.type,
             "duration_seconds": request.duration_seconds,

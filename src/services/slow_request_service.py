@@ -140,10 +140,11 @@ class SlowRequestService:
             delay_seconds,
         )
 
-        event_log_service.log_event(
-            event_type="slow_generator_started",
+        event_log_service.log_start(
+            simulation_type="slow_request",
+            simulation_id=simulation.id,
             message=f"Starting slow request generator ({delay_seconds}s, interval {interval_seconds}s, max {max_requests})...",
-            metadata={
+            data={
                 "interval_seconds": interval_seconds,
                 "max_requests": max_requests,
                 "delay_seconds": delay_seconds,
@@ -197,14 +198,17 @@ class SlowRequestService:
             logger.info("Slow request generator cancelled")
         finally:
             self._is_running = False
+            # Capture simulation_id before removing
+            sim_id = self._simulation_id
             # Remove from simulation tracker
             if self._simulation_id:
                 simulation_tracker.remove(self._simulation_id)
                 self._simulation_id = None
-            event_log_service.log_event(
-                event_type="slow_generator_stopped",
+            event_log_service.log_stop(
+                simulation_type="slow_request",
+                simulation_id=sim_id,
                 message=f"Slow request generator stopped after {self._generated_count} requests",
-                metadata={"generated_count": self._generated_count},
+                data={"generated_count": self._generated_count},
             )
 
     def stop_slow_generator(self) -> bool:
@@ -222,6 +226,9 @@ class SlowRequestService:
             self._generator_task.cancel()
             self._generator_task = None
 
+        # Capture simulation_id before removing
+        sim_id = self._simulation_id
+
         # Remove from simulation tracker
         if self._simulation_id:
             simulation_tracker.remove(self._simulation_id)
@@ -232,11 +239,12 @@ class SlowRequestService:
             self._generated_count,
         )
 
-        # Log the stop event
-        event_log_service.log_event(
-            event_type="slow_generator_stopped",
+        # Log the stop event with simulation_id
+        event_log_service.log_stop(
+            simulation_type="slow_request",
+            simulation_id=sim_id,
             message=f"Slow request generator stopped after {self._generated_count} requests",
-            metadata={"generated_count": self._generated_count},
+            data={"generated_count": self._generated_count},
         )
 
         return True
@@ -250,6 +258,11 @@ class SlowRequestService:
     def generated_count(self) -> int:
         """Get the count of generated slow requests."""
         return self._generated_count
+
+    @property
+    def simulation_id(self) -> UUID | None:
+        """Get the current simulation ID if running."""
+        return self._simulation_id
 
     def get_stats(self) -> dict:
         """Get generator statistics.

@@ -431,9 +431,14 @@ function handleMetricsUpdate(message) {
         // Use simulation_type for icon/color (e.g., 'cpu_stress'), fall back to event_type
         const logType = event.simulation_type || event.event_type || 'system';
         const message = event.message || '';
+        const simulationId = event.simulation_id || null;
         
         // Log the event using the server's timestamp
-        logEvent(logType, message, { serverTimestamp: event.timestamp, icon: getServerEventIcon(logType) });
+        logEvent(logType, message, { 
+            serverTimestamp: event.timestamp, 
+            icon: getServerEventIcon(logType),
+            simulationId: simulationId
+        });
     }
 
     // Update history for charts
@@ -1009,6 +1014,48 @@ function formatDuration(seconds) {
 // Event Logging
 // ==========================================================================
 
+/**
+ * Wraps a message with a simulation ID tooltip for correlation.
+ * Clicking the message copies the simulation ID to clipboard.
+ * @param {string} message - The message to display
+ * @param {string} simulationId - The full GUID simulation ID (shown in tooltip)
+ * @returns {string} HTML string with message and tooltip
+ */
+function withSimulationId(message, simulationId) {
+    if (!simulationId) return message;
+    return `<span class="sim-msg" data-simid="${simulationId}" title="Click to copy Simulation ID: ${simulationId}">${message}</span>`;
+}
+
+/**
+ * Copies the simulation ID to clipboard when a sim-msg element is clicked.
+ * Shows a brief visual feedback to indicate successful copy.
+ */
+function initSimulationIdCopyHandlers() {
+    document.getElementById('eventLog').addEventListener('click', async (e) => {
+        const simMsg = e.target.closest('.sim-msg');
+        if (!simMsg) return;
+        
+        const simId = simMsg.dataset.simid;
+        if (!simId) return;
+        
+        try {
+            await navigator.clipboard.writeText(simId);
+            
+            // Visual feedback
+            simMsg.classList.add('copied');
+            const originalTitle = simMsg.title;
+            simMsg.title = 'Copied!';
+            
+            setTimeout(() => {
+                simMsg.classList.remove('copied');
+                simMsg.title = originalTitle;
+            }, 1500);
+        } catch (err) {
+            console.error('Failed to copy simulation ID:', err);
+        }
+    });
+}
+
 function logEvent(type, message, options = {}) {
     const container = document.getElementById('eventLog');
     if (!container) return;
@@ -1024,9 +1071,12 @@ function logEvent(type, message, options = {}) {
     
     const icon = options.icon || getEventIcon(type);
     
+    // Wrap message with simulation ID if present (for click-to-copy)
+    const displayMessage = withSimulationId(message, options.simulationId);
+    
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    entry.innerHTML = `<span class="log-time">${timestamp}</span> <span class="log-icon">${icon}</span> ${message}`;
+    entry.innerHTML = `<span class="log-time">${timestamp}</span> <span class="log-icon">${icon}</span> ${displayMessage}`;
     
     container.insertBefore(entry, container.firstChild);
 }
@@ -1628,11 +1678,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Set up event handlers
     setupEventHandlers();
     
-    // Record activity with server FIRST (this wakes the app from idle)
-    // Only page loads record activity, not WebSocket reconnects
-    await recordActivity('page_load');
-    
-    // Fetch config from server (will get updated idle state)
+    // Initialize simulation ID copy handlers for event log
+    initSimulationIdCopyHandlers();
     await fetchConfig();
     
     // Connect to WebSocket

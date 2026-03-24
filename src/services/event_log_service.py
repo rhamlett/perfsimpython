@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from threading import Lock
 from uuid import UUID
 
+from src.services.telemetry_service import track_simulation_event
+
 
 @dataclass
 class SimulationEvent:
@@ -94,6 +96,17 @@ class EventLogService:
         )
         with self._lock:
             self._events.append(event)
+
+        # Track in Application Insights if simulation_id is present
+        if simulation_id and event_type in ("start", "stop"):
+            telemetry_event = "SimulationStarted" if event_type == "start" else "SimulationEnded"
+            track_simulation_event(
+                event_name=telemetry_event,
+                simulation_id=simulation_id,
+                simulation_type=simulation_type,
+                properties={"message": message, **(data or {})},
+            )
+
         return event
 
     def log_start(
@@ -161,8 +174,9 @@ class EventLogService:
         event_type: str,
         message: str,
         metadata: dict | None = None,
+        simulation_id: UUID | None = None,
     ) -> SimulationEvent:
-        """Convenience method to log a simple event without simulation context.
+        """Convenience method to log a simple event with optional simulation context.
 
         This is a simpler API for logging events that don't need full
         simulation tracking. Uses event_type as simulation_type for
@@ -172,6 +186,7 @@ class EventLogService:
             event_type: Type of event (e.g., "memory_pressure", "blocking").
             message: Human-readable event description.
             metadata: Additional event data (optional).
+            simulation_id: ID of the related simulation (optional).
 
         Returns:
             The created event.
@@ -180,7 +195,7 @@ class EventLogService:
             event_type=event_type,
             simulation_type=event_type,
             message=message,
-            simulation_id=None,
+            simulation_id=simulation_id,
             data=metadata,
         )
 

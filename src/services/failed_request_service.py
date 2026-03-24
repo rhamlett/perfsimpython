@@ -134,11 +134,11 @@ class FailedRequestService:
             self._target_count,
         )
 
-        event_log_service.log_event(
-            event_type="failedrequests",
+        event_log_service.log_start(
+            simulation_type="failed_requests",
+            simulation_id=self._simulation_id,
             message=f"Started generating {self._target_count} failures",
-            metadata={
-                "simulation_id": str(self._simulation_id),
+            data={
                 "target_count": self._target_count,
             },
         )
@@ -168,6 +168,9 @@ class FailedRequestService:
             self._generator_task.cancel()
             self._generator_task = None
 
+        # Capture simulation_id before removing
+        sim_id = self._simulation_id
+
         # Remove from simulation tracker
         if self._simulation_id:
             simulation_tracker.remove(self._simulation_id)
@@ -179,10 +182,11 @@ class FailedRequestService:
             self._requests_completed,
         )
 
-        event_log_service.log_event(
-            event_type="failed_requests_stopped",
+        event_log_service.log_stop(
+            simulation_type="failed_requests",
+            simulation_id=sim_id,
             message=f"Stopped after {self._requests_completed} failed requests",
-            metadata={
+            data={
                 "requests_sent": self._requests_sent,
                 "requests_completed": self._requests_completed,
             },
