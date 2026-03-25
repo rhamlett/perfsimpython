@@ -1269,7 +1269,7 @@ body.page-doc {
 }
 
 .log-container {
-    max-height: 575px;
+    max-height: 1200px;
     overflow-y: auto;
     font-family: 'Cascadia Code', 'Consolas', monospace;
     font-size: 0.8125rem;
