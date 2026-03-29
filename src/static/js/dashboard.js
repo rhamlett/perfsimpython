@@ -219,7 +219,10 @@ function initializeWebSocket() {
                 wsDisconnectMessageTimeout = null;
             }
             
-            updateConnectionStatus('connected', 'Connected');
+            // Don't overwrite 'Idle' status if app is currently idle
+            if (!state.isIdle) {
+                updateConnectionStatus('connected', 'Connected');
+            }
             
             // Log reconnection if we were previously connected
             if (wsDisconnectTime) {
