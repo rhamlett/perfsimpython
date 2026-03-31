@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.models.responses import HealthResponse
@@ -14,6 +15,24 @@ from src.services.metrics_service import metrics_service
 from src.services.simulation_tracker import simulation_tracker
 
 router = APIRouter()
+
+
+@router.get("/health/ping", tags=["health"])
+async def health_ping() -> JSONResponse:
+    """Ultra-lightweight health probe endpoint for latency measurement.
+
+    Returns a minimal JSON response for accurate client-side latency tracking.
+    This endpoint goes through the normal middleware chain so that Application
+    Insights auto-instrumentation captures it, making health probe traffic
+    visible in Azure AppLens diagnostics.
+
+    Returns:
+        Minimal JSON response with status "ok".
+    """
+    return JSONResponse(
+        content={"status": "ok"},
+        headers={"cache-control": "no-store"},
+    )
 
 
 class SkuResponse(BaseModel):

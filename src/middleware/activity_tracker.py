@@ -25,6 +25,7 @@ class ActivityTrackerMiddleware(BaseHTTPMiddleware):
     EXCLUDED_PATHS = {
         "/api/health",
         "/api/health/activity",
+        "/api/health/ping",
         "/api/config",
         "/api/sku",
         "/api/metrics",
