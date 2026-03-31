@@ -48,8 +48,6 @@ const state = {
     isIdle: false,
     idleTimeoutMinutes: 20,
     secondsUntilIdle: -1,
-    // Track processed latency timestamps to avoid duplicates
-    processedLatencyTimestamps: new Set(),
     // Track processed event keys to avoid duplicate server event display
     processedEventKeys: new Set(),
     // Slow request generator tracking
@@ -451,45 +449,12 @@ function handleMetricsUpdate(message) {
     // Update charts
     updateCharts();
     
-    // Handle latency if present (for backwards compatibility)
-    if (message.latency_ms !== undefined) {
-        handleLatencyUpdate({
-            timestamp: timestamp,
-            latencyMs: message.latency_ms,
-            isTimeout: message.latency_ms >= CONFIG.latencyTimeoutMs,
-            isError: false
-        });
-    }
-
-    // Process request latencies from all API endpoints (new format)
-    const requestLatencies = data.requestLatencies || [];
-    if (requestLatencies.length > 0) {
-        // Process each latency record - these are actual API request latencies
-        for (const record of requestLatencies) {
-            // Create unique key from timestamp + path to dedupe
-            const recordKey = `${record.timestamp}-${record.path}`;
-            if (state.processedLatencyTimestamps.has(recordKey)) {
-                continue; // Already processed this record
-            }
-            state.processedLatencyTimestamps.add(recordKey);
-            
-            // Keep set size bounded (remove old entries)
-            if (state.processedLatencyTimestamps.size > 1000) {
-                const iterator = state.processedLatencyTimestamps.values();
-                for (let i = 0; i < 500; i++) {
-                    state.processedLatencyTimestamps.delete(iterator.next().value);
-                }
-            }
-            
-            const recordTime = new Date(record.timestamp * 1000); // Convert unix timestamp
-            handleLatencyUpdate({
-                timestamp: recordTime,
-                latencyMs: record.latencyMs,
-                isTimeout: record.latencyMs >= CONFIG.latencyTimeoutMs,
-                isError: record.statusCode >= 500
-            });
-        }
-    }
+    // NOTE: Latency chart and Current badge are driven exclusively by client-side
+    // health probes (startLatencyProbe). The probe measures true round-trip time.
+    // WebSocket requestLatencies contain server-side processing times (near-zero)
+    // which would cause the chart/badge to flash between zero and real values.
+    // The chart update interval (100ms) interpolates between probe results (200ms)
+    // by repeating the last known value for smooth, consistent display.
     
     // Update active simulations (always update to clear when empty)
     updateSimulationsList(activeSimulations);
