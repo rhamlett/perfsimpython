@@ -46,6 +46,7 @@ const state = {
     checkProcessIdOnNextMessage: false,
     // Idle state tracking
     isIdle: false,
+    intentionalDisconnect: false,
     idleTimeoutMinutes: 20,
     secondsUntilIdle: -1,
     // Track processed event keys to avoid duplicate server event display
@@ -217,10 +218,8 @@ function initializeWebSocket() {
                 wsDisconnectMessageTimeout = null;
             }
             
-            // Don't overwrite 'Idle' status if app is currently idle
-            if (!state.isIdle) {
-                updateConnectionStatus('connected', 'Connected');
-            }
+            state.intentionalDisconnect = false;
+            updateConnectionStatus('connected', 'Connected');
             
             // Log reconnection if we were previously connected
             if (wsDisconnectTime) {
@@ -241,6 +240,11 @@ function initializeWebSocket() {
         };
         
         state.wsConnection.onclose = (event) => {
+            // If we intentionally disconnected for idle, don't reconnect or update status
+            if (state.intentionalDisconnect) {
+                return;
+            }
+            
             updateConnectionStatus('disconnected', 'Disconnected');
             
             // Record disconnect time if not already set
@@ -279,6 +283,17 @@ function updateConnectionStatus(status, text) {
     }
     if (textEl) {
         textEl.textContent = text;
+    }
+}
+
+/**
+ * Ensures the WebSocket connection is open. If disconnected (e.g., after idle),
+ * reconnects immediately. Called by simulation functions to wake the connection.
+ */
+function ensureWebSocket() {
+    if (!state.wsConnection || state.wsConnection.readyState === WebSocket.CLOSED || state.wsConnection.readyState === WebSocket.CLOSING) {
+        state.intentionalDisconnect = false;
+        initializeWebSocket();
     }
 }
 
@@ -357,11 +372,16 @@ function handleMetricsUpdate(message) {
         state.isIdle = idleData.is_idle;
         state.secondsUntilIdle = idleData.seconds_until_idle || -1;
         
-        // Transition to idle
+        // Transition to idle - stop probes and disconnect WebSocket
         if (idleData.is_idle && !wasIdle) {
             stopLatencyProbe();
             updateIdleDisplay(true);
             logEvent('warning', 'Application going idle, no health probes being sent.  There will be gaps in diagnostics and logs.');
+            // Intentionally disconnect WebSocket to prevent reconnect cycle flicker
+            state.intentionalDisconnect = true;
+            if (state.wsConnection) {
+                state.wsConnection.close();
+            }
         }
         // Transition from idle
         else if (!idleData.is_idle && wasIdle) {
@@ -1107,6 +1127,7 @@ function getServerEventIcon(eventType) {
 // ==========================================================================
 
 async function triggerCpuStress() {
+    ensureWebSocket();
     const duration = parseInt(document.getElementById('cpuDuration').value) || 30;
     const level = document.getElementById('cpuLevel').value || 'high';
     
@@ -1135,6 +1156,7 @@ async function triggerCpuStress() {
 }
 
 async function stopCpuStress() {
+    ensureWebSocket();
     try {
         // Server broadcasts stop event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/cpu/stop`, { method: 'POST' });
@@ -1149,6 +1171,7 @@ async function stopCpuStress() {
 }
 
 async function allocateMemory() {
+    ensureWebSocket();
     const sizeMb = parseInt(document.getElementById('memorySize').value) || 100;
     
     try {
@@ -1169,6 +1192,7 @@ async function allocateMemory() {
 }
 
 async function releaseMemory() {
+    ensureWebSocket();
     try {
         // Server broadcasts release event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/memory/release-all`, { method: 'POST' });
@@ -1183,6 +1207,7 @@ async function releaseMemory() {
 }
 
 async function triggerThreadBlock() {
+    ensureWebSocket();
     const delay = parseFloat(document.getElementById('threadDelay').value) || 10;
     const count = parseInt(document.getElementById('threadConcurrent').value) || 10;
     
@@ -1208,6 +1233,7 @@ async function triggerThreadBlock() {
 }
 
 async function stopThreadBlock() {
+    ensureWebSocket();
     try {
         // Server logs stop event via WebSocket; no client-side duplicate needed
         const response = await fetch(`${CONFIG.apiBaseUrl}/blocking/stop`, { method: 'POST' });
@@ -1222,6 +1248,7 @@ async function stopThreadBlock() {
 }
 
 async function startSlowRequests() {
+    ensureWebSocket();
     const duration = parseInt(document.getElementById('slowRequestDuration').value) || 25;
     const interval = parseFloat(document.getElementById('slowRequestInterval').value) || 2;
     const maxRequests = parseInt(document.getElementById('slowRequestMax').value) || 10;
@@ -1248,6 +1275,7 @@ async function startSlowRequests() {
 }
 
 async function stopSlowRequests() {
+    ensureWebSocket();
     try {
         // Server broadcasts stop event via WebSocket
         const response = await fetch(`${CONFIG.apiBaseUrl}/slow/stop`, { method: 'POST' });
@@ -1262,6 +1290,7 @@ async function stopSlowRequests() {
 }
 
 async function generateFailedRequests() {
+    ensureWebSocket();
     const count = parseInt(document.getElementById('failedRequestCount').value) || 10;
     
     try {
@@ -1282,6 +1311,7 @@ async function generateFailedRequests() {
 }
 
 async function triggerCrash() {
+    ensureWebSocket();
     const crashType = document.getElementById('crashType').value;
     const crashTypeDisplay = crashType.charAt(0).toUpperCase() + crashType.slice(1);
     
@@ -1649,6 +1679,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize simulation ID copy handlers for event log
     initSimulationIdCopyHandlers();
     await fetchConfig();
+    
+    // Wake the server if it's idle (page load counts as activity)
+    await recordActivity('page_load');
     
     // Connect to WebSocket
     initializeWebSocket();
