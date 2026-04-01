@@ -122,10 +122,15 @@ class LoadTestService:
         """Execute load test work with configurable parameters.
 
         This method simulates realistic application behavior:
-        1. Allocates memory and holds it for the request duration
-        2. Calculates degradation delay based on concurrent requests
-        3. Performs CPU work in cycles with yields
-        4. Checks for error injection based on elapsed time
+
+        1. Allocates memory up front and holds it for the entire request
+           duration.
+        2. Calculates total request duration including degradation delay
+           for concurrent requests over the soft limit.
+        3. Runs a sustained work loop that interleaves CPU work
+           (blocking — sync-over-async anti-pattern) with brief async
+           sleeps for realistic behavior.
+        4. Checks for error injection based on elapsed time.
 
         Args:
             request: Load test configuration parameters.
@@ -146,12 +151,10 @@ class LoadTestService:
         had_error = False
 
         try:
-            # STEP 1: Allocate memory up front and hold for entire request
             buffer_size = request.buffer_size_kb * 1024
             buffer = bytearray(buffer_size)
             self._touch_memory_buffer(buffer)
 
-            # STEP 2: Calculate total request duration
             over_limit = max(0, current_concurrent - request.soft_limit)
             degradation_delay_ms = over_limit * request.degradation_factor
             total_duration_ms = request.baseline_delay_ms + degradation_delay_ms
@@ -164,22 +167,18 @@ class LoadTestService:
                 degradation_delay_ms,
             )
 
-            # STEP 3: Sustained work loop
-            # Interleave CPU work with brief sleeps for realistic behavior
+            # Sustained work loop: interleave CPU work with brief async sleeps
             sleep_per_cycle_ms = 50
             cpu_work_ms_per_cycle = request.work_iterations // 100
 
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             while elapsed_ms < total_duration_ms:
-                # CPU work phase (blocking - sync-over-async anti-pattern)
                 if cpu_work_ms_per_cycle > 0:
                     self._perform_cpu_work(cpu_work_ms_per_cycle)
                     total_cpu_work_done += cpu_work_ms_per_cycle
 
-                # Keep memory active
                 self._touch_memory_buffer(buffer)
 
-                # Sleep phase (async yield to allow other work)
                 remaining_ms = total_duration_ms - elapsed_ms
                 sleep_ms = min(sleep_per_cycle_ms, max(0, remaining_ms))
                 if sleep_ms > 0:
@@ -246,9 +245,13 @@ class LoadTestService:
                 self._check_and_emit_period_stats()
 
     def _touch_memory_buffer(self, buffer: bytearray) -> None:
-        """Touch memory buffer to prevent GC optimization."""
+        """Touch memory buffer to prevent GC optimization.
+
+        Walks every 4096-byte page in the buffer and flips a byte,
+        ensuring the OS has actually committed the pages.
+        """
         checksum = 0
-        for i in range(0, len(buffer), 4096):  # Touch every page
+        for i in range(0, len(buffer), 4096):
             buffer[i] = buffer[i] ^ 0xFF
             checksum += buffer[i]
 

@@ -4,15 +4,19 @@ This service creates CPU-bound work using in-process threads to consume
 CPU resources. Each worker thread performs intensive calculations that
 compete with the FastAPI event loop due to Python's GIL.
 
-EDUCATIONAL NOTE: In production, excessive CPU usage causes:
-- Slow response times for all requests (directly observable with this approach)
-- Health check failures leading to restarts
-- Autoscaling triggers (if configured)
-- In Azure App Service: visible in CPU % metrics and App Service Diagnostics
+Note:
+    In production, excessive CPU usage causes:
 
-WHY IN-PROCESS: Unlike multiprocessing, in-process threads share the GIL
-with the main event loop. CPU-bound work in these threads directly competes
-for execution time, causing measurable request latency increases.
+    - Slow response times for all requests (directly observable with this
+      approach)
+    - Health check failures leading to restarts
+    - Autoscaling triggers (if configured)
+    - In Azure App Service: visible in CPU % metrics and App Service
+      Diagnostics
+
+    Unlike multiprocessing, in-process threads share the GIL with the main
+    event loop. CPU-bound work in these threads directly competes for
+    execution time, causing measurable request latency increases.
 """
 
 import logging
@@ -53,6 +57,11 @@ def _cpu_worker(
     GIL, CPU-bound work here directly competes with the event loop, causing
     request latency to increase.
 
+    Intensity controls iterations per cycle (``intensity * 1000``). The
+    value was reduced from 10000 to allow more frequent stop-event checks.
+    Math operations (sin, cos, sqrt, tanh) are chosen because they cannot
+    be easily optimized away by the interpreter.
+
     Args:
         stop_event: Event to check for stop signal.
         duration: How long to run (None for indefinite).
@@ -60,19 +69,14 @@ def _cpu_worker(
     """
     start_time = time.time()
 
-    # Intensity affects how many iterations we do per cycle
-    # Reduced from 10000 to allow more frequent stop checks
     iterations_per_cycle = intensity * 1000
 
     while not stop_event.is_set():
-        # Check if duration exceeded
         if duration is not None:
             elapsed = time.time() - start_time
             if elapsed >= duration:
                 break
 
-        # Perform CPU-intensive calculations
-        # Using math operations that can't be easily optimized away
         x = 0.0
         for i in range(iterations_per_cycle):
             x += math.sin(i) * math.cos(i)

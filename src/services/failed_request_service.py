@@ -43,24 +43,28 @@ class FailedRequestResult:
     requests_completed: int = 0
 
 
-# Load test parameters tuned for guaranteed failure with visible latency
-# Parameter names use camelCase to match .NET version API
-FAILURE_REQUEST_BODY = {
-    # Enough delay to exceed errorAfter and appear in latency monitor
+FAILURE_REQUEST_BODY: dict[str, int] = {
     "baselineDelayMs": 1500,
-    # Some CPU work so request is visible in metrics
     "workIterations": 500,
-    # Small memory allocation
     "bufferSizeKb": 100,
-    # High soft limit to avoid degradation delays
     "softLimit": 10000,
-    # No additional degradation
     "degradationFactor": 0,
-    # Error check starts after 1 second
     "errorAfter": 1,
-    # 100% guaranteed failure
     "errorPercent": 100,
 }
+"""Load test parameters tuned for guaranteed failure with visible latency.
+
+Parameter names use camelCase to match the .NET version API.
+
+- ``baselineDelayMs``: Enough delay to exceed ``errorAfter`` and appear in
+  the latency monitor.
+- ``workIterations``: Some CPU work so the request is visible in metrics.
+- ``bufferSizeKb``: Small memory allocation.
+- ``softLimit``: High soft limit to avoid degradation delays.
+- ``degradationFactor``: No additional degradation.
+- ``errorAfter``: Error check starts after 1 second.
+- ``errorPercent``: 100 % guaranteed failure.
+"""
 
 
 class FailedRequestService:

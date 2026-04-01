@@ -79,7 +79,6 @@ class BlockingService:
             return 0
 
         start = time.perf_counter()
-        # INTENTIONALLY BAD: Using time.sleep in async context blocks the event loop
         time.sleep(duration_seconds)
         actual = time.perf_counter() - start
 

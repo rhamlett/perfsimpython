@@ -1,9 +1,9 @@
 """Crash simulation API endpoints.
 
-⚠️ WARNING: These endpoints will crash/terminate the application! ⚠️
-
-Only use in controlled educational environments for practicing
-crash diagnostics and recovery procedures.
+Warning:
+    These endpoints will crash/terminate the application!
+    Only use in controlled educational environments for practicing
+    crash diagnostics and recovery procedures.
 """
 
 import logging

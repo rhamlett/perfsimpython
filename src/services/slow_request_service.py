@@ -49,9 +49,14 @@ class SlowRequestService:
         are used in async context. This blocks the event loop and prevents
         other concurrent operations from making progress.
 
-        In real code, you should use asyncio.sleep() instead.
+        In real code, you should use ``asyncio.sleep()`` instead.
+
+        The ``time.sleep()`` call below is the classic sync-over-async
+        anti-pattern — it blocks the entire event loop for the given
+        duration.
 
         Diagnostic visibility:
+
         - Event loop lag will spike during the sleep
         - Profilers will show time.sleep in stack traces
         - Concurrent request latency will increase
@@ -73,8 +78,6 @@ class SlowRequestService:
             return 0
 
         start = time.perf_counter()
-        # INTENTIONALLY BAD: Using time.sleep in async context blocks the event loop
-        # This is the classic sync-over-async anti-pattern
         time.sleep(delay_seconds)
         actual = time.perf_counter() - start
 

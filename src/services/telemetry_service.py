@@ -4,18 +4,23 @@ Provides simulation ID tracking and correlation with Azure Application Insights
 telemetry. The simulation ID is propagated to telemetry allowing correlation
 of dashboard events with server-side logs.
 
-EDUCATIONAL NOTE: Application Insights is optional - the app runs without it,
-just doesn't send telemetry. Azure App Service sets APPLICATIONINSIGHTS_CONNECTION_STRING
-automatically when App Insights is enabled in the portal.
+Note:
+    Application Insights is optional — the app runs without it,
+    just doesn't send telemetry. Azure App Service sets
+    ``APPLICATIONINSIGHTS_CONNECTION_STRING`` automatically when App Insights
+    is enabled in the portal.
 
-Uses opencensus-ext-azure (classic SDK) like the Java and Node.js implementations.
-This avoids conflicts with App Service's auto-instrumentation.
+    Uses opencensus-ext-azure (classic SDK) like the Java and Node.js
+    implementations. This avoids conflicts with App Service's
+    auto-instrumentation.
 
-Custom events appear in the customEvents table in Log Analytics and can be queried:
+Example:
+    Custom events appear in the ``customEvents`` table in Log Analytics
+    and can be queried::
 
-    customEvents
-    | where name in ("SimulationStarted", "SimulationEnded")
-    | where customDimensions["SimulationId"] == "YOUR-SIMULATION-ID"
+        customEvents
+        | where name in ("SimulationStarted", "SimulationEnded")
+        | where customDimensions["SimulationId"] == "YOUR-SIMULATION-ID"
 """
 
 import logging

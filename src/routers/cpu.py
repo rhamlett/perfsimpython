@@ -2,11 +2,13 @@
 
 Provides API endpoints for starting, stopping, and managing CPU stress simulations.
 
-EDUCATIONAL NOTE: These endpoints intentionally create high CPU load.
-Use in sandboxed environments only. In Azure, observe CPU metrics in:
-- App Service Diagnostics → CPU Usage
-- Application Insights → Performance
-- Metrics blade → CPU Percentage
+Note:
+    These endpoints intentionally create high CPU load.
+    Use in sandboxed environments only. In Azure, observe CPU metrics in:
+
+    - App Service Diagnostics → CPU Usage
+    - Application Insights → Performance
+    - Metrics blade → CPU Percentage
 """
 
 from uuid import UUID
@@ -27,11 +29,13 @@ async def start_cpu_stress(request: CpuStressRequest = CpuStressRequest()) -> Si
     Creates worker processes that perform CPU-intensive calculations.
     Multiple calls will stack CPU load (each adds more workers).
 
-    EDUCATIONAL: This simulates runaway CPU usage. In Azure App Service,
-    you can diagnose this using:
-    - App Service Diagnostics → CPU Usage blade
-    - Kudu SSH → top/htop commands
-    - Application Insights → Performance counters
+    Note:
+        This simulates runaway CPU usage. In Azure App Service,
+        you can diagnose this using:
+
+        - App Service Diagnostics → CPU Usage blade
+        - Kudu SSH → top/htop commands
+        - Application Insights → Performance counters
 
     Args:
         request: CPU stress parameters including duration, intensity, and workers.

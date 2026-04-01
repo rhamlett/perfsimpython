@@ -3,8 +3,9 @@
 Provides methods to trigger various types of application crashes
 for practicing crash diagnostics and recovery procedures.
 
-WARNING: These methods will terminate the application process!
-Only use in controlled environments for educational purposes.
+Warning:
+    These methods will terminate the application process!
+    Only use in controlled environments for educational purposes.
 """
 
 import logging
