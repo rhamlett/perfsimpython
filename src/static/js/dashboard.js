@@ -576,7 +576,7 @@ function initializeCharts() {
                         label: 'Memory MB',
                         data: [],
                         borderColor: '#107c10',
-                        backgroundColor: 'rgba(16, 124, 16, 0.1)',
+                        backgroundColor: 'rgba(16, 124, 16, 0.2)',
                         tension: 0.3,
                         fill: 'origin',
                         yAxisID: 'y1',
