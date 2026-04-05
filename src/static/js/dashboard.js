@@ -1442,6 +1442,7 @@ async function fetchConfig() {
 }
 
 // Record activity with the server (only called on page load, not WebSocket reconnects)
+// Returns true if the app was idle and is now waking up
 async function recordActivity(source = 'page_load') {
     try {
         const response = await fetch(`${CONFIG.apiBaseUrl}/activity`, {
@@ -1453,14 +1454,15 @@ async function recordActivity(source = 'page_load') {
             const data = await response.json();
             if (data.wasIdle) {
                 state.isIdle = false;
-                logEvent('system', 'App waking up from idle state. There may be gaps in diagnostics and logs.');
                 updateIdleDisplay(false);
             }
             console.log(`Activity recorded: ${data.message}`);
+            return data.wasIdle || false;
         }
     } catch (error) {
         console.error('Failed to record activity:', error);
     }
+    return false;
 }
 
 // Update idle state display in UI
@@ -1647,6 +1649,7 @@ async function fetchAndDisplayGithubLink() {
 // SKU Display
 // ==========================================================================
 
+// Fetches SKU info, updates the SKU badge, and returns the display message (without logging)
 async function fetchAndDisplaySku() {
     try {
         const response = await fetch(`${CONFIG.apiBaseUrl}/sku`);
@@ -1656,17 +1659,16 @@ async function fetchAndDisplaySku() {
             if (skuDisplay) {
                 skuDisplay.textContent = `SKU: ${data.sku}`;
             }
-            // Log initialization message with SKU info
             if (data.is_azure && data.worker) {
-                logEvent('system', `Application is currently running on ${data.sku} SKU on worker ${data.worker}`);
+                return `Application is currently running on ${data.sku} SKU on worker ${data.worker}`;
             } else {
-                logEvent('system', 'Application is currently running on Local');
+                return 'Application is currently running on Local';
             }
         }
     } catch (error) {
         console.error('Failed to fetch SKU:', error);
-        // Keep default text on error
     }
+    return null;
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1680,33 +1682,29 @@ document.addEventListener('DOMContentLoaded', async function() {
     initSimulationIdCopyHandlers();
     await fetchConfig();
     
-    // Wake the server if it's idle (page load counts as activity)
-    await recordActivity('page_load');
+    // Gather data before logging so we can force a consistent message order
+    const wasIdle = await recordActivity('page_load');
+    const skuMessage = await fetchAndDisplaySku();
     
-    // Connect to WebSocket
-    initializeWebSocket();
-    
-    // Start latency probe (with server-configured interval)
-    // Will not start if server reports app is idle
-    startLatencyProbe();
-    
-    // Fetch and display Azure SKU
-    fetchAndDisplaySku();
-    
-    // Fetch and display custom footer (if configured)
-    fetchAndDisplayFooter();
-
-    // Fetch and display GitHub link (if configured)
-    fetchAndDisplayGithubLink();
-    
-    // Log startup
+    // Log all startup messages in consistent order (oldest at bottom, newest at top)
+    logEvent('warning', '⚖️ Deploy only in isolated, non-production environments. Licensed under MIT License.');
+    logEvent('warning', '⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse.');
     if (state.idleTimeoutMinutes > 0) {
         logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: ${state.idleTimeoutMinutes}m)`);
     } else {
         logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: disabled)`);
     }
-
-    // Log liability disclaimer (Line 2 first since newer entries appear at top)
-    logEvent('warning', '⚖️ Deploy only in isolated, non-production environments. Licensed under MIT License.');
-    logEvent('warning', '⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse.');
+    if (skuMessage) {
+        logEvent('system', skuMessage);
+    }
+    logEvent('system', 'Connected to metrics hub');
+    if (wasIdle) {
+        logEvent('system', 'App waking up from idle state. There may be gaps in diagnostics and logs.');
+    }
+    
+    // Start async services (WebSocket, probes, etc.)
+    initializeWebSocket();
+    startLatencyProbe();
+    fetchAndDisplayFooter();
+    fetchAndDisplayGithubLink();
 });

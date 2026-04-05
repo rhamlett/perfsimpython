@@ -1282,6 +1282,7 @@ body.page-doc {
 .log-entry {
     padding: 0.25rem 0;
     border-bottom: 1px solid #edebe9;
+    color: var(--color-warning);
 }
 
 .log-entry:last-child {
@@ -1293,11 +1294,7 @@ body.page-doc {
     margin-right: 0.75rem;
 }
 
-/* Log entry severity levels */
-.log-entry.info { color: var(--color-text-muted); }
-.log-entry.success { color: var(--color-success); }
-.log-entry.warning { color: var(--color-warning); }
-.log-entry.error { color: var(--color-danger); }
+/* Simulation-specific log entry colors */
 .log-entry.cpu { color: var(--color-cpu); }
 .log-entry.cpu_stress { color: var(--color-cpu); }
 .log-entry.memory { color: var(--color-memory); }
@@ -1317,10 +1314,6 @@ body.page-doc {
 .log-entry.restart { color: var(--color-danger); }
 .log-entry.loadtest { color: var(--python-blue); }
 .log-entry.load_test { color: var(--python-blue); }
-.log-entry.admin_reset { color: var(--color-warning); }
-.log-entry.system { color: var(--color-text-muted); }
-.log-entry.ws-connect { color: var(--color-success); }
-.log-entry.ws-disconnect { color: var(--color-warning); }
 
 .log-icon {
     margin-right: 0.35rem;
