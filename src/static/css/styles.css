@@ -1292,6 +1292,30 @@ body.page-doc {
 .log-time {
     color: var(--color-text-muted);
     margin-right: 0.75rem;
+    position: relative;
+    border-bottom: 1px dotted currentColor;
+}
+
+.log-time::after {
+    content: attr(data-localtime);
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    margin-bottom: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    z-index: 10;
+}
+
+.log-time:hover::after {
+    opacity: 1;
 }
 
 /* Simulation-specific log entry colors */

@@ -195,6 +195,14 @@ function getCurrentUtcTime() {
     return formatUtcTime(new Date());
 }
 
+function formatLocalTime(date) {
+    if (!date || !(date instanceof Date)) return '';
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+}
+
 // ==========================================================================
 // WebSocket Connection
 // ==========================================================================
@@ -1050,11 +1058,15 @@ function logEvent(type, message, options = {}) {
     
     // Use server timestamp if provided, otherwise current time
     let timestamp;
+    let localTime;
     if (options.serverTimestamp) {
         const date = new Date(options.serverTimestamp);
         timestamp = formatUtcTime(date) + ' UTC';
+        localTime = formatLocalTime(date);
     } else {
-        timestamp = getCurrentUtcTime() + ' UTC';
+        const now = new Date();
+        timestamp = formatUtcTime(now) + ' UTC';
+        localTime = formatLocalTime(now);
     }
     
     const icon = options.icon || getEventIcon(type);
@@ -1064,7 +1076,7 @@ function logEvent(type, message, options = {}) {
     
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    entry.innerHTML = `<span class="log-time">${timestamp}</span> <span class="log-icon">${icon}</span> ${displayMessage}`;
+    entry.innerHTML = `<span class="log-time" data-localtime="Local Time: ${localTime}"><span class="log-time-text">${timestamp}</span></span> <span class="log-icon">${icon}</span> ${displayMessage}`;
     
     container.insertBefore(entry, container.firstChild);
 }
