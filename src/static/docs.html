@@ -191,6 +191,33 @@
         .code-block.code-bad { border-left: 4px solid #f44336; }
         .code-block.code-good { border-left: 4px solid #4caf50; }
 
+        .architecture-tree {
+            background: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.8;
+        }
+
+        .architecture-tree .folder {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .architecture-tree .file {
+            color: var(--text-secondary);
+        }
+
+        .architecture-tree .comment {
+            color: #4caf50;
+            font-style: italic;
+            opacity: 0.8;
+            margin-left: 1rem;
+        }
+
         .warning-box {
             background: linear-gradient(135deg, rgba(255, 185, 0, 0.15) 0%, rgba(209, 52, 56, 0.1) 100%);
             border-left: 4px solid #ff9800;
@@ -953,6 +980,152 @@ async def fetch_data():
                     </ol>
                 </section>
 
+                <!-- Optional Configuration Section -->
+                <section id="optional-config" class="doc-section">
+                    <h2>⚙️ Optional Configuration</h2>
+                    <p>You can customize the application behavior using Azure App Service environment variables.</p>
+
+                    <h3>Health Probe Rate</h3>
+                    <p>Control how often the server sends health probes to measure request latency. All probes are routed through the Azure frontend to capture realistic end-to-end latency.</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Variable Name</th>
+                                <th>Description</th>
+                                <th>Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>HEALTH_PROBE_RATE</code></td>
+                                <td>Probe interval in milliseconds. Minimum 100ms.</td>
+                                <td><code>200</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Idle Timeout</h3>
+                    <p>When the application is idle (no dashboard connections or load test requests), health probes are automatically suspended to reduce unnecessary network traffic to Azure's frontend and Application Insights telemetry.</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Variable Name</th>
+                                <th>Description</th>
+                                <th>Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>IDLE_TIMEOUT_MINUTES</code></td>
+                                <td>Minutes of inactivity before suspending health probes. Activity resumes automatically when the dashboard is opened or any request is received.</td>
+                                <td><code>20</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Custom Page Footer</h3>
+                    <p>Set a custom footer message that appears on all pages. The footer supports HTML, allowing you to include links.</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Variable Name</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>PAGE_FOOTER</code></td>
+                                <td>HTML content for the footer's second line. If not set, only the app description and build info are shown.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p><strong>Example value:</strong></p>
+                    <pre><code>Created by &lt;a href="https://yoursite.com"&gt;Your Team&lt;/a&gt; for training purposes</code></pre>
+
+                    <h3>GitHub Repository Link</h3>
+                    <p>Optionally display a GitHub Repository link in the sidebar navigation menu. The link is hidden by default. When both environment variables are provided, the link will appear in the menu and point to <code>https://github.com/{GITHUB_USER_NAME}/{GITHUB_REPO_NAME}</code>.</p>
+                    <table class="api-table">
+                        <thead>
+                            <tr>
+                                <th>Variable Name</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>GITHUB_USER_NAME</code></td>
+                                <td>GitHub username or organization name. Required to show the link.</td>
+                            </tr>
+                            <tr>
+                                <td><code>GITHUB_REPO_NAME</code></td>
+                                <td>GitHub repository name. Required to show the link.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>To set these, navigate to your App Service in the Azure Portal, go to <strong>Settings → Environment variables</strong>, add the variables, click <strong>Apply</strong>, then <strong>Confirm</strong>.</p>
+                </section>
+
+                <!-- Architecture Section -->
+                <section id="architecture" class="doc-section">
+                    <h2>📐 Architecture</h2>
+                    <div class="architecture-tree"><span class="folder">src/</span>
+├── <span class="file">app.py</span>                       <span class="comment"># FastAPI application factory</span>
+├── <span class="file">main.py</span>                      <span class="comment"># Application entry point (uvicorn)</span>
+│
+├── <span class="folder">config/</span>                      <span class="comment"># Configuration</span>
+│   └── <span class="file">settings.py</span>
+│
+├── <span class="folder">middleware/</span>                  <span class="comment"># Request pipeline middleware</span>
+│   ├── <span class="file">activity_tracker.py</span>      <span class="comment"># Idle state detection</span>
+│   ├── <span class="file">error_handler.py</span>         <span class="comment"># Global exception handling</span>
+│   └── <span class="file">request_logger.py</span>        <span class="comment"># Request/response logging</span>
+│
+├── <span class="folder">models/</span>                      <span class="comment"># Data models</span>
+│   ├── <span class="file">entities.py</span>              <span class="comment"># Domain entities</span>
+│   ├── <span class="file">requests.py</span>              <span class="comment"># Request schemas</span>
+│   └── <span class="file">responses.py</span>             <span class="comment"># Response schemas</span>
+│
+├── <span class="folder">routers/</span>                     <span class="comment"># API endpoints</span>
+│   ├── <span class="file">admin.py</span>                 <span class="comment"># Admin &amp; config endpoints</span>
+│   ├── <span class="file">blocking.py</span>              <span class="comment"># Async blocking simulation</span>
+│   ├── <span class="file">cpu.py</span>                   <span class="comment"># CPU stress simulation</span>
+│   ├── <span class="file">crash.py</span>                 <span class="comment"># Crash simulation</span>
+│   ├── <span class="file">health.py</span>                <span class="comment"># Health check endpoint</span>
+│   ├── <span class="file">loadtest.py</span>              <span class="comment"># Azure Load Testing endpoint</span>
+│   ├── <span class="file">memory.py</span>                <span class="comment"># Memory pressure simulation</span>
+│   ├── <span class="file">metrics.py</span>               <span class="comment"># Metrics &amp; event log endpoints</span>
+│   └── <span class="file">slow.py</span>                  <span class="comment"># Slow request simulation</span>
+│
+├── <span class="folder">services/</span>                    <span class="comment"># Business logic</span>
+│   ├── <span class="file">blocking_service.py</span>
+│   ├── <span class="file">cpu_stress_service.py</span>
+│   ├── <span class="file">crash_service.py</span>
+│   ├── <span class="file">event_log_service.py</span>     <span class="comment"># Dashboard event log</span>
+│   ├── <span class="file">failed_request_service.py</span>
+│   ├── <span class="file">idle_service.py</span>          <span class="comment"># Auto-suspend health probes when idle</span>
+│   ├── <span class="file">load_test_service.py</span>     <span class="comment"># Load test with soft limit degradation</span>
+│   ├── <span class="file">memory_pressure_service.py</span>
+│   ├── <span class="file">metrics_service.py</span>       <span class="comment"># Metrics collection</span>
+│   ├── <span class="file">request_latency_service.py</span>
+│   ├── <span class="file">simulation_tracker.py</span>    <span class="comment"># Simulation state tracking</span>
+│   ├── <span class="file">slow_request_service.py</span>
+│   └── <span class="file">telemetry_service.py</span>    <span class="comment"># OpenTelemetry integration</span>
+│
+├── <span class="folder">websocket/</span>                   <span class="comment"># Real-time updates</span>
+│   └── <span class="file">metrics_broadcaster.py</span>   <span class="comment"># WebSocket metrics push</span>
+│
+└── <span class="folder">static/</span>                      <span class="comment"># SPA dashboard &amp; documentation</span>
+    ├── <span class="file">index.html</span>               <span class="comment"># Dashboard with live metrics</span>
+    ├── <span class="file">docs.html</span>                <span class="comment"># Documentation (this page)</span>
+    ├── <span class="file">azure-deployment.html</span>    <span class="comment"># Deployment guide</span>
+    ├── <span class="file">azure-diagnostics.html</span>   <span class="comment"># Diagnostics guide</span>
+    ├── <span class="file">azure-load-testing.html</span>  <span class="comment"># Load testing guide</span>
+    ├── <span class="folder">css/</span>
+    │   └── <span class="file">styles.css</span>
+    └── <span class="folder">js/</span>
+        └── <span class="file">dashboard.js</span></div>
+                </section>
+
             </div>
         </div>
 
@@ -975,6 +1148,10 @@ async def fetch_data():
                         <li class="doc-toc-item"><a href="#slowrequest"><span class="toc-icon">🐌</span> Slow Requests</a></li>
                         <li class="doc-toc-item"><a href="#failedrequests"><span class="toc-icon">❌</span> Failed Requests</a></li>
                         <li class="doc-toc-item"><a href="#crash"><span class="toc-icon">💥</span> Crash Simulation</a></li>
+                        <li class="doc-toc-divider" aria-hidden="true"></li>
+                        <li class="doc-toc-section-label">Reference</li>
+                        <li class="doc-toc-item"><a href="#optional-config"><span class="toc-icon">⚙️</span> Optional Config</a></li>
+                        <li class="doc-toc-item"><a href="#architecture"><span class="toc-icon">📐</span> Architecture</a></li>
                     </ul>
                 </div>
             </div>
@@ -983,7 +1160,7 @@ async def fetch_data():
 
     <footer class="footer">
         <p>Performance Problem Simulator — Educational Tool for Azure App Service Diagnostics</p>
-        <p id="footerCredits">Created by <a href="https://github.com/speckit-ai/speckit" target="_blank" rel="noopener">SpecKit</a> and <a href="https://github.com/features/copilot" target="_blank" rel="noopener">Github Copilot</a> in collaboration with <a href="https://github.com/rhamlett" target="_blank" rel="noopener">Richard Hamlett</a></p>
+        <p id="footerCredits"></p>
         <p>Build: <span id="footerBuildTime">--</span></p>
     </footer>
 
@@ -1076,10 +1253,12 @@ async def fetch_data():
                 const response = await fetch('/api/footer');
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.has_custom_footer && data.footer) {
-                        const footerCredits = document.getElementById('footerCredits');
-                        if (footerCredits) {
+                    const footerCredits = document.getElementById('footerCredits');
+                    if (footerCredits) {
+                        if (data.has_custom_footer && data.footer && data.footer.trim()) {
                             footerCredits.innerHTML = data.footer;
+                        } else {
+                            footerCredits.style.display = 'none';
                         }
                     }
                 }

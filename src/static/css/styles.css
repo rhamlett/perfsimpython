@@ -189,8 +189,8 @@ body.page-doc {
 }
 
 .indicator.connected {
-    background: var(--color-success);
-    box-shadow: 0 0 8px var(--color-success);
+    background: #2ecc40;
+    box-shadow: 0 0 8px #2ecc40;
 }
 
 .indicator.disconnected {

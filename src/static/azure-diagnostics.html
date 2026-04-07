@@ -474,15 +474,11 @@
             <h2>Application Insights</h2>
             
             <h3>Setting Up Application Insights</h3>
-            <p>Add the OpenTelemetry Azure Monitor exporter to your application:</p>
-            <pre><code>pip install azure-monitor-opentelemetry</code></pre>
-            
-            <p>Configure in your FastAPI application:</p>
-            <pre><code>from azure.monitor.opentelemetry import configure_azure_monitor
-
-configure_azure_monitor(
-    connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-)</code></pre>
+            <ol>
+                <li><strong>Create the Application Insights resource</strong> — In the Azure Portal, search for <em>Application Insights</em>, click <strong>+ Create</strong>, choose your subscription, resource group, region, and a name, then click <strong>Review + create</strong>.</li>
+                <li><strong>Get the connection string</strong> — Once the resource is created, open it and go to the <strong>Overview</strong> page. Copy the <strong>Connection String</strong> shown near the top of the page.</li>
+                <li><strong>Add the environment variable to your App Service</strong> — In the Azure Portal, navigate to your App Service, go to <strong>Settings &gt; Environment variables</strong>, and add a new application setting with the name <code>APPLICATIONINSIGHTS_CONNECTION_STRING</code> and paste the connection string as the value. Click <strong>Apply</strong> and confirm the restart.</li>
+            </ol>
 
             <h3>Key Features</h3>
             <ul>

@@ -1617,16 +1617,17 @@ async function fetchAndDisplayFooter() {
         const response = await fetch(`${CONFIG.apiBaseUrl}/footer`);
         if (response.ok) {
             const data = await response.json();
-            if (data.has_custom_footer && data.footer) {
-                const footerCredits = document.getElementById('footerCredits');
-                if (footerCredits) {
+            const footerCredits = document.getElementById('footerCredits');
+            if (footerCredits) {
+                if (data.has_custom_footer && data.footer && data.footer.trim()) {
                     footerCredits.innerHTML = data.footer;
+                } else {
+                    footerCredits.style.display = 'none';
                 }
             }
         }
     } catch (error) {
         console.error('Failed to fetch footer:', error);
-        // Keep default footer on error
     }
 }
 
