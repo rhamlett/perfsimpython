@@ -238,7 +238,14 @@ class ProbeService:
                 with self._results_lock:
                     self._results_buffer.append(result)
 
-                time.sleep(self._interval_ms / 1000)
+                # Sleep only the remaining interval time so probes fire at
+                # a fixed rate.  If the probe itself took longer than the
+                # interval (app under pressure), the next probe fires
+                # immediately — this is intentional.
+                elapsed = time.perf_counter() - start
+                remaining = (self._interval_ms / 1000) - elapsed
+                if remaining > 0:
+                    time.sleep(remaining)
 
         logger.info("Probe loop exited")
 
