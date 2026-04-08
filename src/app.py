@@ -196,10 +196,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     _metrics_broadcast_task = asyncio.create_task(_broadcast_metrics())
     logger.info("Started metrics broadcast task")
 
+    # Start server-side health probe service (generates continuous
+    # HTTP traffic for Application Insights / AppLens regardless of
+    # whether a browser has the dashboard open).
+    from src.services.probe_service import probe_service
+
+    probe_service.start()
+
     yield
 
     # Shutdown
     logger.info("Performance Problem Simulator shutting down")
+
+    # Stop server-side health probe service
+    probe_service.stop()
 
     # Cancel the metrics broadcast task
     if _metrics_broadcast_task:
