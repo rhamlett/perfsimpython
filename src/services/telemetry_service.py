@@ -10,9 +10,10 @@ Note:
     ``APPLICATIONINSIGHTS_CONNECTION_STRING`` automatically when App Insights
     is enabled in the portal.
 
-    Uses opencensus-ext-azure (classic SDK) like the Java and Node.js
-    implementations. This avoids conflicts with App Service's
-    auto-instrumentation.
+    Uses ``azure-monitor-opentelemetry`` (the modern OpenTelemetry-based
+    distro). Full request/dependency/exception/log telemetry is configured
+    in ``app.py`` via ``configure_azure_monitor()``. This module handles
+    custom simulation events only.
 
 Example:
     Custom events appear in the ``customEvents`` table in Log Analytics
@@ -26,7 +27,6 @@ Example:
 import logging
 import os
 from contextvars import ContextVar
-from typing import Any
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -36,38 +36,32 @@ _current_simulation_id: ContextVar[UUID | None] = ContextVar("current_simulation
 
 # Whether Application Insights is available
 _appinsights_available = False
-_azure_exporter: Any = None
+_event_logger: logging.Logger | None = None
 
 
 def _check_appinsights() -> bool:
-    """Check if Application Insights is available and initialize the exporter.
+    """Check if Application Insights is available.
 
-    Uses opencensus-ext-azure (classic SDK) which works alongside App Service
-    auto-instrumentation without conflicts.
+    The actual Azure Monitor configuration (``configure_azure_monitor()``)
+    happens in ``app.py`` at startup. This function only checks whether
+    the connection string is present so that custom-event helpers know
+    whether to emit log records.
     """
-    global _appinsights_available, _azure_exporter
+    global _appinsights_available, _event_logger
 
-    # Check for connection string
     conn_string = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
     if not conn_string:
         logger.debug("Application Insights not configured (no connection string)")
         return False
 
-    # Try to import and configure opencensus Azure exporter
-    try:
-        from opencensus.ext.azure.log_exporter import AzureEventHandler
-
-        # Create an event handler for custom events
-        _azure_exporter = AzureEventHandler(connection_string=conn_string)
-        _appinsights_available = True
-        logger.info("Application Insights enabled via opencensus (classic SDK)")
-        return True
-    except ImportError as e:
-        logger.debug("opencensus-ext-azure not installed - Application Insights disabled: %s", e)
-        return False
-    except Exception as e:
-        logger.warning("Failed to initialize Application Insights: %s", e)
-        return False
+    # The AzureLogHandler attached by configure_azure_monitor() will
+    # pick up records from any logger. We use a dedicated logger so
+    # custom-event records are easy to identify.
+    _event_logger = logging.getLogger("azure.appinsights.events")
+    _event_logger.setLevel(logging.INFO)
+    _appinsights_available = True
+    logger.info("Application Insights enabled via azure-monitor-opentelemetry")
+    return True
 
 
 def set_current_simulation_id(simulation_id: UUID | None) -> None:
@@ -114,7 +108,7 @@ def track_simulation_event(
         simulation_type: Type of simulation (e.g., "cpu_stress", "memory_pressure").
         properties: Additional properties to include in the event.
     """
-    if not _appinsights_available or not _azure_exporter:
+    if not _appinsights_available or not _event_logger:
         logger.debug("Telemetry event not sent (App Insights not available): %s", event_name)
         return
 
@@ -126,14 +120,9 @@ def track_simulation_event(
             **(properties or {}),
         }
 
-        # Create a log record that will be exported as a custom event
-        # The AzureEventHandler exports log records with custom_dimensions as customEvents
-        event_logger = logging.getLogger("azure.appinsights.events")
-        event_logger.addHandler(_azure_exporter)
-        event_logger.setLevel(logging.INFO)
-
-        # Log with extra containing custom_dimensions - this becomes a customEvent
-        event_logger.info(
+        # Log with extra containing custom_dimensions — the Azure Monitor
+        # log exporter converts these into customEvents in App Insights.
+        _event_logger.info(
             event_name,
             extra={"custom_dimensions": custom_dimensions},
         )
@@ -148,18 +137,26 @@ def track_simulation_event(
         logger.warning("Failed to track telemetry event: %s", e)
 
 
-def add_simulation_to_current_span(_simulation_id: UUID, _simulation_type: str) -> None:
-    """Add simulation ID to span attributes (no-op with classic SDK).
+def add_simulation_to_current_span(simulation_id: UUID, simulation_type: str) -> None:
+    """Add simulation ID to the current OpenTelemetry span attributes.
 
-    This method exists for API compatibility. The classic opencensus SDK
-    doesn't use OpenTelemetry spans in the same way.
+    When a span is active, this annotates it with the simulation ID and type
+    so that request telemetry in App Insights can be correlated with
+    simulation events.
 
     Args:
-        _simulation_id: The simulation ID to add.
-        _simulation_type: Type of simulation.
+        simulation_id: The simulation ID to add.
+        simulation_type: Type of simulation.
     """
-    # No-op - classic SDK doesn't have span correlation like OpenTelemetry
-    pass
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        if span and span.is_recording():
+            span.set_attribute("SimulationId", str(simulation_id))
+            span.set_attribute("SimulationType", simulation_type)
+    except Exception:
+        pass
 
 
 # Initialize on module load

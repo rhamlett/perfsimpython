@@ -227,6 +227,19 @@ def create_app() -> FastAPI:
     Returns:
         Configured FastAPI application instance.
     """
+    # Configure Azure Monitor / Application Insights (if connection string is set).
+    # This must happen before the FastAPI app is created so the OpenTelemetry
+    # instrumentor can hook into FastAPI, httpx, logging, etc.
+    _conn = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
+    if _conn:
+        try:
+            from azure.monitor.opentelemetry import configure_azure_monitor
+
+            configure_azure_monitor(connection_string=_conn)
+            logger.info("Azure Monitor OpenTelemetry configured")
+        except Exception as exc:
+            logger.warning("Failed to configure Azure Monitor: %s", exc)
+
     # Create the FastAPI app
     app = FastAPI(
         title="Performance Problem Simulator",
