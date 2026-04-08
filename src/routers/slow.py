@@ -154,6 +154,11 @@ async def start_slow_generator(
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Reduce probe frequency during slow-request simulation
+    from src.services.probe_service import probe_service
+
+    probe_service.set_slow_request_mode(True)
+
     return SlowGeneratorStartResponse(
         started=True,
         message="Slow request generator started",
@@ -181,6 +186,11 @@ async def stop_slow_generator() -> SlowGeneratorStopResponse:
         Response with final generated count.
     """
     stopped = slow_request_service.stop_slow_generator()
+
+    # Restore normal probe frequency
+    from src.services.probe_service import probe_service
+
+    probe_service.set_slow_request_mode(False)
 
     return SlowGeneratorStopResponse(
         stopped=stopped,

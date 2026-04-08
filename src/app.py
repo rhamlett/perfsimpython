@@ -100,6 +100,11 @@ async def _broadcast_metrics() -> None:
                 new_events = event_log_service.get_events_since(last_event_broadcast)
                 last_event_broadcast = datetime.now(UTC)
 
+                # Drain server-side probe results for the dashboard
+                from src.services.probe_service import probe_service
+
+                probe_results = probe_service.drain_results()
+
                 message = {
                     "type": "metrics",
                     "data": {
@@ -150,6 +155,7 @@ async def _broadcast_metrics() -> None:
                             "seconds_until_idle": idle_service.get_seconds_until_idle(),
                         },
                         "requestLatencies": recent_latencies,
+                        "probeResults": probe_results,
                         "events": [event.to_dict() for event in new_events],
                     },
                 }

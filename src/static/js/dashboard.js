@@ -11,7 +11,7 @@ const CONFIG = {
     maxDataPoints: 240,  // 1 minute of data at 250ms intervals
     maxLatencyDataPoints: 600, // 60 seconds of chart data at 100ms updates
     latencyChartUpdateIntervalMs: 100, // Chart update rate (fixed)
-    latencyProbeIntervalMs: 200, // Health probe rate (may be overwritten by server config)
+    latencyProbeIntervalMs: 200, // Health probe rate (display-only, actual probes are server-side)
     latencyTimeoutMs: 30000,
     reconnectDelayMs: 2000,
     apiBaseUrl: '/api'
@@ -54,8 +54,7 @@ const state = {
     // Slow request generator tracking
     slowRequestGeneratorRunning: false,
     slowRequestGeneratorCount: 0,
-    slowRequestGeneratorMax: 0,
-    normalProbeIntervalMs: 200  // Store normal probe interval to restore later
+    slowRequestGeneratorMax: 0
 };
 
 // ==========================================================================
@@ -380,9 +379,9 @@ function handleMetricsUpdate(message) {
         state.isIdle = idleData.is_idle;
         state.secondsUntilIdle = idleData.seconds_until_idle || -1;
         
-        // Transition to idle - stop probes and disconnect WebSocket
+        // Transition to idle - stop chart updates and disconnect WebSocket
         if (idleData.is_idle && !wasIdle) {
-            stopLatencyProbe();
+            stopLatencyChartUpdater();
             updateIdleDisplay(true);
             logEvent('warning', 'Application going idle, no health probes being sent.  There will be gaps in diagnostics and logs.');
             // Intentionally disconnect WebSocket to prevent reconnect cycle flicker
@@ -394,7 +393,7 @@ function handleMetricsUpdate(message) {
         // Transition from idle
         else if (!idleData.is_idle && wasIdle) {
             updateIdleDisplay(false);
-            startLatencyProbe();
+            startLatencyChartUpdater();
         }
     }
 
@@ -421,21 +420,8 @@ function handleMetricsUpdate(message) {
             activeCount
         );
         
-        // Transition: slow request generator started
-        if (slowRequestData.is_running && !wasRunning && !state.isIdle) {
-            // Store current probe interval and switch to slower rate
-            state.normalProbeIntervalMs = CONFIG.latencyProbeIntervalMs;
-            CONFIG.latencyProbeIntervalMs = 5000; // 5 seconds
-            stopLatencyProbe();
-            startLatencyProbe();
-        }
-        // Transition: slow request generator stopped
-        else if (!slowRequestData.is_running && wasRunning && !state.isIdle) {
-            // Restore normal probe interval
-            CONFIG.latencyProbeIntervalMs = state.normalProbeIntervalMs;
-            stopLatencyProbe();
-            startLatencyProbe();
-        }
+        // Note: slow-request probe interval changes are handled
+        // server-side by probe_service.set_slow_request_mode().
     }
 
     // Process server-side events broadcast via WebSocket
@@ -477,12 +463,20 @@ function handleMetricsUpdate(message) {
     // Update charts
     updateCharts();
     
-    // NOTE: Latency chart and Current badge are driven exclusively by client-side
-    // health probes (startLatencyProbe). The probe measures true round-trip time.
-    // WebSocket requestLatencies contain server-side processing times (near-zero)
-    // which would cause the chart/badge to flash between zero and real values.
-    // The chart update interval (100ms) interpolates between probe results (200ms)
-    // by repeating the last known value for smooth, consistent display.
+    // Process server-side probe results (health probe latencies)
+    const probeResults = data.probeResults || [];
+    for (const probe of probeResults) {
+        const isTimeout = probe.latencyMs >= CONFIG.latencyTimeoutMs;
+        const isError = !probe.success;
+        lastProbeResult = {
+            timestamp: new Date(probe.timestamp * 1000),
+            latencyMs: probe.latencyMs,
+            isTimeout: isTimeout,
+            isError: isError
+        };
+        updateLatencyDisplay(probe.latencyMs, isTimeout, isError);
+        updateProbeVisualization(probe.latencyMs);
+    }
     
     // Update active simulations (always update to clear when empty)
     updateSimulationsList(activeSimulations);
@@ -1414,14 +1408,11 @@ async function copyEventLogToClipboard() {
 }
 
 // ==========================================================================
-// Latency Probe (Client-side)
+// Latency Display (driven by server-side probes via WebSocket)
 // ==========================================================================
 
-let latencyProbeInterval = null;
 let latencyChartUpdateInterval = null;
-let lastProbeResult = null; // Store the last probe result for interpolation
-let probeInFlight = false; // Prevent overlapping probes during event loop blocking
-let currentProbeAbortController = null; // AbortController for current probe
+let lastProbeResult = null; // Store the last probe result for chart interpolation
 
 async function fetchConfig() {
     try {
@@ -1430,7 +1421,6 @@ async function fetchConfig() {
             const data = await response.json();
             if (data.latencyProbeIntervalMs && data.latencyProbeIntervalMs >= 100) {
                 CONFIG.latencyProbeIntervalMs = data.latencyProbeIntervalMs;
-                state.normalProbeIntervalMs = data.latencyProbeIntervalMs; // Store for slow request restoration
                 console.log(`Health probe interval set to ${CONFIG.latencyProbeIntervalMs}ms from server config`);
             }
             // Update build time displays
@@ -1494,88 +1484,14 @@ function updateIdleDisplay(isIdle) {
     }
 }
 
-async function startLatencyProbe() {
-    if (latencyProbeInterval) return;
+function startLatencyChartUpdater() {
+    if (latencyChartUpdateInterval) return;
     
-    // Don't start probes if idle
-    if (state.isIdle) {
-        console.log('App is idle, not starting latency probes');
-        updateIdleDisplay(true);
-        return;
-    }
-    
-    // Start the probe interval (runs at configurable server rate)
-    latencyProbeInterval = setInterval(async () => {
-        // Check if we've gone idle (stop probing)
-        if (state.isIdle) {
-            stopLatencyProbe();
-            updateIdleDisplay(true);
-            logEvent('system', 'Health probes paused due to idle state');
-            return;
-        }
-        
-        // Skip if a probe is already in-flight (prevents pile-up during event loop blocking)
-        if (probeInFlight) {
-            return;
-        }
-        
-        const startTime = performance.now();
-        probeInFlight = true;
-        
-        // Create AbortController with timeout (slightly longer than threshold)
-        currentProbeAbortController = new AbortController();
-        const timeoutId = setTimeout(() => {
-            if (currentProbeAbortController) {
-                currentProbeAbortController.abort();
-            }
-        }, CONFIG.latencyTimeoutMs + 5000); // 35s timeout
-        
-        try {
-            const response = await fetch('/api/health/ping', { 
-                method: 'GET',
-                cache: 'no-store',
-                signal: currentProbeAbortController.signal
-            });
-            const endTime = performance.now();
-            const latencyMs = endTime - startTime;
-            
-            // Store the probe result for interpolation
-            lastProbeResult = {
-                timestamp: new Date(),
-                latencyMs: latencyMs,
-                isTimeout: latencyMs >= CONFIG.latencyTimeoutMs,
-                isError: !response.ok
-            };
-            
-            // Update display immediately with actual probe data
-            updateLatencyDisplay(latencyMs, lastProbeResult.isTimeout, lastProbeResult.isError);
-            updateProbeVisualization(latencyMs);
-        } catch (err) {
-            const endTime = performance.now();
-            const latencyMs = endTime - startTime;
-            
-            // Check if this was an intentional abort (timeout)
-            const isAbort = err.name === 'AbortError';
-            
-            lastProbeResult = {
-                timestamp: new Date(),
-                latencyMs: latencyMs,
-                isTimeout: isAbort || latencyMs >= CONFIG.latencyTimeoutMs,
-                isError: !isAbort // Only count as error if not a timeout abort
-            };
-            updateLatencyDisplay(latencyMs, lastProbeResult.isTimeout, lastProbeResult.isError);
-            updateProbeVisualization(latencyMs);
-        } finally {
-            clearTimeout(timeoutId);
-            currentProbeAbortController = null;
-            probeInFlight = false;
-        }
-    }, CONFIG.latencyProbeIntervalMs);
-    
-    // Start the chart update interval (always runs at 100ms for smooth charts)
+    // Chart update interval (always runs at 100ms for smooth charts).
+    // Probe results arrive via WebSocket; the chart interpolates by
+    // repeating the last known value between arrivals.
     latencyChartUpdateInterval = setInterval(() => {
         if (lastProbeResult) {
-            // Add data point to chart history (interpolates by repeating last value)
             addLatencyToHistory(
                 new Date(),
                 lastProbeResult.latencyMs,
@@ -1587,21 +1503,11 @@ async function startLatencyProbe() {
     }, CONFIG.latencyChartUpdateIntervalMs);
 }
 
-function stopLatencyProbe() {
-    if (latencyProbeInterval) {
-        clearInterval(latencyProbeInterval);
-        latencyProbeInterval = null;
-    }
+function stopLatencyChartUpdater() {
     if (latencyChartUpdateInterval) {
         clearInterval(latencyChartUpdateInterval);
         latencyChartUpdateInterval = null;
     }
-    // Abort any in-flight probe
-    if (currentProbeAbortController) {
-        currentProbeAbortController.abort();
-        currentProbeAbortController = null;
-    }
-    probeInFlight = false;
 }
 
 // ==========================================================================
@@ -1715,9 +1621,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         logEvent('system', 'App waking up from idle state. There may be gaps in diagnostics and logs.');
     }
     
-    // Start async services (WebSocket, probes, etc.)
+    // Start async services (WebSocket, chart updater, etc.)
     initializeWebSocket();
-    startLatencyProbe();
+    startLatencyChartUpdater();
     fetchAndDisplayFooter();
     fetchAndDisplayGithubLink();
 });
