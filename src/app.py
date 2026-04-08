@@ -183,27 +183,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     logger.info("Performance Problem Simulator starting")
 
-    # Configure Azure Monitor / Application Insights (if connection string is set).
-    _conn = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
-    if _conn:
-        try:
-            from azure.monitor.opentelemetry import configure_azure_monitor
-
-            configure_azure_monitor(connection_string=_conn)
-
-            # The distro instruments FastAPI at the class level, but our app
-            # instance already exists. Instrument it explicitly.
-            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-            FastAPIInstrumentor.instrument_app(_app)
-            logger.info("Azure Monitor OpenTelemetry configured successfully")
-        except Exception as exc:
-            logger.error("Failed to configure Azure Monitor: %s", exc, exc_info=True)
-    else:
-        logger.info(
-            "Application Insights not configured (no APPLICATIONINSIGHTS_CONNECTION_STRING)"
-        )
-
     # Log startup event with hostname
     hostname = os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown"
     event_log_service.log(
@@ -246,6 +225,23 @@ def create_app() -> FastAPI:
     Returns:
         Configured FastAPI application instance.
     """
+    # Configure Azure Monitor / Application Insights (if connection string is set).
+    # This MUST run before creating the FastAPI instance so that the
+    # FastAPIInstrumentor patches FastAPI.__init__ and captures all requests.
+    _conn = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
+    if _conn:
+        try:
+            from azure.monitor.opentelemetry import configure_azure_monitor
+
+            configure_azure_monitor(connection_string=_conn)
+            logger.info("Azure Monitor OpenTelemetry configured successfully")
+        except Exception as exc:
+            logger.warning("Failed to configure Azure Monitor: %s", exc)
+    else:
+        logger.info(
+            "Application Insights not configured (no APPLICATIONINSIGHTS_CONNECTION_STRING)"
+        )
+
     # Create the FastAPI app
     app = FastAPI(
         title="Performance Problem Simulator",
