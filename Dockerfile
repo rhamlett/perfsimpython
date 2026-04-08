@@ -1,7 +1,7 @@
 # Performance Problem Simulator - Python Edition
 # Using Microsoft Container Registry (MCR) Oryx image
 
-FROM mcr.microsoft.com/oryx/python:3.12
+FROM mcr.microsoft.com/oryx/python:3.14
 
 # Add labels for container identification
 LABEL org.opencontainers.image.title="Performance Problem Simulator"
