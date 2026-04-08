@@ -226,8 +226,6 @@ def create_app() -> FastAPI:
         Configured FastAPI application instance.
     """
     # Configure Azure Monitor / Application Insights (if connection string is set).
-    # This MUST run before creating the FastAPI instance so that the
-    # FastAPIInstrumentor patches FastAPI.__init__ and captures all requests.
     _conn = os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING")
     if _conn:
         try:
@@ -252,6 +250,21 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+
+    # Explicitly instrument the FastAPI app instance for OpenTelemetry.
+    # configure_azure_monitor() sets up exporters and tries to patch
+    # FastAPI.__init__, but that indirect approach can silently fail.
+    # Calling instrument_app() directly guarantees the OpenTelemetry
+    # ASGI middleware is attached, so ALL request telemetry (including
+    # health probes) flows to Application Insights.
+    if _conn:
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("FastAPI OpenTelemetry instrumentation applied to app")
+        except Exception as exc:
+            logger.warning("Failed to instrument FastAPI app: %s", exc)
 
     # Register middleware (order matters - first registered = last executed)
     app.add_middleware(RequestLoggerMiddleware)
