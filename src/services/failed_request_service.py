@@ -145,6 +145,8 @@ class FailedRequestService:
             data={
                 "target_count": self._target_count,
             },
+            message_key="srv.failed.started",
+            message_params={"count": str(self._target_count)},
         )
 
         return FailedRequestResult(
@@ -193,6 +195,12 @@ class FailedRequestService:
             data={
                 "requests_sent": self._requests_sent,
                 "requests_completed": self._requests_completed,
+            },
+            message_key="srv.failed.stopped",
+            message_params={
+                "completed": str(self._requests_completed),
+                "total": str(self._requests_sent),
+                "failed": str(self._requests_completed),
             },
         )
 
@@ -280,6 +288,12 @@ class FailedRequestService:
                                     "duration_seconds": round(request_duration, 2),
                                     "status_code": response.status_code,
                                 },
+                                message_key="srv.failed.error",
+                                message_params={
+                                    "requestNum": str(request_num),
+                                    "statusCode": str(response.status_code),
+                                    "errorType": exception_type,
+                                },
                             )
 
                     except httpx.RequestError as e:
@@ -301,6 +315,12 @@ class FailedRequestService:
                                 "request_num": request_num,
                                 "exception_type": exception_type,
                                 "duration_seconds": round(request_duration, 2),
+                            },
+                            message_key="srv.failed.error",
+                            message_params={
+                                "requestNum": str(request_num),
+                                "statusCode": "500",
+                                "errorType": exception_type,
                             },
                         )
 
@@ -328,6 +348,11 @@ class FailedRequestService:
                 metadata={
                     "requests_completed": self._requests_completed,
                     "target_count": self._target_count,
+                },
+                message_key="srv.failed.completed",
+                message_params={
+                    "failed": str(self._requests_completed),
+                    "total": str(self._target_count),
                 },
             )
             event_log_service.log_event(

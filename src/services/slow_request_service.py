@@ -152,6 +152,12 @@ class SlowRequestService:
                 "max_requests": max_requests,
                 "delay_seconds": delay_seconds,
             },
+            message_key="srv.slow.started",
+            message_params={
+                "delay": str(delay_seconds),
+                "interval": str(interval_seconds),
+                "max": str(max_requests),
+            },
         )
 
         return True
@@ -212,6 +218,8 @@ class SlowRequestService:
                 simulation_id=sim_id,
                 message=f"Slow request generator stopped after {self._generated_count} requests",
                 data={"generated_count": self._generated_count},
+                message_key="srv.slow.completed",
+                message_params={"count": str(self._generated_count)},
             )
 
     def stop_slow_generator(self) -> bool:
@@ -248,6 +256,8 @@ class SlowRequestService:
             simulation_id=sim_id,
             message=f"Slow request generator stopped after {self._generated_count} requests",
             data={"generated_count": self._generated_count},
+            message_key="srv.slow.completed",
+            message_params={"count": str(self._generated_count)},
         )
 
         return True

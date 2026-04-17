@@ -293,6 +293,14 @@ class LoadTestService:
                     "error_percent": round(error_pct, 1),
                     "period_seconds": STATS_PERIOD_SECONDS,
                 },
+                message_key="srv.loadtest.stats",
+                message_params={
+                    "requests": str(self._period_requests),
+                    "avgMs": f"{avg_ms:.1f}",
+                    "maxMs": str(max_ms),
+                    "rps": f"{rps:.2f}",
+                    "errorRate": f"{error_pct:.1f}",
+                },
             )
 
             logger.info(message)

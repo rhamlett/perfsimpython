@@ -19,6 +19,7 @@
     },
     "ruff.format.args": [],
     "ruff.lint.args": [],
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.typeCheckingMode": "basic",
+    "python.terminal.useEnvFile": true
 }
 

@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import sys
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -191,11 +192,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Log startup event with hostname
     hostname = os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown"
+    python_version = sys.version.split()[0]
     event_log_service.log(
         event_type="info",
         simulation_type="system",
         message=f"Application started on {hostname}",
+        message_key="srv.server.started",
+        message_params={"pythonVersion": python_version, "pid": str(os.getpid())},
     )
+
+    # Run i18n translation at startup (before probe service and metrics)
+    from src.config.settings import get_settings
+    from src.services.translation_startup_service import run_startup_translation
+
+    await run_startup_translation(get_settings())
 
     # Start background metrics broadcast task
     global _metrics_broadcast_task
@@ -322,6 +332,13 @@ def create_app() -> FastAPI:
     # Mount static files if directory exists
     static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
+        # Add translated HTML middleware BEFORE static file mount
+        # so translated documents are served when available
+        from src.config.settings import get_settings
+        from src.middleware.translated_html import TranslatedHtmlMiddleware
+
+        app.add_middleware(TranslatedHtmlMiddleware, settings=get_settings(), static_dir=static_dir)
+
         app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
     return app

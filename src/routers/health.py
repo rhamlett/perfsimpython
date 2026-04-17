@@ -51,6 +51,7 @@ class ConfigResponse(BaseModel):
     idleTimeoutMinutes: int
     isIdle: bool
     secondsUntilIdle: int
+    uiLanguage: str
 
 
 @router.get("/config", response_model=ConfigResponse, tags=["health"])
@@ -78,6 +79,7 @@ async def get_config() -> ConfigResponse:
         idleTimeoutMinutes=settings.idle_timeout_minutes,
         isIdle=is_idle,
         secondsUntilIdle=idle_service.get_seconds_until_idle(),
+        uiLanguage=settings.ui_language,
     )
 
 

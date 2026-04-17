@@ -213,7 +213,7 @@ function initializeWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/metrics`;
     
-    updateConnectionStatus('connecting', 'Connecting...');
+    updateConnectionStatus('connecting', i18n('status.connecting'));
     
     try {
         state.wsConnection = new WebSocket(wsUrl);
@@ -226,11 +226,11 @@ function initializeWebSocket() {
             }
             
             state.intentionalDisconnect = false;
-            updateConnectionStatus('connected', 'Connected');
+            updateConnectionStatus('connected', i18n('status.connected'));
             
             // Log reconnection if we were previously connected
             if (wsDisconnectTime) {
-                logEvent('ws-connect', 'Reconnected to server');
+                logEvent('ws-connect', i18n('log.connection.reconnected'));
                 wsDisconnectTime = null;
                 // Mark that we need to check for process ID change on next metrics message
                 state.checkProcessIdOnNextMessage = true;
@@ -252,7 +252,7 @@ function initializeWebSocket() {
                 return;
             }
             
-            updateConnectionStatus('disconnected', 'Disconnected');
+            updateConnectionStatus('disconnected', i18n('status.disconnected'));
             
             // Record disconnect time if not already set
             if (!wsDisconnectTime) {
@@ -262,7 +262,7 @@ function initializeWebSocket() {
             // Only show disconnect message after 10 seconds
             if (!wsDisconnectMessageTimeout) {
                 wsDisconnectMessageTimeout = setTimeout(() => {
-                    logEvent('ws-disconnect', 'Connection lost. Attempting to reconnect...');
+                    logEvent('ws-disconnect', i18n('log.connection.lost'));
                     wsDisconnectMessageTimeout = null;
                 }, 10000);
             }
@@ -272,11 +272,11 @@ function initializeWebSocket() {
         
         state.wsConnection.onerror = (error) => {
             console.error('WebSocket error:', error);
-            updateConnectionStatus('disconnected', 'Connection error');
+            updateConnectionStatus('disconnected', i18n('status.disconnected'));
         };
     } catch (e) {
         console.error('Failed to create WebSocket:', e);
-        updateConnectionStatus('disconnected', 'Failed to connect');
+        updateConnectionStatus('disconnected', i18n('status.connectionFailed'));
         setTimeout(initializeWebSocket, CONFIG.reconnectDelayMs);
     }
 }
@@ -333,7 +333,7 @@ function handleMetricsUpdate(message) {
     // Check for restart: instance_id change is the reliable indicator
     if (currentInstanceId && previousInstanceId !== null && currentInstanceId !== previousInstanceId) {
         // Server instance changed - app was restarted
-        logEvent('restart', `APPLICATION RESTARTED! Server instance changed (${previousInstanceId} → ${currentInstanceId}). This may indicate an unexpected crash (OOM, StackOverflow, FailFast, etc.).`, { icon: '🔄' });
+        logEvent('restart', i18n('log.crash.restarted', { oldPid: previousInstanceId, newPid: currentInstanceId }), { icon: '🔄' });
     }
     
     // Clear the reconnection check flag
@@ -383,7 +383,7 @@ function handleMetricsUpdate(message) {
         if (idleData.is_idle && !wasIdle) {
             stopLatencyChartUpdater();
             updateIdleDisplay(true);
-            logEvent('warning', 'Application going idle, no health probes being sent.  There will be gaps in diagnostics and logs.');
+            logEvent('warning', i18n('log.idle.goingIdle'));
             // Intentionally disconnect WebSocket to prevent reconnect cycle flicker
             state.intentionalDisconnect = true;
             if (state.wsConnection) {
@@ -445,7 +445,7 @@ function handleMetricsUpdate(message) {
         
         // Use simulation_type for icon/color (e.g., 'cpu_stress'), fall back to event_type
         const logType = event.simulation_type || event.event_type || 'system';
-        const message = event.message || '';
+        const message = resolveEventMessage(event);
         const simulationId = event.simulation_id || null;
         
         // Log the event using the server's timestamp
@@ -1094,6 +1094,18 @@ function getEventIcon(type) {
 }
 
 /**
+ * Resolves the display message for a server event.
+ * If the event has a messageKey and i18n is loaded, returns the translated message.
+ * Otherwise falls back to the server-provided message.
+ */
+function resolveEventMessage(event) {
+    if (event.messageKey && I18N.loaded) {
+        return I18N.t(event.messageKey, event.messageParams || {});
+    }
+    return event.message || '';
+}
+
+/**
  * Get icon for server-side events.
  * Maps server event_type to appropriate emoji icon.
  */
@@ -1154,10 +1166,10 @@ async function triggerCpuStress() {
             // Server broadcasts detailed event via WebSocket, no need to log here
         } else if (response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.cpu.failed', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Request failed: ${err.message}`);
+        logEvent('error', i18n('log.cpu.requestFailed', { error: err.message }));
     }
 }
 
@@ -1169,10 +1181,10 @@ async function stopCpuStress() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.cpu.stopRequest', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Stop request failed: ${err.message}`);
+        logEvent('error', i18n('log.cpu.stopRequest', { error: err.message }));
     }
 }
 
@@ -1190,10 +1202,10 @@ async function allocateMemory() {
         
         if (!response.ok) {
             const error = await response.json();
-            logEvent('error', `Memory allocation failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.memory.failed', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Memory allocation request failed: ${err.message}`);
+        logEvent('error', i18n('log.memory.requestFailed', { error: err.message }));
     }
 }
 
@@ -1205,10 +1217,10 @@ async function releaseMemory() {
         
         if (!response.ok) {
             const error = await response.json();
-            logEvent('error', `Memory release failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.memory.releaseFailed', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Memory release request failed: ${err.message}`);
+        logEvent('error', i18n('log.memory.releaseRequestFailed', { error: err.message }));
     }
 }
 
@@ -1231,10 +1243,10 @@ async function triggerThreadBlock() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.thread.failed', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Request failed: ${err.message}`);
+        logEvent('error', i18n('log.thread.requestFailed', { error: err.message }));
     }
 }
 
@@ -1246,10 +1258,10 @@ async function stopThreadBlock() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.thread.stopRequest', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Stop request failed: ${err.message}`);
+        logEvent('error', i18n('log.thread.stopRequest', { error: err.message }));
     }
 }
 
@@ -1273,10 +1285,10 @@ async function startSlowRequests() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.slow.failedToStart', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Request failed: ${err.message}`);
+        logEvent('error', i18n('log.slow.requestFailed', { error: err.message }));
     }
 }
 
@@ -1288,10 +1300,10 @@ async function stopSlowRequests() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Stop failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.slow.stopRequest', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Stop request failed: ${err.message}`);
+        logEvent('error', i18n('log.slow.stopRequest', { error: err.message }));
     }
 }
 
@@ -1309,10 +1321,10 @@ async function generateFailedRequests() {
         
         if (!response.ok && response.status !== 405) {
             const error = await response.json();
-            logEvent('error', `Failed: ${error.detail || 'Unknown error'}`);
+            logEvent('error', i18n('log.failed.failedToStart', { error: error.detail || 'Unknown error' }));
         }
     } catch (err) {
-        logEvent('error', `Request failed: ${err.message}`);
+        logEvent('error', i18n('log.failed.requestFailed', { error: err.message }));
     }
 }
 
@@ -1321,12 +1333,13 @@ async function triggerCrash() {
     const crashType = document.getElementById('crashType').value;
     const crashTypeDisplay = crashType.charAt(0).toUpperCase() + crashType.slice(1);
     
-    if (!confirm(`This will CRASH the application using ${crashTypeDisplay}. Are you sure?`)) {
+    const confirmMsg = `${i18n('log.crash.confirmTitle')}\n${i18n('log.crash.confirmType', { type: crashTypeDisplay })}\n\n${i18n('log.crash.confirmBody')}`;
+    if (!confirm(confirmMsg)) {
         return;
     }
     
     try {
-        logEvent('crash', `CRASH: ${crashTypeDisplay} - Connection will be lost!`);
+        logEvent('crash', i18n('log.crash.triggering', { type: crashTypeDisplay }));
         const response = await fetch(`${CONFIG.apiBaseUrl}/crash`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1336,7 +1349,7 @@ async function triggerCrash() {
         // If we get here, the crash didn't happen (exception type returns error response)
         const result = await response.json();
         if (!response.ok) {
-            logEvent('error', `An unexpected error occurred`);
+            logEvent('error', i18n('log.crash.failed', { error: 'Unexpected error' }));
         }
     } catch (err) {
         // Connection lost is expected for successful crash
@@ -1395,7 +1408,7 @@ async function copyEventLogToClipboard() {
         await navigator.clipboard.writeText(logText);
         // Visual feedback - save original HTML and show "✓ Copied!"
         const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<span class="copy-text">✓ Copied!</span>';
+        btn.innerHTML = `<span class="copy-text">${i18n('eventLog.copied')}</span>`;
         btn.classList.add('copied');
         setTimeout(() => {
             btn.innerHTML = originalHTML;
@@ -1403,7 +1416,7 @@ async function copyEventLogToClipboard() {
         }, 2000);
     } catch (err) {
         console.error('Failed to copy event log:', err);
-        logEvent('error', 'Failed to copy event log to clipboard');
+        logEvent('error', i18n('eventLog.copyFailed'));
     }
 }
 
@@ -1422,6 +1435,10 @@ async function fetchConfig() {
             if (data.latencyProbeIntervalMs && data.latencyProbeIntervalMs >= 100) {
                 CONFIG.latencyProbeIntervalMs = data.latencyProbeIntervalMs;
                 console.log(`Health probe interval set to ${CONFIG.latencyProbeIntervalMs}ms from server config`);
+            }
+            // Store UI language for i18n initialization
+            if (data.uiLanguage) {
+                CONFIG.uiLanguage = data.uiLanguage;
             }
             // Update build time displays
             if (data.buildTime) {
@@ -1473,12 +1490,12 @@ function updateIdleDisplay(isIdle) {
     const indicator = document.getElementById('connectionIndicator');
     
     if (isIdle) {
-        if (connectionText) connectionText.textContent = 'Idle';
+        if (connectionText) connectionText.textContent = i18n('status.idle');
         if (indicator) indicator.className = 'indicator idle';
     } else {
         // Restore connected status if we have an active connection
         if (state.wsConnection && state.wsConnection.readyState === WebSocket.OPEN) {
-            if (connectionText) connectionText.textContent = 'Connected';
+            if (connectionText) connectionText.textContent = i18n('status.connected');
             if (indicator) indicator.className = 'indicator connected';
         }
     }
@@ -1576,12 +1593,12 @@ async function fetchAndDisplaySku() {
             const data = await response.json();
             const skuDisplay = document.getElementById('skuDisplay');
             if (skuDisplay) {
-                skuDisplay.textContent = `SKU: ${data.sku}`;
+                skuDisplay.textContent = `${i18n('sku.prefix')} ${data.sku}`;
             }
             if (data.is_azure && data.worker) {
-                return `Application is currently running on ${data.sku} SKU on worker ${data.worker}`;
+                return i18n('log.system.runningSku', { sku: data.sku, worker: data.worker });
             } else {
-                return 'Application is currently running on Local';
+                return i18n('log.system.runningLocal');
             }
         }
     } catch (error) {
@@ -1601,24 +1618,33 @@ document.addEventListener('DOMContentLoaded', async function() {
     initSimulationIdCopyHandlers();
     await fetchConfig();
     
+    // Initialize i18n with the server-configured language
+    await I18N.init(CONFIG.uiLanguage || 'en');
+    
     // Gather data before logging so we can force a consistent message order
     const wasIdle = await recordActivity('page_load');
     const skuMessage = await fetchAndDisplaySku();
     
     // Log all startup messages in consistent order (oldest at bottom, newest at top)
-    logEvent('warning', '⚖️ Deploy only in isolated, non-production environments. Licensed under MIT License.');
-    logEvent('warning', '⚖️ This software is provided "AS IS" without warranty. The author shall not be liable for any damages arising from use or misuse.');
+    logEvent('warning', i18n('log.warning.license'));
+    logEvent('warning', i18n('log.warning.disclaimer'));
     if (state.idleTimeoutMinutes > 0) {
-        logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: ${state.idleTimeoutMinutes}m)`);
+        logEvent('system', i18n('log.system.initialized', {
+            probeRate: CONFIG.latencyProbeIntervalMs,
+            idleTimeout: state.idleTimeoutMinutes
+        }));
     } else {
-        logEvent('system', `Dashboard initialized (probe rate: ${CONFIG.latencyProbeIntervalMs}ms, idle timeout: disabled)`);
+        logEvent('system', i18n('log.system.initialized', {
+            probeRate: CONFIG.latencyProbeIntervalMs,
+            idleTimeout: 'disabled'
+        }));
     }
     if (skuMessage) {
         logEvent('system', skuMessage);
     }
-    logEvent('system', 'Connected to metrics hub');
+    logEvent('system', i18n('log.connection.connected'));
     if (wasIdle) {
-        logEvent('system', 'App waking up from idle state. There may be gaps in diagnostics and logs.');
+        logEvent('system', i18n('log.idle.wakingUp'));
     }
     
     // Start async services (WebSocket, chart updater, etc.)

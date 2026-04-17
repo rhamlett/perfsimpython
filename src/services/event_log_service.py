@@ -23,6 +23,8 @@ class SimulationEvent:
         simulation_type: Type of simulation this event relates to.
         simulation_id: ID of the related simulation.
         message: Human-readable event description.
+        message_key: i18n key for client-side translation (optional).
+        message_params: Parameters for i18n placeholder substitution (optional).
         data: Additional event data.
     """
 
@@ -31,11 +33,13 @@ class SimulationEvent:
     simulation_type: str = ""
     simulation_id: str | None = None
     message: str = ""
+    message_key: str | None = None
+    message_params: dict | None = None
     data: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """Convert event to dictionary for JSON serialization."""
-        return {
+        result = {
             "timestamp": self.timestamp.isoformat(),
             "event_type": self.event_type,
             "simulation_type": self.simulation_type,
@@ -43,6 +47,11 @@ class SimulationEvent:
             "message": self.message,
             "data": self.data,
         }
+        if self.message_key is not None:
+            result["messageKey"] = self.message_key
+        if self.message_params is not None:
+            result["messageParams"] = self.message_params
+        return result
 
 
 class EventLogService:
@@ -74,6 +83,8 @@ class EventLogService:
         message: str,
         simulation_id: UUID | None = None,
         data: dict | None = None,
+        message_key: str | None = None,
+        message_params: dict | None = None,
     ) -> SimulationEvent:
         """Log a new simulation event.
 
@@ -83,6 +94,8 @@ class EventLogService:
             message: Human-readable event description.
             simulation_id: ID of the related simulation (optional).
             data: Additional event data (optional).
+            message_key: i18n key for client-side translation (optional).
+            message_params: Parameters for i18n placeholder substitution (optional).
 
         Returns:
             The created event.
@@ -92,6 +105,8 @@ class EventLogService:
             simulation_type=simulation_type,
             simulation_id=str(simulation_id) if simulation_id else None,
             message=message,
+            message_key=message_key,
+            message_params=message_params,
             data=data or {},
         )
         with self._lock:
@@ -115,6 +130,8 @@ class EventLogService:
         simulation_id: UUID,
         message: str,
         data: dict | None = None,
+        message_key: str | None = None,
+        message_params: dict | None = None,
     ) -> SimulationEvent:
         """Log a simulation start event.
 
@@ -123,11 +140,15 @@ class EventLogService:
             simulation_id: ID of the simulation.
             message: Description of the start event.
             data: Additional event data.
+            message_key: i18n key for client-side translation (optional).
+            message_params: Parameters for i18n placeholder substitution (optional).
 
         Returns:
             The created event.
         """
-        return self.log("start", simulation_type, message, simulation_id, data)
+        return self.log(
+            "start", simulation_type, message, simulation_id, data, message_key, message_params
+        )
 
     def log_stop(
         self,
@@ -135,6 +156,8 @@ class EventLogService:
         simulation_id: UUID | None = None,
         message: str = "Simulation stopped",
         data: dict | None = None,
+        message_key: str | None = None,
+        message_params: dict | None = None,
     ) -> SimulationEvent:
         """Log a simulation stop event.
 
@@ -143,11 +166,15 @@ class EventLogService:
             simulation_id: ID of the simulation (optional for stop-all).
             message: Description of the stop event.
             data: Additional event data.
+            message_key: i18n key for client-side translation (optional).
+            message_params: Parameters for i18n placeholder substitution (optional).
 
         Returns:
             The created event.
         """
-        return self.log("stop", simulation_type, message, simulation_id, data)
+        return self.log(
+            "stop", simulation_type, message, simulation_id, data, message_key, message_params
+        )
 
     def log_error(
         self,
@@ -155,6 +182,8 @@ class EventLogService:
         message: str,
         simulation_id: UUID | None = None,
         data: dict | None = None,
+        message_key: str | None = None,
+        message_params: dict | None = None,
     ) -> SimulationEvent:
         """Log a simulation error event.
 
@@ -163,11 +192,15 @@ class EventLogService:
             message: Error description.
             simulation_id: ID of the simulation (optional).
             data: Additional error data.
+            message_key: i18n key for client-side translation (optional).
+            message_params: Parameters for i18n placeholder substitution (optional).
 
         Returns:
             The created event.
         """
-        return self.log("error", simulation_type, message, simulation_id, data)
+        return self.log(
+            "error", simulation_type, message, simulation_id, data, message_key, message_params
+        )
 
     def log_event(
         self,
@@ -175,6 +208,8 @@ class EventLogService:
         message: str,
         metadata: dict | None = None,
         simulation_id: UUID | None = None,
+        message_key: str | None = None,
+        message_params: dict | None = None,
     ) -> SimulationEvent:
         """Convenience method to log a simple event with optional simulation context.
 
@@ -187,6 +222,8 @@ class EventLogService:
             message: Human-readable event description.
             metadata: Additional event data (optional).
             simulation_id: ID of the related simulation (optional).
+            message_key: i18n key for client-side translation (optional).
+            message_params: Parameters for i18n placeholder substitution (optional).
 
         Returns:
             The created event.
@@ -197,6 +234,8 @@ class EventLogService:
             message=message,
             simulation_id=simulation_id,
             data=metadata,
+            message_key=message_key,
+            message_params=message_params,
         )
 
     def get_recent(self, count: int = 50) -> list[SimulationEvent]:

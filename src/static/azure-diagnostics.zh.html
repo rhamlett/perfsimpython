@@ -1,0 +1,915 @@
+<!-- source_hash:b0389d80064d67e7 lang:zh generated:2026-04-17T17:42:34.151499+00:00 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure 诊断指南 - 性能问题模拟器</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        /* Azure Deployment Page Styles */
+        .doc-layout {
+            display: flex;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .doc-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .deploy-container {
+            max-width: 900px;
+        }
+
+        .doc-toc {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-sticky {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        .doc-toc-card {
+            background: var(--surface-color);
+            border-radius: var(--radius-md, 8px);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+            padding: 1.25rem;
+        }
+
+        .doc-toc-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .doc-toc ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .doc-toc-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .doc-toc-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm, 4px);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all var(--transition-fast, 0.15s ease);
+            border-left: 2px solid transparent;
+        }
+
+        .doc-toc-item a:hover {
+            background: rgba(0, 120, 212, 0.08);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .doc-toc-item a.active {
+            background: rgba(0, 120, 212, 0.12);
+            color: var(--primary-color);
+            font-weight: 500;
+            border-left-color: var(--primary-color);
+        }
+
+        .toc-icon {
+            font-size: 1rem;
+            width: 1.25rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .doc-toc-divider {
+            height: 1px;
+            background: var(--bg-color);
+            margin: 0.75rem 0;
+        }
+
+        .doc-toc-section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem 0.25rem;
+            opacity: 0.7;
+        }
+
+        .deploy-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .deploy-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        .deploy-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: var(--surface-color);
+            border-radius: var(--radius-md, 8px);
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+            scroll-margin-top: 80px;
+        }
+
+        .card h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h3 {
+            color: var(--color-text);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .card h4 {
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p, .card li {
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .card ul, .card ol {
+            margin: 0.5rem 0 1rem 1.5rem;
+        }
+
+        .card li {
+            margin-bottom: 0.25rem;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: var(--radius-md, 8px);
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        code {
+            background: rgba(0,0,0,0.05);
+            padding: 0.2rem 0.4rem;
+            border-radius: var(--radius-sm, 4px);
+            font-size: 0.9em;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            color: var(--color-danger);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid var(--bg-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .info-box {
+            background: rgba(0, 120, 212, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: var(--color-text);
+        }
+
+        .warning-box {
+            background: rgba(255, 185, 0, 0.15);
+            border-left: 4px solid var(--color-warning);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: var(--color-text);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .secrets-table td:first-child {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .doc-layout {
+                flex-direction: column;
+            }
+
+            .doc-toc {
+                width: 100%;
+                order: -1;
+            }
+
+            .doc-toc-sticky {
+                position: relative;
+                top: 0;
+                max-height: none;
+            }
+
+            .doc-toc ul {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .doc-toc-item {
+                margin-bottom: 0;
+            }
+
+            .doc-toc-item a {
+                padding: 0.375rem 0.625rem;
+                border-left: none;
+                border-radius: var(--radius-md, 8px);
+                background: var(--bg-color);
+            }
+
+            .doc-toc-divider,
+            .doc-toc-section-label {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .doc-layout {
+                padding: 1rem;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="page-doc">
+    <header class="header">
+        <div class="header-left">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <svg class="python-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="pythonBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#5A9FD4"/>
+                        <stop offset="100%" stop-color="#306998"/>
+                    </linearGradient>
+                    <linearGradient id="pythonYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD43B"/>
+                        <stop offset="100%" stop-color="#FFE873"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#pythonBlue)" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                <path fill="url(#pythonYellow)" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+            </svg>
+            <h1 class="header-title">性能问题模拟器</h1>
+        </div>
+        <div id="skuDisplay" class="sku-display">SKU：加载中......</div>
+        <div class="header-right">
+            <a href="/" class="btn-panel-toggle">🏠 仪表盘</a>
+        </div>
+    </header>
+
+    <!-- Sidebar Drawer Navigation -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-header">
+            <h2>
+                <svg class="python-logo-sm" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#5A9FD4" d="M54.9 0C26.6 0 28.3 12.3 28.3 12.3l.03 12.8h27.1v3.8H17.6S0 26.5 0 55.2s15.3 27.7 15.3 27.7h9.1V69.6s-.5-15.3 15-15.3h25.9s14.6.2 14.6-14.1V15.6S82.5 0 54.9 0zM40.3 9c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8z"/>
+                    <path fill="#FFD43B" d="M55.1 110c28.3 0 26.6-12.3 26.6-12.3l-.03-12.8H54.6v-3.8h37.9S110 83.5 110 54.8s-15.3-27.7-15.3-27.7h-9.1v13.3s.5 15.3-15 15.3H44.7s-14.6-.2-14.6 14.1v24.6S27.5 110 55.1 110zm14.6-9c-2.7 0-4.8-2.2-4.8-4.8s2.2-4.8 4.8-4.8c2.7 0 4.8 2.2 4.8 4.8s-2.2 4.8-4.8 4.8z"/>
+                </svg>
+                PerfSim Python            </h2>
+            <button id="sidebar-close" class="sidebar-close" aria-label="Close navigation">×</button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">应用</div>
+            <a href="/" class="sidebar-nav-item">
+                <span class="nav-icon">🎮</span>
+                <span class="nav-label">仪表盘<span class="nav-desc">实时指标与控制</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">文献资料</div>
+            <a href="/docs.html" class="sidebar-nav-item">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">文献资料<span class="nav-desc">API 参考资料与指南</span></span>
+            </a>
+            <a href="/azure-diagnostics.html" class="sidebar-nav-item active">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Azure 诊断<span class="nav-desc">诊断App Service问题</span></span>
+            </a>
+            <a href="/azure-load-testing.html" class="sidebar-nav-item">
+                <span class="nav-icon">📈</span>
+                <span class="nav-label">Azure 负载测试<span class="nav-desc">载荷测试终点及参数</span></span>
+            </a>
+            <a href="/azure-deployment.html" class="sidebar-nav-item">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-label">部署到 Azure<span class="nav-desc">GitHub 动作 + OIDC 设置</span></span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div id="githubSectionLabel" class="sidebar-section-label hidden-until-loaded">外部</div>
+            <a id="githubRepoLink" href="#" target="_blank" rel="noopener" class="sidebar-nav-item hidden-until-loaded">
+                <span class="nav-icon">🐙</span>
+                <span class="nav-label">GitHub 仓库<span class="nav-desc">源代码与问题</span></span>
+            </a>
+            <a href="/swagger" target="_blank" rel="noopener" class="sidebar-nav-item">
+                <span class="nav-icon swagger-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="12" fill="#85ea2d"/>
+                        <text x="12" y="16" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#173647">{;}</text>
+                    </svg>
+                </span>
+                <span class="nav-label">Swagger<span class="nav-desc">API 文档</span></span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">构建： <span id="sidebarBuildTime">--</span>
+        </div>
+    </aside>
+
+    <div class="doc-layout">
+        <div class="doc-main">
+        <main class="deploy-container">
+        <div class="deploy-header">
+            <h1>☁️ Azure 诊断指南</h1>
+            <p>使用内置工具和 Python 性能分析器诊断 Azure App Service 性能问题</p>
+        </div>
+
+        <section id="quick-reference" class="card">
+            <h2>快速参考：问题到工具</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>症状</th>
+                        <th>主要工具</th>
+                        <th>次级工具</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>高 CPU 使用率</td>
+                        <td>App Service 诊断→ CPU 分析</td>
+                        <td>py-spy，cProfile</td>
+                    </tr>
+                    <tr>
+                        <td>记忆增长</td>
+                        <td>诊断与解决→记忆分析</td>
+                        <td>特雷斯马洛克，memory_profiler</td>
+                    </tr>
+                    <tr>
+                        <td>反应缓慢</td>
+                        <td>Application Insights → 表演</td>
+                        <td>请求日志，依赖跟踪</td>
+                    </tr>
+                    <tr>
+                        <td>应用程序崩溃</td>
+                        <td>诊断并解决→集装箱崩溃</td>
+                        <td>应用日志，stderr 日志</td>
+                    </tr>
+                    <tr>
+                        <td>HTTP 500 个错误</td>
+                        <td>Application Insights → 失败</td>
+                        <td>日志分析， App Service 日志</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="diagnose-and-solve" class="card">
+            <h2>Azure 门户：诊断与解决问题</h2>
+            
+            <h3>访问该工具</h3>
+            <ol>
+                <li>打开Azure传送门中的App Service</li>
+                <li>咔哒 <strong>“诊断并解决问题”</strong> 在左侧菜单中</li>
+                <li>选择探测器类别或使用搜索</li>
+            </ol>
+            
+            <h3>性能关键探测器</h3>
+            <ul>
+                <li><strong>CPU 分析</strong> - 识别高 CPU 过程和模式</li>
+                <li><strong>记忆分析</strong> - 跟踪内存使用和潜在泄漏</li>
+                <li><strong>集装箱坠毁</strong> - 调查容器重启的原因</li>
+                <li><strong>HTTP 服务器错误</strong> - 分析5xx错误模式</li>
+                <li><strong>网页应用缓慢</strong> - 识别延迟原因</li>
+            </ul>
+        </section>
+
+        <section id="application-insights" class="card">
+            <h2>Application Insights</h2>
+            
+            <h3>Application Insights的建立</h3>
+            <ol>
+                <li><strong>创建 Application Insights 资源</strong> ——在 Azure 门户中，搜索 <em>Application Insights</em>，咔嗒 <strong>+ 创作</strong>，选择你的订阅、资源组、地区和名称，然后点击 <strong>审核 + 创建</strong>.</li>
+                <li><strong>拿连接线</strong> —— 资源创建后，打开它并前往 <strong>概述</strong> 侍从。复制 <strong>连接串</strong> 显示在页面顶部附近。</li>
+                <li><strong>把环境变量加到你的 App Service</strong> ——在 Azure 门户，导航到你的 App Service，前往 <strong>设置&gt;环境变量</strong>，并添加一个名为 的新应用设置 <code>APPLICATIONINSIGHTS_CONNECTION_STRING</code> 并将连接字符串作为值粘贴。咔哒 <strong>申请</strong> 并确认重启。</li>
+            </ol>
+
+            <h3>主要特征</h3>
+            <ul>
+                <li><strong>性能</strong> - 请求时长、依赖调用、响应时间</li>
+                <li><strong>故障</strong> - 异常跟踪、请求失败、错误率</li>
+                <li><strong>实时指标</strong> - 实时性能监控</li>
+                <li><strong>应用地图</strong> - 视觉依赖图</li>
+            </ul>
+
+            <div class="info-box">
+                <p><strong>💡 提示：</strong> 使用 Application Insights 中的事务搜索功能，从端到端追踪特定请求，包括所有依赖调用及其时序。</p>
+            </div>
+        </section>
+
+        <!-- Simulation ID Correlation Section -->
+        <section id="simulation-ids" class="card">
+            <h2>🔗 仿真ID相关性</h2>
+            <p>每个仿真实例都被赋予唯一 <strong>仿真ID</strong> （GUID）实现仪表盘界面与 Azure 诊断之间的端到端关联。</p>
+            
+            <h3>寻找仿真ID</h3>
+            <p><strong>在仪表盘中：</strong> 将鼠标悬停在事件日志中任何与仿真相关的消息（标记为 <span style="cursor:pointer; border-bottom:1px dotted currentColor;">虚线下划线</span>）以便在提示中查看完整的模拟ID。</p>
+            <p><strong>Azure：</strong> 相同的仿真ID也出现在服务器端日志中，并可在以下格式中找到：</p>
+            <ul>
+                <li><strong>Application Insights</strong> - 通过仿真ID搜索跟踪和自定义事件</li>
+                <li><strong>日志分析</strong> - 使用ID作为过滤器的查询日志</li>
+                <li><strong>容器/App Service 日志</strong>- 按 标准/标准GUID 过滤</li>
+            </ul>
+
+            <h3>相关性查询</h3>
+            <p>在Log Analytics中使用这些KQL查询，将仪表盘事件与服务器遥测数据关联起来：</p>
+            
+            <div class="warning-box">
+                <p><strong>⚠️ 表格名称差异：</strong> Log Analytics 工作区使用与经典 Application Insights不同的表和列名。如果你看到像这样的错误 <em>“'traces'这个名称并不指任何已知的表格”</em>，请使用下面的Log Analytics名称：</p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>经典 Application Insights</th>
+                        <th>日志分析工作区</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>traces</code></td><td><code>AppTraces</code></td></tr>
+                    <tr><td><code>customEvents</code></td><td><code>AppEvents</code></td></tr>
+                    <tr><td><code>requests</code></td><td><code>AppRequests</code></td></tr>
+                    <tr><td><code>exceptions</code></td><td><code>AppExceptions</code></td></tr>
+                    <tr><td><code>dependencies</code></td><td><code>AppDependencies</code></td></tr>
+                    <tr><td><code>message</code></td><td><code>Message</code></td></tr>
+                    <tr><td><code>timestamp</code></td><td><code>TimeGenerated</code></td></tr>
+                    <tr><td><code>customDimensions</code></td><td><code>Properties</code></td></tr>
+                </tbody>
+            </table>
+
+            <pre><code>// Find simulation start/end events by Simulation ID
+AppEvents
+| where Name in ("SimulationStarted", "SimulationEnded")
+| where Properties["SimulationId"] == "YOUR-SIMULATION-ID-HERE"
+| project TimeGenerated, Name, Properties
+| order by TimeGenerated asc</code></pre>
+
+            <pre><code>// Find all requests during a simulation time window
+let simStart = toscalar(
+    AppEvents 
+    | where Name == "SimulationStarted" and Properties["SimulationId"] == "YOUR-SIMULATION-ID-HERE"
+    | project TimeGenerated);
+let simEnd = toscalar(
+    AppEvents 
+    | where Name == "SimulationEnded" and Properties["SimulationId"] == "YOUR-SIMULATION-ID-HERE"
+    | project TimeGenerated);
+AppRequests
+| where TimeGenerated between (simStart .. simEnd)
+| order by TimeGenerated asc</code></pre>
+
+            <pre><code>// Find failed requests during a simulation
+let simId = "YOUR-SIMULATION-ID-HERE";
+let simEvents = AppEvents | where Properties["SimulationId"] == simId;
+let simStart = toscalar(simEvents | where Name == "SimulationStarted" | project TimeGenerated);
+let simEnd = toscalar(simEvents | where Name == "SimulationEnded" | project TimeGenerated);
+AppRequests
+| where TimeGenerated between (simStart .. simEnd)
+| where Success == false
+| project TimeGenerated, Name, ResultCode, DurationMs, Url
+| order by TimeGenerated asc</code></pre>
+
+            <h3>故障排除工作流程</h3>
+            <ol>
+                <li>从仪表盘开始模拟</li>
+                <li>将鼠标悬停在事件日志中的开始消息上，复制模拟ID</li>
+                <li>打开 Azure 门户→ Application Insights →日志（或日志分析）</li>
+                <li>使用仿真ID查询日志，查看所有相关的服务器端活动</li>
+                <li>将仪表盘事件与服务器指标的时间戳关联起来</li>
+            </ol>
+            <div class="info-box">
+                <p><strong>💡 提示：</strong> 当多个并发模拟运行或仪表盘被多个用户使用时，模拟ID有助于隔离遥测数据。</p>
+            </div>
+        </section>
+
+        <section id="kudu-console" class="card">
+            <h2>Kudu控制台（高级诊断）</h2>
+            
+            <h3>访问库杜</h3>
+            <ol>
+                <li>去你的 App Service</li>
+                <li>咔哒 <strong>高级工具</strong> → <strong>走</strong></li>
+                <li>或者导航到 <code>https://&lt;app-name&gt;.scm.azurewebsites.net</code></li>
+            </ol>
+
+            <h3>SSH 访问</h3>
+            <p>对于Linux的 App Service，可以使用 SSH 访问容器：</p>
+            <pre><code># From Kudu: Debug console → SSH
+# Or use Azure CLI:
+az webapp ssh --name &lt;app-name&gt; --resource-group &lt;rg&gt;</code></pre>
+
+            <h3>有用的SSH命令</h3>
+            <pre><code># View running processes
+top -bn1
+
+# Memory usage
+free -m
+
+# List Python processes
+ps aux | grep python
+
+# View application logs
+tail -f /home/LogFiles/docker/*.log</code></pre>
+        </section>
+
+        <section id="python-profiling" class="card">
+            <h2>Python 分析工具</h2>
+            
+            <h3>py-spy（采样分析器）</h3>
+            <p>最适合在生产环境中进行 CPU 配置文件而不修改代码：</p>
+            <pre><code># Install in SSH session
+pip install py-spy
+
+# Profile running process
+py-spy top --pid &lt;python-pid&gt;
+
+# Record flame graph
+py-spy record -o profile.svg --pid &lt;python-pid&gt;</code></pre>
+
+            <h3>cProfile（内置分析器）</h3>
+            <p>为具体端点添加画像：</p>
+            <pre><code>import cProfile
+import pstats
+import io
+
+@app.get("/api/debug/profile")
+async def profile_endpoint():
+    pr = cProfile.Profile()
+    pr.enable()
+    
+    # Your code here
+    
+    pr.disable()
+    s = io.StringIO()
+    pstats.Stats(pr, stream=s).sort_stats('cumulative')
+    return {"profile": s.getvalue()}</code></pre>
+
+            <h3>tracemalloc（记忆追踪）</h3>
+            <p>跟踪内存分配：</p>
+            <pre><code>import tracemalloc
+
+tracemalloc.start()
+
+# Your code here
+
+snapshot = tracemalloc.take_snapshot()
+top_stats = snapshot.statistics('lineno')
+
+for stat in top_stats[:10]:
+    print(stat)</code></pre>
+        </section>
+
+        <section id="log-analytics" class="card">
+            <h2>日志分析查询（KQL）</h2>
+            
+            <h3>常见查询</h3>
+            
+            <p><strong>寻找慢节奏请求：</strong></p>
+            <pre><code>requests
+| where duration > 5000
+| project timestamp, name, duration, resultCode
+| order by duration desc</code></pre>
+
+            <p><strong>按终点分类的错误率：</strong></p>
+            <pre><code>requests
+| where success == false
+| summarize count() by name
+| order by count_ desc</code></pre>
+
+            <p><strong>容器重启：</strong></p>
+            <pre><code>ContainerAppSystemLogs_CL
+| where Log_s contains "exited"
+| project TimeGenerated, Log_s</code></pre>
+        </section>
+
+        <section id="simulation-diagnostics" class="card">
+            <h2>仿真专用诊断</h2>
+            
+            <h3>CPU 压力</h3>
+            <p>当 CPU 压力活跃时，注意：</p>
+            <ul>
+                <li>指标→ CPU 百分比激增</li>
+                <li>诊断→ CPU 分析显示了工人流程</li>
+                <li>py-spi 显示计算函数中的紧密循环</li>
+            </ul>
+
+            <h3>记忆压力</h3>
+            <p>内存分配时：</p>
+            <ul>
+                <li>指标→内存百分比增加</li>
+                <li>诊断→记忆分析显示进程增长</li>
+                <li>tracemalloc显示了大量的bytearray分配</li>
+            </ul>
+
+            <h3>阻断行动</h3>
+            <p>阻挡激活时：</p>
+            <ul>
+                <li>应用洞察→性能显示响应时间有所提升</li>
+                <li>实时指标显示请求排队</li>
+                <li>进程统计中可见线程池耗尽</li>
+            </ul>
+
+            <h3>应用程序崩溃</h3>
+            <p>触发崩溃后：</p>
+            <ul>
+                <li>容器日志显示出口代码（137=OOM，134=SIGABRT）</li>
+                <li>App Insights → Failures 显示未处理的异常</li>
+                <li>活动日志显示容器重启事件</li>
+            </ul>
+        </section>
+    </main>
+        </div><!-- /.doc-main -->
+
+        <!-- Right Sidebar Table of Contents -->
+        <aside class="doc-toc">
+            <div class="doc-toc-sticky">
+                <nav class="doc-toc-card">
+                    <div class="doc-toc-title">本页内容</div>
+                    <ul>
+                        <li class="doc-toc-item">
+                            <a href="#quick-reference"><span class="toc-icon">📋</span>快速参考</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">Azure 工具</li>
+                        <li class="doc-toc-item">
+                            <a href="#diagnose-and-solve"><span class="toc-icon">🔍</span>诊断与解决</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#application-insights"><span class="toc-icon">📊</span>应用洞察</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#simulation-ids"><span class="toc-icon">🔗</span>仿真ID</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#kudu-console"><span class="toc-icon">🖥️</span>Kudu控制台</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">Python 工具</li>
+                        <li class="doc-toc-item">
+                            <a href="#python-profiling"><span class="toc-icon">🐍</span>Python 分析</a>
+                        </li>
+                        <li class="doc-toc-item">
+                            <a href="#log-analytics"><span class="toc-icon">📝</span>日志分析</a>
+                        </li>
+                        <li class="doc-toc-divider-item" aria-hidden="true"></li>
+                        <li class="doc-toc-section-item">模拟</li>
+                        <li class="doc-toc-item">
+                            <a href="#simulation-diagnostics"><span class="toc-icon">🎯</span>模拟技巧</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+    </div><!-- /.doc-layout -->
+
+    <footer class="footer">
+        <p>性能问题模拟器—— Azure App Service 诊断的教育工具</p>
+        <p id="pageFooterContent"></p>
+        <p>构建： <span id="buildTime">--</span></p>
+    </footer>
+
+    <script>
+        // Fetch and display custom page footer and build info
+        (async function() {
+            // Fetch app config for footer
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    const footerEl = document.getElementById('pageFooterContent');
+                    if (footerEl) {
+                        if (config.pageFooter && config.pageFooter.trim()) {
+                            footerEl.innerHTML = config.pageFooter;
+                        } else {
+                            footerEl.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch config', e);
+            }
+            // Fetch build info
+            try {
+                const response = await fetch('/api/health/build');
+                if (response.ok) {
+                    const data = await response.json();
+                    const buildTimeEl = document.getElementById('buildTime');
+                    if (buildTimeEl && data.buildTimestamp) {
+                        const buildDate = new Date(data.buildTimestamp);
+                        buildTimeEl.textContent = buildDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch build info', e);
+            }
+        })();
+    </script>
+
+    <script>
+        // Sidebar drawer toggle
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarDrawer = document.getElementById('sidebar-drawer');
+        const sidebarClose = document.getElementById('sidebar-close');
+
+        function openSidebar() {
+            hamburgerBtn.classList.remove('attention');
+            hamburgerBtn.classList.add('active');
+            sidebarOverlay.classList.add('active');
+            sidebarDrawer.classList.add('active');
+        }
+
+        function closeSidebar() {
+            hamburgerBtn.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            sidebarDrawer.classList.remove('active');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSidebar();
+        });
+
+        // Scroll spy for TOC highlighting
+        const tocLinks = document.querySelectorAll('.doc-toc-item a');
+        const sections = document.querySelectorAll('.card');
+
+        function updateActiveTocLink() {
+            const scrollPos = window.scrollY + 120;
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.offsetHeight;
+                const sectionId = section.getAttribute('id');
+                
+                if (sectionId && scrollPos >= sectionTop && scrollPos < sectionTop + sectionHeight) {
+                    tocLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + sectionId) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveTocLink);
+        updateActiveTocLink(); // Initial call
+
+        // Fetch and display SKU
+        async function fetchAzureSku() {
+            try {
+                const response = await fetch('/api/sku');
+                if (response.ok) {
+                    const data = await response.json();
+                    const skuElement = document.getElementById('skuDisplay');
+                    if (skuElement) {
+                        skuElement.textContent = `SKU: ${data.sku}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch Azure SKU', error);
+            }
+        }
+        fetchAzureSku();
+
+        // Fetch and display build info
+        async function fetchBuildInfo() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.buildTime) {
+                        const sidebarBuildTime = document.getElementById('sidebarBuildTime');
+                        if (sidebarBuildTime) sidebarBuildTime.textContent = data.buildTime;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch build info', error);
+            }
+        }
+        fetchBuildInfo();
+
+        // Fetch and display GitHub link (if configured)
+        async function fetchAndDisplayGithubLink() {
+            try {
+                const response = await fetch('/api/github-config');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_configured && data.github_url) {
+                        const githubLink = document.getElementById('githubRepoLink');
+                        const githubLabel = document.getElementById('githubSectionLabel');
+                        if (githubLink) {
+                            githubLink.href = data.github_url;
+                            githubLink.classList.remove('hidden-until-loaded');
+                        }
+                        if (githubLabel) {
+                            githubLabel.classList.remove('hidden-until-loaded');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch GitHub config:', error);
+            }
+        }
+        fetchAndDisplayGithubLink();
+    </script>
+</body>
+</html>

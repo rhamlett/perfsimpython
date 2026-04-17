@@ -154,6 +154,12 @@ class CpuStressService:
             simulation_id=simulation.id,
             message=f"CPU stress started: {workers} in-process workers at intensity {intensity}",
             data={"duration": duration_seconds, "intensity": intensity, "workers": workers},
+            message_key="srv.cpu.started",
+            message_params={
+                "intensity": str(intensity),
+                "threads": str(workers),
+                "duration": str(duration_seconds),
+            },
         )
 
         logger.info(
@@ -193,6 +199,7 @@ class CpuStressService:
             simulation_type="cpu_stress",
             simulation_id=simulation_id,
             message="CPU stress stopped",
+            message_key="srv.cpu.stopped",
         )
 
         logger.info("Stopped CPU stress simulation %s", simulation_id)
@@ -216,6 +223,7 @@ class CpuStressService:
                 simulation_type="cpu_stress",
                 message=f"Stopped all CPU stress simulations ({stopped_count} total)",
                 data={"stopped_count": stopped_count},
+                message_key="srv.cpu.stopped",
             )
 
         logger.info("Stopped %d CPU stress simulations", stopped_count)

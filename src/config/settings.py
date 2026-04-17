@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     github_repo_name: str | None = None  # Repository name (e.g., "perfsimpython")
     github_user_name: str | None = None  # GitHub user or organization name
 
+    # i18n / Translation configuration
+    ui_language: str = "en"  # ISO 639-1 language code (e.g., "es", "fr", "zh")
+    translator_api_key: str | None = None  # Azure Translator API key
+    translator_endpoint: str = "https://api.cognitive.microsofttranslator.com"
+    translator_region: str = "eastus"  # Azure region of Translator resource
+
     @property
     def health_probe_rate_clamped(self) -> int:
         """Get health probe rate clamped to minimum 100ms."""

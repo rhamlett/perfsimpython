@@ -109,6 +109,8 @@ class MemoryPressureService:
                     simulation_id=simulation.id,
                     message=f"Allocated {size_mb} MB (block {str(block_id)[:8]}...)",
                     data={"size_mb": size_mb, "block_id": str(block_id)},
+                    message_key="srv.memory.allocated",
+                    message_params={"size": str(size_mb), "chunks": "1"},
                 )
 
                 return block
@@ -154,6 +156,8 @@ class MemoryPressureService:
                 simulation_id=sim_id,
                 message=f"Released {block.size_mb} MB (block {str(block_id)[:8]}...)",
                 data={"size_mb": block.size_mb, "block_id": str(block_id)},
+                message_key="srv.memory.released",
+                message_params={"size": str(block.size_mb)},
             )
 
             return True
@@ -191,6 +195,8 @@ class MemoryPressureService:
                     event_type="memory_pressure",
                     message=f"Released {count} memory block(s), {total_mb} MB total",
                     metadata={"released_count": count, "total_mb": total_mb},
+                    message_key="srv.memory.released",
+                    message_params={"size": str(total_mb)},
                 )
 
             return count
