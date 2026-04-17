@@ -112,7 +112,7 @@
   "latency.criticalThreshold": "危急（>30多岁）",
   "activeSims.title": "主动模拟",
   "activeSims.none": "无主动模拟",
-  "eventLog.title": "活动日志",
+  "eventLog.title": "📜 活动日志",
   "eventLog.copy": "收到",
   "eventLog.copied": "✓ 复制！",
   "eventLog.copyFailed": "未能复制到剪贴板",

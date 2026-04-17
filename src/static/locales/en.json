@@ -122,7 +122,7 @@
   "activeSims.title": "Active Simulations",
   "activeSims.none": "No active simulations",
 
-  "eventLog.title": "Event Log",
+  "eventLog.title": "📜 Event Log",
   "eventLog.copy": "Copy",
   "eventLog.copied": "✓ Copied!",
   "eventLog.copyFailed": "Failed to copy to clipboard",

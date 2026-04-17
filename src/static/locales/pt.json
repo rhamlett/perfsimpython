@@ -112,7 +112,7 @@
   "latency.criticalThreshold": "Crítico (>30 anos)",
   "activeSims.title": "Simulações Ativas",
   "activeSims.none": "Nenhuma simulação ativa",
-  "eventLog.title": "Registro de Eventos",
+  "eventLog.title": "📜 Registro de Eventos",
   "eventLog.copy": "Cópia",
   "eventLog.copied": "✓ Copiado!",
   "eventLog.copyFailed": "Falhou em copiar para a prancheta",
