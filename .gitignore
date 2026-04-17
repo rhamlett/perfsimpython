@@ -87,6 +87,7 @@ celerybeat.pid
 # Local development
 local_settings.py
 *.local
+test_ws_*.py
 
 # Deployment artifacts
 deploy.zip
